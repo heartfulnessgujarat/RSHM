@@ -2,6 +2,6 @@ const CONFIG = {
 
     APP_NAME: "RSHM",
 
-    API_URL: ""
+    API_URL: "PASTE YOUR APPS SCRIPT WEB APP URL HERE"
 
 };
