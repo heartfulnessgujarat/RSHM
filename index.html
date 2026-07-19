@@ -1,27 +1,41 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>RSHM</title>
-
-    <link rel="stylesheet" href="css/style.css">
-
-</head>
-
 <body>
 
-    <div id="app">
+    <div id="login-screen">
 
         <h2>Reporting & Service Hub for HST Members</h2>
+
+        <hr>
+
+        <p><strong>Registered Email</strong></p>
+
+        <input
+            type="email"
+            id="txtEmail"
+            placeholder="Enter your registered email">
+
+        <br><br>
+
+        <p><strong>Password</strong></p>
+
+        <input
+            type="password"
+            id="txtPassword"
+            placeholder="Enter your password">
+
+        <br><br>
+
+        <button id="btnLogin">
+            Login
+        </button>
+
+        <br><br>
+
+        <a href="#" id="lnkForgotPassword">
+            Forgot Password?
+        </a>
 
     </div>
 
     <script src="js/config.js"></script>
 
 </body>
-
-</html>
