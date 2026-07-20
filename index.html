@@ -228,12 +228,18 @@ placeholder="Enter password">
 
 </div>
 
-<button class="login-btn">
+    <button
+class="login-btn"
+onclick="login(
+document.getElementById('email').value,
+document.getElementById('password').value
+);">
 
 Login
 
 </button>
 
+    
 <div class="forgot">
 
 <a href="#">
