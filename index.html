@@ -1,47 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Daily Work Reporting</title>
+
+<link rel="stylesheet" href="css/style.css">
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, Helvetica, sans-serif;
+}
+
+body{
+
+    background:#f4f5f7;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    height:100vh;
+
+}
+
+.login-card{
+
+    width:360px;
+    background:white;
+
+    border-radius:18px;
+
+    padding:30px;
+
+    box-shadow:0 8px 25px rgba(0,0,0,.10);
+
+}
+
+.logo{
+
+    text-align:center;
+    margin-bottom:20px;
+
+}
+
+.logo img{
+
+    width:130px;
+
+}
+
+.title{
+
+    text-align:center;
+
+    font-size:28px;
+
+    font-weight:bold;
+
+    color:#5e001f;
+
+    margin-bottom:30px;
+
+}
+
+.label{
+
+    font-size:14px;
+
+    margin-bottom:8px;
+
+    color:#555;
+
+}
+
+.input{
+
+    width:100%;
+
+    height:48px;
+
+    border:1px solid #d6d6d6;
+
+    border-radius:10px;
+
+    padding:12px;
+
+    margin-bottom:18px;
+
+    font-size:15px;
+
+}
+
+.password-box{
+
+    position:relative;
+
+}
+
+.eye{
+
+    position:absolute;
+
+    right:15px;
+
+    top:15px;
+
+    cursor:pointer;
+
+    color:#666;
+
+}
+
+.login-btn{
+
+    width:100%;
+
+    height:48px;
+
+    background:#7b1436;
+
+    color:white;
+
+    border:none;
+
+    border-radius:10px;
+
+    font-size:17px;
+
+    cursor:pointer;
+
+    margin-top:8px;
+
+}
+
+.login-btn:hover{
+
+    background:#5d0f28;
+
+}
+
+.forgot{
+
+    text-align:center;
+
+    margin-top:20px;
+
+}
+
+.forgot a{
+
+    color:#7b1436;
+
+    text-decoration:none;
+
+    font-size:14px;
+
+}
+
+.forgot a:hover{
+
+    text-decoration:underline;
+
+}
+
+</style>
+
+</head>
+
 <body>
 
-    <div id="login-screen">
+<div class="login-card">
 
-        <h2>Reporting & Service Hub for HST Members</h2>
+<div class="logo">
 
-        <hr>
+<!-- Replace this image later with official OneHR logo -->
 
-        <p><strong>Registered Email</strong></p>
+<img src="assets/images/onehr-logo.png">
 
-        <input
-            type="email"
-            id="txtEmail"
-            placeholder="Enter your registered email">
+</div>
 
-        <br><br>
+<div class="title">
 
-        <p><strong>Password</strong></p>
+Daily Work Reporting
 
-        <input
-            type="password"
-            id="txtPassword"
-            placeholder="Enter your password">
+</div>
 
-        <br><br>
+<div class="label">
 
-        <button id="btnLogin">
-            Login
-        </button>
+Registered Email
 
-        <br><br>
+</div>
 
-        <a href="#" id="lnkForgotPassword">
-            Forgot Password?
-        </a>
+<input
+type="email"
+id="email"
+class="input"
+placeholder="Enter your registered email">
 
-    </div>
+<div class="label">
 
+Password
 
+</div>
 
-    <script src="js/config.js"></script>
+<div class="password-box">
+
+<input
+type="password"
+id="password"
+class="input"
+maxlength="6"
+placeholder="Enter password">
+
+<span class="eye">
+
+👁
+
+</span>
+
+</div>
+
+<button class="login-btn">
+
+Login
+
+</button>
+
+<div class="forgot">
+
+<a href="#">
+
+Forgot Password?
+
+</a>
+
+</div>
+
+</div>
+
+<script src="js/config.js"></script>
 <script src="js/api.js"></script>
 <script src="js/app.js"></script>
 
-    
-
 </body>
+
+</html>
