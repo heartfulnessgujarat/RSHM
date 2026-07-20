@@ -1,20 +1,35 @@
-/**
- * Calls the RSHM Backend API.
- */
-async function callApi() {
-
-    console.log("Calling RSHM Backend...");
+async function login(email, password) {
 
     try {
 
-        const response = await fetch(CONFIG.API_URL);
+        const response = await fetch(CONFIG.API_URL, {
 
-        const text = await response.text();
+            method: "POST",
 
-        console.log(text);
+            headers: {
+
+                "Content-Type": "application/json"
+
+            },
+
+            body: JSON.stringify({
+
+                action: "login",
+
+                email_emp: email,
+
+                current_password: password
+
+            })
+
+        });
+
+        const result = await response.json();
+
+        console.log(result);
 
     }
-    catch (error) {
+    catch(error){
 
         console.error(error);
 
