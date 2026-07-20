@@ -139,26 +139,33 @@
       return result.data;
     }
 
-    async function executeLogin() {
+async function executeLogin() {
       const empCode = document.getElementById('login-emp-code').value.trim();
       const password = document.getElementById('login-password').value;
       if(!empCode || !password) return showToast("Please input credentials explicitly.");
 
       try {
+        // 1. Authenticate immediately using Firebase cache
         currentUser = await callBackend("login", { empCode, password });
         document.getElementById('dash-user-name').innerText = currentUser.employee_name;
         document.getElementById('dash-user-code').innerText = `ID: ${currentUser.emp_code}`;
         
-        // Contextually resolve date inputs matching business profile limitations (max 3 days window constraint)
+        // 2. Fetch configurations and active project vectors dynamically in 1 single ultra-fast request
+        const metaData = await callBackend("getAppMeta", {});
+        const config = metaData.config || { edit_window_days: 3 };
+        const projects = metaData.projects || [];
+
+        // 3. Apply date restrictions based on configuration values
         const dateInput = document.getElementById('work-date');
         const today = new Date();
         dateInput.max = today.toISOString().split('T')[0];
+        
         const minPast = new Date();
-        minPast.setDate(today.getDate() - 3);
+        const fallbackDays = parseInt(config.edit_window_days) || 3;
+        minPast.setDate(today.getDate() - fallbackDays);
         dateInput.min = minPast.toISOString().split('T')[0];
 
-        // Hydrate project elements
-        const projects = await callBackend("getProjects", {});
+        // 4. Populate project dropdown options
         const dropdown = document.getElementById('work-project');
         dropdown.innerHTML = '<option value="">-- Choose Project --</option>';
         projects.forEach(p => {
@@ -170,7 +177,6 @@
         showToast(e.message);
       }
     }
-
     async function executeWorkSubmit(e) {
       e.preventDefault();
       const btn = document.getElementById('btn-save-log');
