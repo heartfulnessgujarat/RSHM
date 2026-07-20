@@ -1,4 +1,8 @@
 
+
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -110,8 +114,12 @@
     <button onclick="switchView('view-dashboard')" class="btn-secondary">Return to Dashboard</button>
   </div>
 
+ 
   <script>
-    // DEFINE THE DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
+
+
+
+// DEFINE THE DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
     const BACKEND_API = "https://script.google.com/macros/s/AKfycbxX86VBRJfbDfPk2_HFFCpLv6fMn7To7GX_WgQWmvd7m2_bgr2cXa7nsgc92VdxxmMXCA/exec";
 
     let currentUser = null;
@@ -142,23 +150,20 @@
       return result.data;
     }
 
-async function executeLogin() {
+    async function executeLogin() {
       const empCode = document.getElementById('login-emp-code').value.trim();
       const password = document.getElementById('login-password').value;
       if(!empCode || !password) return showToast("Please input credentials explicitly.");
 
       try {
-        // 1. Authenticate immediately using Firebase cache
         currentUser = await callBackend("login", { empCode, password });
         document.getElementById('dash-user-name').innerText = currentUser.employee_name;
         document.getElementById('dash-user-code').innerText = `ID: ${currentUser.emp_code}`;
         
-        // 2. Fetch configurations and active project vectors dynamically in 1 single ultra-fast request
         const metaData = await callBackend("getAppMeta", {});
         const config = metaData.config || { edit_window_days: 3 };
         const projects = metaData.projects || [];
 
-        // 3. Apply date restrictions based on configuration values
         const dateInput = document.getElementById('work-date');
         const today = new Date();
         dateInput.max = today.toISOString().split('T')[0];
@@ -168,7 +173,6 @@ async function executeLogin() {
         minPast.setDate(today.getDate() - fallbackDays);
         dateInput.min = minPast.toISOString().split('T')[0];
 
-        // 4. Populate project dropdown options
         const dropdown = document.getElementById('work-project');
         dropdown.innerHTML = '<option value="">-- Choose Project --</option>';
         projects.forEach(p => {
@@ -180,8 +184,30 @@ async function executeLogin() {
         showToast(e.message);
       }
     }
+
+    // Live Interlocking Validation Engine
+    function validateTimeInputs() {
+      const fromTime = document.getElementById('work-from').value;
+      const toTime = document.getElementById('work-to').value;
+      
+      if (fromTime && toTime) {
+        if (toTime <= fromTime) {
+          showToast("End Time must be later than Start Time.");
+          document.getElementById('work-to').value = ""; // Clear incorrect entry instantly
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // Attach Event Listeners to intercept errors instantly
+    document.getElementById('work-from').addEventListener('change', validateTimeInputs);
+    document.getElementById('work-to').addEventListener('change', validateTimeInputs);
+
     async function executeWorkSubmit(e) {
       e.preventDefault();
+      if (!validateTimeInputs()) return;
+
       const btn = document.getElementById('btn-save-log');
       btn.disabled = true;
 
@@ -233,6 +259,11 @@ async function executeLogin() {
       document.getElementById('login-password').value = "";
       switchView('view-login');
     }
+
+
+
+
+    
   </script>
 </body>
 </html>
