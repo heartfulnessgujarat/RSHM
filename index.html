@@ -1,1 +1,229 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSHM Portal</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --bg-light: #f3f4f6;
+      --text-dark: #1f2937;
+      --card-bg: #ffffff;
+      --error: #dc2626;
+      --success: #16a34a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg-light); color: var(--text-dark); padding: 10px; max-width: 480px; margin: 0 auto; }
+    .hidden { display: none !important; }
+    .card { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 15px; }
+    h2 { margin-bottom: 15px; font-size: 1.4rem; text-align: center; color: var(--primary); }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; }
+    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
+    button { width: 100%; padding: 14px; border: none; border-radius: 8px; background: var(--primary); color: white; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+    button:active { background: #1d4ed8; }
+    .btn-secondary { background: #6b7280; margin-top: 8px; }
+    .btn-secondary:active { background: #4b5563; }
+    .toast { padding: 12px; border-radius: 8px; color: white; text-align: center; margin-bottom: 15px; font-weight: 500; font-size: 0.9.5rem; }
+    .toast-error { background: var(--error); }
+    .toast-success { background: var(--success); }
+    .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .item-row { border-bottom: 1px solid #e5e7eb; padding: 10px 0; font-size: 0.9rem; }
+    .flex-space { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+
+  <div id="toast-container" class="hidden"></div>
+
+  <!-- VIEW 1: AUTHENTICATION CONTAINER -->
+  <div id="view-login" class="card">
+    <h2>RSHM Login</h2>
+    <div class="form-group">
+      <label>Employee Code</label>
+      <input type="text" id="login-emp-code" placeholder="Enter Emp Code">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="Enter Password">
+    </div>
+    <button onclick="executeLogin()">Access System</button>
+  </div>
+
+  <!-- VIEW 2: OPERATIONAL DASHBOARD -->
+  <div id="view-dashboard" class="hidden">
+    <div class="nav-header">
+      <div>
+        <h4 id="dash-user-name">Welcome User</h4>
+        <small id="dash-user-code" style="color:#6b7280;"></small>
+      </div>
+      <button onclick="executeLogout()" style="width:auto; padding: 6px 12px; font-size:0.85rem;" class="btn-secondary">Logout</button>
+    </div>
+    
+    <div class="card">
+      <h3 style="margin-bottom: 12px; font-size: 1.1rem;">Quick Actions</h3>
+      <button onclick="switchView('view-work-entry')">Daily Work Entry</button>
+      <button onclick="loadTimesheetHistory()" class="btn-secondary">My Timesheet History</button>
+    </div>
+  </div>
+
+  <!-- VIEW 3: DAILY WORK ENTRY FORM -->
+  <div id="view-work-entry" class="hidden card">
+    <h2>Daily Work Entry</h2>
+    <form id="work-form" onsubmit="executeWorkSubmit(event)">
+      <div class="form-group">
+        <label>Work Date</label>
+        <input type="date" id="work-date" required>
+      </div>
+      <div class="form-group">
+        <label>From Time</label>
+        <input type="time" id="work-from" required>
+      </div>
+      <div class="form-group">
+        <label>To Time</label>
+        <input type="time" id="work-to" required>
+      </div>
+      <div class="form-group">
+        <label>Project Matrix</label>
+        <select id="work-project" required>
+          <option value="">-- Choose Project --</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Activity Summary (Max 500 characters)</label>
+        <textarea id="work-desc" rows="4" maxlength="500" placeholder="Describe the structural work accomplished..." required></textarea>
+      </div>
+      <button type="submit" id="btn-save-log">Submit Work Log</button>
+      <button type="button" onclick="switchView('view-dashboard')" class="btn-secondary">Cancel</button>
+    </form>
+  </div>
+
+  <!-- VIEW 4: USER TIMESHEET VIEW -->
+  <div id="view-timesheet" class="hidden card">
+    <h2>My Log History</h2>
+    <div id="timesheet-list" style="margin-bottom: 15px; max-height: 350px; overflow-y: auto;"></div>
+    <button onclick="switchView('view-dashboard')" class="btn-secondary">Return to Dashboard</button>
+  </div>
+
+  <script>
+    // DEFINE THE DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
+    const BACKEND_API = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec";
+
+    let currentUser = null;
+
+    function showToast(msg, isError = true) {
+      const container = document.getElementById('toast-container');
+      container.className = `toast ${isError ? 'toast-error' : 'toast-success'}`;
+      container.innerText = msg;
+      container.classList.remove('hidden');
+      window.scrollTo(0, 0);
+      setTimeout(() => container.classList.add('hidden'), 4000);
+    }
+
+    function switchView(viewId) {
+      ['view-login', 'view-dashboard', 'view-work-entry', 'view-timesheet'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+      document.getElementById(viewId).classList.remove('hidden');
+    }
+
+    async function callBackend(action, payload) {
+      const response = await fetch(BACKEND_API, {
+        method: "POST",
+        body: JSON.stringify({ action, payload })
+      });
+      const result = await response.json();
+      if (!result.success) throw new Error(result.error);
+      return result.data;
+    }
+
+    async function executeLogin() {
+      const empCode = document.getElementById('login-emp-code').value.trim();
+      const password = document.getElementById('login-password').value;
+      if(!empCode || !password) return showToast("Please input credentials explicitly.");
+
+      try {
+        currentUser = await callBackend("login", { empCode, password });
+        document.getElementById('dash-user-name').innerText = currentUser.employee_name;
+        document.getElementById('dash-user-code').innerText = `ID: ${currentUser.emp_code}`;
+        
+        // Contextually resolve date inputs matching business profile limitations (max 3 days window constraint)
+        const dateInput = document.getElementById('work-date');
+        const today = new Date();
+        dateInput.max = today.toISOString().split('T')[0];
+        const minPast = new Date();
+        minPast.setDate(today.getDate() - 3);
+        dateInput.min = minPast.toISOString().split('T')[0];
+
+        // Hydrate project elements
+        const projects = await callBackend("getProjects", {});
+        const dropdown = document.getElementById('work-project');
+        dropdown.innerHTML = '<option value="">-- Choose Project --</option>';
+        projects.forEach(p => {
+          dropdown.innerHTML += `<option value="${p.project_id}">${p.project_name}</option>`;
+        });
+
+        switchView('view-dashboard');
+      } catch(e) {
+        showToast(e.message);
+      }
+    }
+
+    async function executeWorkSubmit(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btn-save-log');
+      btn.disabled = true;
+
+      const pSelect = document.getElementById('work-project');
+      const payload = {
+        employee_uid: currentUser.employee_uid,
+        work_date: document.getElementById('work-date').value,
+        from_time: document.getElementById('work-from').value,
+        to_time: document.getElementById('work-to').value,
+        project_id: pSelect.value,
+        project_name: pSelect.options[pSelect.selectedIndex].text,
+        work_description: document.getElementById('work-desc').value.trim()
+      };
+
+      try {
+        await callBackend("submitWorkLog", payload);
+        showToast("Work entry saved successfully.", false);
+        document.getElementById('work-form').reset();
+        switchView('view-dashboard');
+      } catch(err) {
+        showToast(err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function loadTimesheetHistory() {
+      try {
+        const records = await callBackend("getTimesheet", { employee_uid: currentUser.employee_uid });
+        const listContainer = document.getElementById('timesheet-list');
+        listContainer.innerHTML = records.length === 0 ? '<p style="text-align:center;color:#6b7280;">No entries cataloged.</p>' : '';
+        
+        records.forEach(r => {
+          listContainer.innerHTML += `
+            <div class="item-row">
+              <div class="flex-space"><strong>${r.work_date}</strong><span>${r.duration} hrs</span></div>
+              <div class="flex-space"><span style="color:var(--primary); font-weight:500;">${r.project_name}</span><small style="color:#9ca3af;">${r.from_time} - ${r.to_time}</small></div>
+              <p style="color:#4b5563; font-size:0.85rem; margin-top:2px;">${r.work_description}</p>
+            </div>`;
+        });
+        switchView('view-timesheet');
+      } catch(e) {
+        showToast(e.message);
+      }
+    }
+
+    function executeLogout() {
+      currentUser = null;
+      document.getElementById('login-password').value = "";
+      switchView('view-login');
+    }
+  </script>
+</body>
+</html>
