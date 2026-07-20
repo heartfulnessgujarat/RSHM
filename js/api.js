@@ -2,28 +2,30 @@ async function login(email, password) {
 
     try {
 
-        const response = await fetch(CONFIG.API_URL, {
 
-            method: "POST",
 
-            headers: {
 
-                "Content-Type": "application/json"
+        
+      const response = await fetch(CONFIG.API_URL, {
 
-            },
+    method: "POST",
 
-            body: JSON.stringify({
+    body: JSON.stringify({
 
-                action: "login",
+        action: "login",
 
-                email_emp: email,
+        email_emp: email,
 
-                current_password: password
+        current_password: password
 
-            })
+    })
 
-        });
+});
 
+
+
+
+        
         const result = await response.json();
 
         console.log(result);
