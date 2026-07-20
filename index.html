@@ -195,15 +195,15 @@ Daily Work Reporting
 
 <div class="label">
 
-Registered Email
+Employee Code
 
 </div>
 
 <input
-type="email"
-id="email"
+type="text"
+id="emp_code"
 class="input"
-placeholder="Enter your registered email">
+placeholder="Enter your Employee Code">
 
 <div class="label">
 
@@ -230,10 +230,11 @@ placeholder="Enter password">
 
     <button
 class="login-btn"
+
 onclick="login(
-document.getElementById('email').value,
+document.getElementById('emp_code').value.trim().toUpperCase(),
 document.getElementById('password').value
-);">
+);" >
 
 Login
 
