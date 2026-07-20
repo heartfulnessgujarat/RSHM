@@ -1,10 +1,6 @@
 async function login(email, password) {
 
     try {
-
-
-
-
         
       const response = await fetch(CONFIG.API_URL, {
 
@@ -21,9 +17,6 @@ async function login(email, password) {
     })
 
 });
-
-
-
 
         
         const result = await response.json();
