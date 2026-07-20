@@ -6,15 +6,21 @@ async function login(email, password) {
 
     method: "POST",
 
-    body: JSON.stringify({
 
-        action: "login",
+          
+  body: JSON.stringify({
 
-        email_emp: email,
+    action: "login",
 
-        current_password: password
+    emp_code: email,
 
-    })
+    current_password: password
+
+})
+
+
+
+          
 
 });
 
