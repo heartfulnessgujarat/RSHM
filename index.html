@@ -24,7 +24,6 @@
     label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; }
     input, select, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
     
-    /* Fixed Password Wrapper */
     .password-wrapper { position: relative; display: block; width: 100%; }
     .password-wrapper input { padding-right: 45px; -webkit-text-security: disc; text-security: disc; width: 100%; }
     .password-wrapper input.visible { -webkit-text-security: none; text-security: none; }
@@ -49,13 +48,14 @@
     button:active { background: #1d4ed8; }
     .btn-secondary { background: #6b7280; margin-top: 8px; }
     .btn-secondary:active { background: #4b5563; }
+    .btn-sm { width: auto; padding: 5px 10px; font-size: 0.8rem; border-radius: 6px; }
     .btn-link { background: none; color: var(--primary); border: none; text-decoration: underline; font-size: 0.85rem; padding: 4px; cursor: pointer; text-align: center; width: 100%; margin-top: 6px; }
     .toast { padding: 12px; border-radius: 8px; color: white; text-align: center; margin-bottom: 15px; font-weight: 500; font-size: 0.95rem; }
     .toast-error { background: var(--error); }
     .toast-success { background: var(--success); }
     .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
     .item-row { border-bottom: 1px solid #e5e7eb; padding: 10px 0; font-size: 0.9rem; }
-    .flex-space { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .flex-space { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
   </style>
 </head>
 <body>
@@ -122,7 +122,6 @@
     <button onclick="executeChangePassword()">Submit New Password</button>
     <button type="button" onclick="executeResetPassword()" class="btn-secondary">Reset Password</button>
 
-    <!-- Guiding Sentence -->
     <p style="font-size: 0.82rem; color: #4b5563; text-align: center; margin-top: 10px; line-height: 1.4;">
       You will receive a new password in your registered email 
       <strong id="display-user-email" style="color: var(--primary);">(enter Emp Code above)</strong> 
@@ -170,15 +169,16 @@
     
     <div class="card">
       <h3 style="margin-bottom: 12px; font-size: 1.1rem;">Quick Actions</h3>
-      <button onclick="switchView('view-work-entry')">Daily Work Entry</button>
+      <button onclick="openNewWorkLogForm()">Daily Work Entry</button>
       <button onclick="loadTimesheetHistory()" class="btn-secondary">My Timesheet History</button>
     </div>
   </div>
 
   <!-- VIEW 3: DAILY WORK ENTRY FORM -->
   <div id="view-work-entry" class="hidden card">
-    <h2>Daily Work Entry</h2>
+    <h2 id="work-entry-title">Daily Work Entry</h2>
     <form id="work-form" onsubmit="executeWorkSubmit(event)">
+      <input type="hidden" id="editing-worklog-id" value="">
       <div class="form-group">
         <label>Work Date</label>
         <input type="date" id="work-date" required>
@@ -217,6 +217,10 @@
     const BACKEND_API = "https://script.google.com/macros/s/AKfycbxX86VBRJfbDfPk2_HFFCpLv6fMn7To7GX_WgQWmvd7m2_bgr2cXa7nsgc92VdxxmMXCA/exec";
 
     let currentUser = null;
+    let currentConfig = { edit_window_days: 3 };
+    let cachedProjects = [];
+    let cachedTimesheet = [];
+    let resendTimer = null;
 
     async function callBackend(action, payload) {
       const response = await fetch(BACKEND_API, {
@@ -264,7 +268,6 @@
       input.classList.toggle('visible');
     }
 
-    // First layer: Format Validation
     function isValidEmailFormat(email) {
       const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       return re.test(email);
@@ -301,152 +304,12 @@
       try {
         currentUser = await callBackend("login", { empCode, password });
 
-        // If email is missing, redirect to Registration Screen
         if (currentUser.requires_email_registration) {
           switchView('view-register-email');
           showToast("Please register your email address to proceed.", false);
           return;
         }
 
-        // Email exists, proceed to Dashboard
-        await openDashboard();
-      } catch(e) {
-        showToast(e.message);
-      }
-    }
-
-    async function openDashboard() {
-      document.getElementById('dash-user-name').innerText = currentUser.employee_name;
-      document.getElementById('dash-user-code').innerText = `ID: ${currentUser.emp_code}`;
-      
-      const metaData = await callBackend("getAppMeta", {});
-      const config = metaData.config || { edit_window_days: 3 };
-      const projects = metaData.projects || [];
-
-      const dateInput = document.getElementById('work-date');
-      const today = new Date();
-      dateInput.max = today.toISOString().split('T')[0];
-      
-      const minPast = new Date();
-      const fallbackDays = parseInt(config.edit_window_days) || 3;
-      minPast.setDate(today.getDate() - fallbackDays);
-      dateInput.min = minPast.toISOString().split('T')[0];
-
-      const dropdown = document.getElementById('work-project');
-      dropdown.innerHTML = '<option value="">-- Choose Project --</option>';
-      projects.forEach(p => {
-        dropdown.innerHTML += `<option value="${p.project_id}">${p.project_name}</option>`;
-      });
-
-      switchView('view-dashboard');
-    }
-
-function handleSendCodeClick() {
-  const emailInput = document.getElementById("register-email-input").value.trim();
-  
-  // Standard Email Regex
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  
-  if (!emailInput || !emailRegex.test(emailInput)) {
-    showError("Please enter a valid email address.");
-    return;
-  }
-
-  // Proceed with sending request...
-}
-
-   
-let resendTimer = null;
-
-async function executeSendVerificationCode() {
-  const email = document.getElementById('reg-user-email').value.trim();
-  if (!email) return showToast("Please enter an email address.");
-
-  // First Layer: Email Format Validation
-  if (!isValidEmailFormat(email)) {
-    return showToast("Please enter a valid email address (e.g. name@domain.com).");
-  }
-
-  const btn = document.getElementById('btn-send-vcode');
-  btn.disabled = true;
-  btn.innerText = "Sending Code...";
-
-  try {
-    const msg = await callBackend("sendVerificationCode", { empCode: currentUser.emp_code, email });
-    showToast(msg, false);
-    
-    // Reveal the verification code input step
-    const vcodeSection = document.getElementById('vcode-step-section');
-    if (vcodeSection) vcodeSection.classList.remove('hidden');
-
-    // Start the 10-minute countdown (10 mins * 60 secs = 600 seconds)
-    startResendCountdown(600);
-
-  } catch(e) {
-    showToast(e.message);
-    btn.innerText = "Send Verification Code";
-    btn.disabled = false;
-  }
-}
-
-/**
- * Helper function to manage the 10-minute (600s) countdown on the resend button
- */
-function startResendCountdown(durationInSeconds) {
-  const btn = document.getElementById('btn-send-vcode');
-  if (!btn) return;
-
-  btn.disabled = true;
-  btn.style.cursor = "not-allowed";
-  btn.style.opacity = "0.6";
-
-  let remainingTime = durationInSeconds;
-
-  if (resendTimer) clearInterval(resendTimer);
-
-  resendTimer = setInterval(() => {
-    const minutes = Math.floor(remainingTime / 60);
-    const seconds = remainingTime % 60;
-    
-    // Format timer display as MM:SS (e.g., 09:59)
-    const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    
-    btn.innerText = `Resend Code (${formattedTime})`;
-    remainingTime--;
-
-    if (remainingTime < 0) {
-      clearInterval(resendTimer);
-      btn.disabled = false;
-      btn.style.cursor = "pointer";
-      btn.style.opacity = "1";
-      btn.innerText = "Resend Verification Code";
-    }
-  }, 1000);
-}
-
-
-
-
-    
-
-
-
-    
-    async function executeVerifyAndRegisterEmail() {
-      const email = document.getElementById('reg-user-email').value.trim();
-      const code = document.getElementById('reg-vcode').value.trim();
-
-      if (!code || code.length !== 6) {
-        return showToast("Please enter the 6-digit Verification Code sent to your email.");
-      }
-
-      try {
-        const msg = await callBackend("verifyAndRegisterEmail", { empCode: currentUser.emp_code, email, code });
-        showToast(msg, false);
-        currentUser.email = email;
-        currentUser.requires_email_registration = false;
-        
-        // Registration complete -> open dashboard
         await openDashboard();
       } catch(e) {
         showToast(e.message);
@@ -460,13 +323,10 @@ function startResendCountdown(durationInSeconds) {
       const confPassword = document.getElementById('change-conf-pass').value;
 
       if (!empCode || !currentPassword || !newPassword || !confPassword) {
-        return showToast("All password fields are required.");
+        return showToast("All fields are required.");
       }
       if (newPassword !== confPassword) {
         return showToast("New Password and Confirm Password do not match.");
-      }
-      if (newPassword.length > 6) {
-        return showToast("Password cannot exceed 6 characters.");
       }
 
       try {
@@ -479,80 +339,85 @@ function startResendCountdown(durationInSeconds) {
     }
 
     async function executeResetPassword() {
-      const empCode = document.getElementById('change-emp-code').value.trim() || document.getElementById('login-emp-code').value.trim();
+      const empCode = document.getElementById('change-emp-code').value.trim();
       if (!empCode) return showToast("Please enter Employee Code to reset password.");
 
       try {
         const msg = await callBackend("resetPassword", { empCode });
         showToast(msg, false);
-        switchView('view-login');
       } catch(e) {
         showToast(e.message);
       }
     }
 
-    function validateTimeInputs() {
-      const fromTime = document.getElementById('work-from').value;
-      const toTime = document.getElementById('work-to').value;
-      
-      if (fromTime && toTime) {
-        if (toTime <= fromTime) {
-          showToast("End Time must be later than Start Time.");
-          document.getElementById('work-to').value = "";
-          return false;
-        }
+    async function executeSendVerificationCode() {
+      const email = document.getElementById('reg-user-email').value.trim();
+      if (!email) return showToast("Please enter an email address.");
+
+      if (!isValidEmailFormat(email)) {
+        return showToast("Please enter a valid email address (e.g. name@domain.com).");
       }
-      return true;
-    }
 
-    document.getElementById('work-from').addEventListener('change', validateTimeInputs);
-    document.getElementById('work-to').addEventListener('change', validateTimeInputs);
-
-    async function executeWorkSubmit(e) {
-      e.preventDefault();
-      if (!validateTimeInputs()) return;
-
-      const btn = document.getElementById('btn-save-log');
+      const btn = document.getElementById('btn-send-vcode');
       btn.disabled = true;
-
-      const pSelect = document.getElementById('work-project');
-      const payload = {
-        employee_uid: currentUser.employee_uid,
-        work_date: document.getElementById('work-date').value,
-        from_time: document.getElementById('work-from').value,
-        to_time: document.getElementById('work-to').value,
-        project_id: pSelect.value,
-        project_name: pSelect.options[pSelect.selectedIndex].text,
-        work_description: document.getElementById('work-desc').value.trim()
-      };
+      btn.innerText = "Sending Code...";
 
       try {
-        await callBackend("submitWorkLog", payload);
-        showToast("Work entry saved successfully.", false);
-        document.getElementById('work-form').reset();
-        switchView('view-dashboard');
-      } catch(err) {
-        showToast(err.message);
-      } finally {
+        const msg = await callBackend("sendVerificationCode", { empCode: currentUser.emp_code, email });
+        showToast(msg, false);
+        
+        const vcodeSection = document.getElementById('vcode-step-section');
+        if (vcodeSection) vcodeSection.classList.remove('hidden');
+
+        startResendCountdown(600);
+      } catch(e) {
+        showToast(e.message);
+        btn.innerText = "Send Verification Code";
         btn.disabled = false;
       }
     }
 
-    async function loadTimesheetHistory() {
-      try {
-        const records = await callBackend("getTimesheet", { employee_uid: currentUser.employee_uid });
-        const listContainer = document.getElementById('timesheet-list');
-        listContainer.innerHTML = records.length === 0 ? '<p style="text-align:center;color:#6b7280;">No entries cataloged.</p>' : '';
+    function startResendCountdown(durationInSeconds) {
+      const btn = document.getElementById('btn-send-vcode');
+      if (!btn) return;
+
+      btn.disabled = true;
+      btn.style.cursor = "not-allowed";
+      btn.style.opacity = "0.6";
+
+      let remainingTime = durationInSeconds;
+      if (resendTimer) clearInterval(resendTimer);
+
+      resendTimer = setInterval(() => {
+        const minutes = Math.floor(remainingTime / 60);
+        const seconds = remainingTime % 60;
+        const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         
-        records.forEach(r => {
-          listContainer.innerHTML += `
-            <div class="item-row">
-              <div class="flex-space"><strong>${r.work_date}</strong><span>${r.duration} hrs</span></div>
-              <div class="flex-space"><span style="color:var(--primary); font-weight:500;">${r.project_name}</span><small style="color:#9ca3af;">${r.from_time} - ${r.to_time}</small></div>
-              <p style="color:#4b5563; font-size:0.85rem; margin-top:2px;">${r.work_description}</p>
-            </div>`;
-        });
-        switchView('view-timesheet');
+        btn.innerText = `Resend Code (${formattedTime})`;
+        remainingTime--;
+
+        if (remainingTime < 0) {
+          clearInterval(resendTimer);
+          btn.disabled = false;
+          btn.style.cursor = "pointer";
+          btn.style.opacity = "1";
+          btn.innerText = "Resend Verification Code";
+        }
+      }, 1000);
+    }
+
+    async function executeVerifyAndRegisterEmail() {
+      const email = document.getElementById('reg-user-email').value.trim();
+      const code = document.getElementById('reg-vcode').value.trim();
+
+      if (!email || !code) return showToast("Please enter both email and verification code.");
+
+      try {
+        const msg = await callBackend("verifyAndRegisterEmail", { empCode: currentUser.emp_code, email, code });
+        showToast(msg, false);
+        currentUser.email = email;
+        currentUser.requires_email_registration = false;
+        await openDashboard();
       } catch(e) {
         showToast(e.message);
       }
@@ -562,6 +427,153 @@ function startResendCountdown(durationInSeconds) {
       currentUser = null;
       document.getElementById('login-password').value = "";
       switchView('view-login');
+    }
+
+    async function openDashboard() {
+      document.getElementById('dash-user-name').innerText = currentUser.employee_name;
+      document.getElementById('dash-user-code').innerText = `ID: ${currentUser.emp_code}`;
+      
+      const metaData = await callBackend("getAppMeta", {});
+      currentConfig = metaData.config || { edit_window_days: 3 };
+      cachedProjects = metaData.projects || [];
+
+      setupWorkFormDropdowns();
+      switchView('view-dashboard');
+    }
+
+    function setupWorkFormDropdowns() {
+      const dateInput = document.getElementById('work-date');
+      const today = new Date();
+      dateInput.max = today.toISOString().split('T')[0];
+      
+      const minPast = new Date();
+      const fallbackDays = parseInt(currentConfig.edit_window_days) || 3;
+      minPast.setDate(today.getDate() - fallbackDays);
+      dateInput.min = minPast.toISOString().split('T')[0];
+
+      const dropdown = document.getElementById('work-project');
+      dropdown.innerHTML = '<option value="">-- Choose Project --</option>';
+      cachedProjects.forEach(p => {
+        dropdown.innerHTML += `<option value="${p.project_id}">${p.project_name}</option>`;
+      });
+    }
+
+    function openNewWorkLogForm() {
+      document.getElementById('work-entry-title').innerText = "Daily Work Entry";
+      document.getElementById('editing-worklog-id').value = "";
+      document.getElementById('work-form').reset();
+      
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('work-date').value = today;
+
+      setupWorkFormDropdowns();
+      switchView('view-work-entry');
+    }
+
+    async function executeWorkSubmit(e) {
+      e.preventDefault();
+      const editingId = document.getElementById('editing-worklog-id').value;
+      const work_date = document.getElementById('work-date').value;
+      const from_time = document.getElementById('work-from').value;
+      const to_time = document.getElementById('work-to').value;
+      const project_id = document.getElementById('work-project').value;
+      const projectSelect = document.getElementById('work-project');
+      const project_name = projectSelect.options[projectSelect.selectedIndex].text;
+      const work_description = document.getElementById('work-desc').value.trim();
+
+      const btn = document.getElementById('btn-save-log');
+      btn.disabled = true;
+      btn.innerText = "Saving Work Log...";
+
+      const payload = {
+        employee_uid: currentUser.employee_uid,
+        work_date, from_time, to_time, project_id, project_name, work_description
+      };
+
+      try {
+        let res;
+        if (editingId) {
+          payload.worklog_id = editingId;
+          res = await callBackend("updateWorkLog", payload);
+          showToast("Work log updated successfully!", false);
+        } else {
+          res = await callBackend("submitWorkLog", payload);
+          showToast(`Work log saved (${res.duration} hrs)!`, false);
+        }
+
+        document.getElementById('work-form').reset();
+        switchView('view-dashboard');
+      } catch(err) {
+        showToast(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Submit Work Log";
+      }
+    }
+
+    async function loadTimesheetHistory() {
+      switchView('view-timesheet');
+      const listDiv = document.getElementById('timesheet-list');
+      listDiv.innerHTML = "<p style='text-align:center; padding:15px;'>Loading records...</p>";
+
+      try {
+        cachedTimesheet = await callBackend("getTimesheet", { employee_uid: currentUser.employee_uid });
+        renderTimesheetList();
+      } catch(e) {
+        showToast(e.message);
+      }
+    }
+
+    function renderTimesheetList() {
+      const listDiv = document.getElementById('timesheet-list');
+      if (!cachedTimesheet || cachedTimesheet.length === 0) {
+        listDiv.innerHTML = "<p style='text-align:center; padding:15px;'>No work logs recorded yet.</p>";
+        return;
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const windowDays = parseInt(currentConfig.edit_window_days) || 3;
+
+      let html = "";
+      cachedTimesheet.forEach(log => {
+        const logDate = new Date(log.work_date);
+        logDate.setHours(0, 0, 0, 0);
+        const diffDays = Math.floor((today - logDate) / (1000 * 60 * 60 * 24));
+        const isEditable = diffDays <= windowDays;
+
+        html += `
+          <div class="item-row">
+            <div class="flex-space">
+              <strong>${log.work_date} (${log.duration} hrs)</strong>
+              ${isEditable ? `<button type="button" class="btn-sm" onclick="editWorkLog('${log.worklog_id}')">Edit</button>` : `<small style="color:#9ca3af;">Frozen</small>`}
+            </div>
+            <div style="font-size:0.85rem; color:#4b5563;">
+              <span><strong>${log.project_name}</strong> | ${log.from_time} - ${log.to_time}</span>
+            </div>
+            <p style="font-size:0.82rem; margin-top:4px; color:#374151;">${log.work_description}</p>
+          </div>
+        `;
+      });
+
+      listDiv.innerHTML = html;
+    }
+
+    function editWorkLog(worklogId) {
+      const log = cachedTimesheet.find(l => l.worklog_id === worklogId);
+      if (!log) return;
+
+      setupWorkFormDropdowns();
+
+      document.getElementById('work-entry-title').innerText = "Edit Work Log";
+      document.getElementById('editing-worklog-id').value = log.worklog_id;
+      document.getElementById('work-date').value = log.work_date;
+      document.getElementById('work-from').value = log.from_time;
+      document.getElementById('work-to').value = log.to_time;
+      document.getElementById('work-project').value = log.project_id;
+      document.getElementById('work-desc').value = log.work_description;
+
+      switchView('view-work-entry');
     }
   </script>
 </body>
