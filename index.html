@@ -122,7 +122,7 @@
     <button onclick="executeChangePassword()">Submit New Password</button>
     <button type="button" onclick="executeResetPassword()" class="btn-secondary">Reset Password</button>
 
-    <!-- Guiding Sentence with Dynamic Email Placeholder -->
+    <!-- Guiding Sentence -->
     <p style="font-size: 0.82rem; color: #4b5563; text-align: center; margin-top: 10px; line-height: 1.4;">
       You will receive a new password in your registered email 
       <strong id="display-user-email" style="color: var(--primary);">(enter Emp Code above)</strong> 
@@ -130,6 +130,32 @@
     </p>
 
     <button type="button" onclick="switchView('view-login')" class="btn-link">Back to Login</button>
+  </div>
+
+  <!-- VIEW 1C: EMAIL REGISTRATION CONTAINER -->
+  <div id="view-register-email" class="hidden card">
+    <h2>Register Email Address</h2>
+    <p style="font-size: 0.88rem; color: #4b5563; text-align: center; margin-bottom: 15px;">
+      Welcome! Please register your email address to complete setup.
+    </p>
+    <div class="form-group">
+      <label>Email Address</label>
+      <input type="email" id="reg-user-email" placeholder="e.g. abc@domain.com">
+    </div>
+    <button type="button" id="btn-send-vcode" onclick="executeSendVerificationCode()">Send Verification Code</button>
+    
+    <div id="vcode-step-section" class="hidden" style="margin-top: 18px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+      <div class="form-group">
+        <label>Enter 6-Digit Verification Code</label>
+        <input type="text" id="reg-vcode" maxlength="6" placeholder="Enter 6-digit code">
+      </div>
+      <button type="button" onclick="executeVerifyAndRegisterEmail()">Verify & Complete Setup</button>
+      <p style="font-size: 0.78rem; color: #6b7280; text-align: center; margin-top: 8px;">
+        The Verification Code is valid for 10 minutes.
+      </p>
+    </div>
+
+    <button type="button" onclick="executeLogout()" class="btn-link" style="margin-top: 15px;">Back to Login</button>
   </div>
 
   <!-- VIEW 2: OPERATIONAL DASHBOARD -->
@@ -192,7 +218,6 @@
 
     let currentUser = null;
 
-    // Core function to make API requests to Apps Script
     async function callBackend(action, payload) {
       const response = await fetch(BACKEND_API, {
         method: "POST",
@@ -217,7 +242,7 @@
         const loginCode = document.getElementById('login-emp-code').value.trim();
         if (loginCode) {
           document.getElementById('change-emp-code').value = loginCode;
-          updateRegisteredEmailHint(); // Fetch registered email immediately
+          updateRegisteredEmailHint();
         }
       }
 
@@ -228,7 +253,7 @@
         }
       }
 
-      ['view-login', 'view-change-password', 'view-dashboard', 'view-work-entry', 'view-timesheet'].forEach(id => {
+      ['view-login', 'view-change-password', 'view-register-email', 'view-dashboard', 'view-work-entry', 'view-timesheet'].forEach(id => {
         document.getElementById(id).classList.add('hidden');
       });
       document.getElementById(viewId).classList.remove('hidden');
@@ -237,6 +262,12 @@
     function togglePasswordVisibility(inputId) {
       const input = document.getElementById(inputId);
       input.classList.toggle('visible');
+    }
+
+    // First layer: Format Validation
+    function isValidEmailFormat(email) {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return re.test(email);
     }
 
     async function updateRegisteredEmailHint() {
@@ -269,29 +300,89 @@
 
       try {
         currentUser = await callBackend("login", { empCode, password });
-        document.getElementById('dash-user-name').innerText = currentUser.employee_name;
-        document.getElementById('dash-user-code').innerText = `ID: ${currentUser.emp_code}`;
+
+        // If email is missing, redirect to Registration Screen
+        if (currentUser.requires_email_registration) {
+          switchView('view-register-email');
+          showToast("Please register your email address to proceed.", false);
+          return;
+        }
+
+        // Email exists, proceed to Dashboard
+        await openDashboard();
+      } catch(e) {
+        showToast(e.message);
+      }
+    }
+
+    async function openDashboard() {
+      document.getElementById('dash-user-name').innerText = currentUser.employee_name;
+      document.getElementById('dash-user-code').innerText = `ID: ${currentUser.emp_code}`;
+      
+      const metaData = await callBackend("getAppMeta", {});
+      const config = metaData.config || { edit_window_days: 3 };
+      const projects = metaData.projects || [];
+
+      const dateInput = document.getElementById('work-date');
+      const today = new Date();
+      dateInput.max = today.toISOString().split('T')[0];
+      
+      const minPast = new Date();
+      const fallbackDays = parseInt(config.edit_window_days) || 3;
+      minPast.setDate(today.getDate() - fallbackDays);
+      dateInput.min = minPast.toISOString().split('T')[0];
+
+      const dropdown = document.getElementById('work-project');
+      dropdown.innerHTML = '<option value="">-- Choose Project --</option>';
+      projects.forEach(p => {
+        dropdown.innerHTML += `<option value="${p.project_id}">${p.project_name}</option>`;
+      });
+
+      switchView('view-dashboard');
+    }
+
+    async function executeSendVerificationCode() {
+      const email = document.getElementById('reg-user-email').value.trim();
+      if (!email) return showToast("Please enter an email address.");
+
+      // First Layer: Email Format Validation
+      if (!isValidEmailFormat(email)) {
+        return showToast("Please enter a valid email address (e.g. name@domain.com).");
+      }
+
+      const btn = document.getElementById('btn-send-vcode');
+      btn.disabled = true;
+      btn.innerText = "Sending Code...";
+
+      try {
+        const msg = await callBackend("sendVerificationCode", { empCode: currentUser.emp_code, email });
+        showToast(msg, false);
+        document.getElementById('vcode-step-section').classList.remove('hidden');
+        btn.innerText = "Resend Verification Code";
+      } catch(e) {
+        showToast(e.message);
+        btn.innerText = "Send Verification Code";
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function executeVerifyAndRegisterEmail() {
+      const email = document.getElementById('reg-user-email').value.trim();
+      const code = document.getElementById('reg-vcode').value.trim();
+
+      if (!code || code.length !== 6) {
+        return showToast("Please enter the 6-digit Verification Code sent to your email.");
+      }
+
+      try {
+        const msg = await callBackend("verifyAndRegisterEmail", { empCode: currentUser.emp_code, email, code });
+        showToast(msg, false);
+        currentUser.email = email;
+        currentUser.requires_email_registration = false;
         
-        const metaData = await callBackend("getAppMeta", {});
-        const config = metaData.config || { edit_window_days: 3 };
-        const projects = metaData.projects || [];
-
-        const dateInput = document.getElementById('work-date');
-        const today = new Date();
-        dateInput.max = today.toISOString().split('T')[0];
-        
-        const minPast = new Date();
-        const fallbackDays = parseInt(config.edit_window_days) || 3;
-        minPast.setDate(today.getDate() - fallbackDays);
-        dateInput.min = minPast.toISOString().split('T')[0];
-
-        const dropdown = document.getElementById('work-project');
-        dropdown.innerHTML = '<option value="">-- Choose Project --</option>';
-        projects.forEach(p => {
-          dropdown.innerHTML += `<option value="${p.project_id}">${p.project_name}</option>`;
-        });
-
-        switchView('view-dashboard');
+        // Registration complete -> open dashboard
+        await openDashboard();
       } catch(e) {
         showToast(e.message);
       }
