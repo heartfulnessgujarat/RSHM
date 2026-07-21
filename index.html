@@ -59,11 +59,63 @@
     .item-row { border-bottom: 1px solid #e5e7eb; padding: 10px 0; font-size: 0.9rem; }
     .flex-space { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
     .action-group { display: flex; gap: 6px; align-items: center; }
+
+    /* CUSTOM CONFIRM MODAL STYLES */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+    .modal-card {
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 12px;
+      max-width: 360px;
+      width: 100%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+    .modal-card h3 {
+      font-size: 1.1rem;
+      color: var(--text-dark);
+      margin-bottom: 10px;
+    }
+    .modal-card p {
+      font-size: 0.9rem;
+      color: #4b5563;
+      margin-bottom: 20px;
+      line-height: 1.4;
+    }
+    .modal-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
   </style>
 </head>
 <body>
 
   <div id="toast-container" class="hidden"></div>
+
+  <!-- CUSTOM DELETE CONFIRMATION MODAL -->
+  <div id="custom-confirm-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3>Are you sure?</h3>
+      <p id="confirm-modal-text">Do you really want to delete this work log?</p>
+      <div class="modal-actions">
+        <button id="btn-confirm-yes" class="btn-danger">1. Yes, Delete, Please</button>
+        <button id="btn-confirm-no" class="btn-secondary" style="margin-top:0;">2. No, Do not Delete</button>
+      </div>
+    </div>
+  </div>
 
   <!-- VIEW 1: AUTHENTICATION CONTAINER -->
   <div id="view-login" class="card">
@@ -274,6 +326,38 @@
     function isValidEmailFormat(email) {
       const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       return re.test(email);
+    }
+
+    /* CUSTOM CONFIRM MODAL PROMISE WRAPPER */
+    function showCustomConfirm(message) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('custom-confirm-modal');
+        const textElement = document.getElementById('confirm-modal-text');
+        const btnYes = document.getElementById('btn-confirm-yes');
+        const btnNo = document.getElementById('btn-confirm-no');
+
+        textElement.innerText = message;
+        modal.classList.remove('hidden');
+
+        const onYes = () => {
+          cleanup();
+          resolve(true);
+        };
+
+        const onNo = () => {
+          cleanup();
+          resolve(false);
+        };
+
+        const cleanup = () => {
+          modal.classList.add('hidden');
+          btnYes.removeEventListener('click', onYes);
+          btnNo.removeEventListener('click', onNo);
+        };
+
+        btnYes.addEventListener('click', onYes);
+        btnNo.addEventListener('click', onNo);
+      });
     }
 
     async function updateRegisteredEmailHint() {
@@ -588,8 +672,8 @@
       const log = cachedTimesheet.find(l => l.worklog_id === worklogId);
       if (!log) return;
 
-      const confirmDelete = confirm(`Are you sure you want to delete this work log for ${log.work_date} (${log.duration} hrs)?`);
-      if (!confirmDelete) return;
+      const userConfirmed = await showCustomConfirm(`Do you want to delete this work log for ${log.work_date} (${log.duration} hrs)?`);
+      if (!userConfirmed) return;
 
       try {
         const msg = await callBackend("deleteWorkLog", {
