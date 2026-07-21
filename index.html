@@ -341,32 +341,97 @@
       switchView('view-dashboard');
     }
 
-    async function executeSendVerificationCode() {
-      const email = document.getElementById('reg-user-email').value.trim();
-      if (!email) return showToast("Please enter an email address.");
+function handleSendCodeClick() {
+  const emailInput = document.getElementById("register-email-input").value.trim();
+  
+  // Standard Email Regex
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  
+  if (!emailInput || !emailRegex.test(emailInput)) {
+    showError("Please enter a valid email address.");
+    return;
+  }
 
-      // First Layer: Email Format Validation
-      if (!isValidEmailFormat(email)) {
-        return showToast("Please enter a valid email address (e.g. name@domain.com).");
-      }
+  // Proceed with sending request...
+}
 
-      const btn = document.getElementById('btn-send-vcode');
-      btn.disabled = true;
-      btn.innerText = "Sending Code...";
+   
+let resendTimer = null;
 
-      try {
-        const msg = await callBackend("sendVerificationCode", { empCode: currentUser.emp_code, email });
-        showToast(msg, false);
-        document.getElementById('vcode-step-section').classList.remove('hidden');
-        btn.innerText = "Resend Verification Code";
-      } catch(e) {
-        showToast(e.message);
-        btn.innerText = "Send Verification Code";
-      } finally {
-        btn.disabled = false;
-      }
+async function executeSendVerificationCode() {
+  const email = document.getElementById('reg-user-email').value.trim();
+  if (!email) return showToast("Please enter an email address.");
+
+  // First Layer: Email Format Validation
+  if (!isValidEmailFormat(email)) {
+    return showToast("Please enter a valid email address (e.g. name@domain.com).");
+  }
+
+  const btn = document.getElementById('btn-send-vcode');
+  btn.disabled = true;
+  btn.innerText = "Sending Code...";
+
+  try {
+    const msg = await callBackend("sendVerificationCode", { empCode: currentUser.emp_code, email });
+    showToast(msg, false);
+    
+    // Reveal the verification code input step
+    const vcodeSection = document.getElementById('vcode-step-section');
+    if (vcodeSection) vcodeSection.classList.remove('hidden');
+
+    // Start the 10-minute countdown (10 mins * 60 secs = 600 seconds)
+    startResendCountdown(600);
+
+  } catch(e) {
+    showToast(e.message);
+    btn.innerText = "Send Verification Code";
+    btn.disabled = false;
+  }
+}
+
+/**
+ * Helper function to manage the 10-minute (600s) countdown on the resend button
+ */
+function startResendCountdown(durationInSeconds) {
+  const btn = document.getElementById('btn-send-vcode');
+  if (!btn) return;
+
+  btn.disabled = true;
+  btn.style.cursor = "not-allowed";
+  btn.style.opacity = "0.6";
+
+  let remainingTime = durationInSeconds;
+
+  if (resendTimer) clearInterval(resendTimer);
+
+  resendTimer = setInterval(() => {
+    const minutes = Math.floor(remainingTime / 60);
+    const seconds = remainingTime % 60;
+    
+    // Format timer display as MM:SS (e.g., 09:59)
+    const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    
+    btn.innerText = `Resend Code (${formattedTime})`;
+    remainingTime--;
+
+    if (remainingTime < 0) {
+      clearInterval(resendTimer);
+      btn.disabled = false;
+      btn.style.cursor = "pointer";
+      btn.style.opacity = "1";
+      btn.innerText = "Resend Verification Code";
     }
+  }, 1000);
+}
 
+
+
+
+    
+
+
+
+    
     async function executeVerifyAndRegisterEmail() {
       const email = document.getElementById('reg-user-email').value.trim();
       const code = document.getElementById('reg-vcode').value.trim();
