@@ -1,8 +1,3 @@
-
-
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -22,15 +17,26 @@
     body { background-color: var(--bg-light); color: var(--text-dark); padding: 10px; max-width: 480px; margin: 0 auto; }
     .hidden { display: none !important; }
     .card { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 15px; }
-    h2 { margin-bottom: 15px; font-size: 1.4rem; text-align: center; color: var(--primary); }
-    .form-group { margin-bottom: 15px; }
+    h2 { margin-bottom: 15px; font-size: 1.3rem; text-align: center; color: var(--primary); }
+    .logo-container { text-align: center; margin-bottom: 12px; }
+    .logo-container img { max-width: 160px; height: auto; }
+    .form-group { margin-bottom: 15px; position: relative; }
     label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; }
     input, select, textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
+    
+    /* Password field with eye toggle styling */
+    .password-wrapper { position: relative; display: flex; align-items: center; }
+    .password-wrapper input { padding-right: 40px; -webkit-text-security: disc; text-security: disc; }
+    .password-wrapper input.visible { -webkit-text-security: none; text-security: none; }
+    .toggle-eye { position: absolute; right: 10px; background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; }
+    .toggle-eye svg { width: 20px; height: 20px; fill: #6b7280; }
+
     button { width: 100%; padding: 14px; border: none; border-radius: 8px; background: var(--primary); color: white; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
     button:active { background: #1d4ed8; }
     .btn-secondary { background: #6b7280; margin-top: 8px; }
     .btn-secondary:active { background: #4b5563; }
-    .toast { padding: 12px; border-radius: 8px; color: white; text-align: center; margin-bottom: 15px; font-weight: 500; font-size: 0.9.5rem; }
+    .btn-link { background: none; color: var(--primary); border: none; text-decoration: underline; font-size: 0.85rem; padding: 4px; cursor: pointer; text-align: center; width: 100%; margin-top: 6px; }
+    .toast { padding: 12px; border-radius: 8px; color: white; text-align: center; margin-bottom: 15px; font-weight: 500; font-size: 0.95rem; }
     .toast-error { background: var(--error); }
     .toast-success { background: var(--success); }
     .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
@@ -44,19 +50,64 @@
 
   <!-- VIEW 1: AUTHENTICATION CONTAINER -->
   <div id="view-login" class="card">
-    <h2>RSHM Login</h2>
+    <div class="logo-container">
+      <img src="onehr logo.png" alt="OneHR Logo">
+    </div>
+    <h2>Login for HST Team Members</h2>
     <div class="form-group">
       <label>Employee Code</label>
       <input type="text" id="login-emp-code" placeholder="Enter Emp Code">
     </div>
-
-    
-   <div class="form-group">
+    <div class="form-group">
       <label>Password</label>
-      <input type="text" id="login-password" placeholder="Enter Password" style="-webkit-text-security: disc; text-security: disc;">
+      <div class="password-wrapper">
+        <input type="text" id="login-password" maxlength="6" placeholder="Enter 6-digit Password">
+        <button type="button" class="toggle-eye" onclick="togglePasswordVisibility('login-password', this)">
+          <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+        </button>
+      </div>
     </div>
-    
     <button onclick="executeLogin()">Access System</button>
+    <button type="button" class="btn-link" onclick="switchView('view-change-password')">Change Password</button>
+  </div>
+
+  <!-- VIEW 1B: CHANGE PASSWORD CONTAINER -->
+  <div id="view-change-password" class="hidden card">
+    <h2>Change Password</h2>
+    <div class="form-group">
+      <label>Employee Code</label>
+      <input type="text" id="change-emp-code" placeholder="Enter Emp Code">
+    </div>
+    <div class="form-group">
+      <label>Current Password</label>
+      <div class="password-wrapper">
+        <input type="text" id="change-curr-pass" maxlength="6" placeholder="Current Password">
+        <button type="button" class="toggle-eye" onclick="togglePasswordVisibility('change-curr-pass', this)">
+          <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>New Password (Max 6 Chars)</label>
+      <div class="password-wrapper">
+        <input type="text" id="change-new-pass" maxlength="6" placeholder="New Password">
+        <button type="button" class="toggle-eye" onclick="togglePasswordVisibility('change-new-pass', this)">
+          <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Confirm New Password</label>
+      <div class="password-wrapper">
+        <input type="text" id="change-conf-pass" maxlength="6" placeholder="Confirm New Password">
+        <button type="button" class="toggle-eye" onclick="togglePasswordVisibility('change-conf-pass', this)">
+          <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+        </button>
+      </div>
+    </div>
+    <button onclick="executeChangePassword()">Submit New Password</button>
+    <button type="button" onclick="executeResetPassword()" class="btn-secondary">Reset Password (Send to Email)</button>
+    <button type="button" onclick="switchView('view-login')" class="btn-link">Back to Login</button>
   </div>
 
   <!-- VIEW 2: OPERATIONAL DASHBOARD -->
@@ -114,12 +165,7 @@
     <button onclick="switchView('view-dashboard')" class="btn-secondary">Return to Dashboard</button>
   </div>
 
- 
   <script>
-
-
-
-// DEFINE THE DEPLOYED GOOGLE APPS SCRIPT WEB APP URL
     const BACKEND_API = "https://script.google.com/macros/s/AKfycbxX86VBRJfbDfPk2_HFFCpLv6fMn7To7GX_WgQWmvd7m2_bgr2cXa7nsgc92VdxxmMXCA/exec";
 
     let currentUser = null;
@@ -134,10 +180,15 @@
     }
 
     function switchView(viewId) {
-      ['view-login', 'view-dashboard', 'view-work-entry', 'view-timesheet'].forEach(id => {
+      ['view-login', 'view-change-password', 'view-dashboard', 'view-work-entry', 'view-timesheet'].forEach(id => {
         document.getElementById(id).classList.add('hidden');
       });
       document.getElementById(viewId).classList.remove('hidden');
+    }
+
+    function togglePasswordVisibility(inputId, btn) {
+      const input = document.getElementById(inputId);
+      input.classList.toggle('visible');
     }
 
     async function callBackend(action, payload) {
@@ -185,7 +236,44 @@
       }
     }
 
-    // Live Interlocking Validation Engine
+    async function executeChangePassword() {
+      const empCode = document.getElementById('change-emp-code').value.trim();
+      const currentPassword = document.getElementById('change-curr-pass').value;
+      const newPassword = document.getElementById('change-new-pass').value;
+      const confPassword = document.getElementById('change-conf-pass').value;
+
+      if (!empCode || !currentPassword || !newPassword || !confPassword) {
+        return showToast("All password fields are required.");
+      }
+      if (newPassword !== confPassword) {
+        return showToast("New Password and Confirm Password do not match.");
+      }
+      if (newPassword.length > 6) {
+        return showToast("Password cannot exceed 6 characters.");
+      }
+
+      try {
+        const msg = await callBackend("changePassword", { empCode, currentPassword, newPassword });
+        showToast(msg, false);
+        switchView('view-login');
+      } catch(e) {
+        showToast(e.message);
+      }
+    }
+
+    async function executeResetPassword() {
+      const empCode = document.getElementById('change-emp-code').value.trim() || document.getElementById('login-emp-code').value.trim();
+      if (!empCode) return showToast("Please enter Employee Code to reset password.");
+
+      try {
+        const msg = await callBackend("resetPassword", { empCode });
+        showToast(msg, false);
+        switchView('view-login');
+      } catch(e) {
+        showToast(e.message);
+      }
+    }
+
     function validateTimeInputs() {
       const fromTime = document.getElementById('work-from').value;
       const toTime = document.getElementById('work-to').value;
@@ -193,14 +281,13 @@
       if (fromTime && toTime) {
         if (toTime <= fromTime) {
           showToast("End Time must be later than Start Time.");
-          document.getElementById('work-to').value = ""; // Clear incorrect entry instantly
+          document.getElementById('work-to').value = "";
           return false;
         }
       }
       return true;
     }
 
-    // Attach Event Listeners to intercept errors instantly
     document.getElementById('work-from').addEventListener('change', validateTimeInputs);
     document.getElementById('work-to').addEventListener('change', validateTimeInputs);
 
@@ -259,11 +346,6 @@
       document.getElementById('login-password').value = "";
       switchView('view-login');
     }
-
-
-
-
-    
   </script>
 </body>
 </html>
