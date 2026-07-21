@@ -48,6 +48,8 @@
     button:active { background: #1d4ed8; }
     .btn-secondary { background: #6b7280; margin-top: 8px; }
     .btn-secondary:active { background: #4b5563; }
+    .btn-danger { background: #dc2626; color: white; }
+    .btn-danger:active { background: #b91c1c; }
     .btn-sm { width: auto; padding: 5px 10px; font-size: 0.8rem; border-radius: 6px; }
     .btn-link { background: none; color: var(--primary); border: none; text-decoration: underline; font-size: 0.85rem; padding: 4px; cursor: pointer; text-align: center; width: 100%; margin-top: 6px; }
     .toast { padding: 12px; border-radius: 8px; color: white; text-align: center; margin-bottom: 15px; font-weight: 500; font-size: 0.95rem; }
@@ -56,6 +58,7 @@
     .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
     .item-row { border-bottom: 1px solid #e5e7eb; padding: 10px 0; font-size: 0.9rem; }
     .flex-space { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .action-group { display: flex; gap: 6px; align-items: center; }
   </style>
 </head>
 <body>
@@ -546,7 +549,12 @@
           <div class="item-row">
             <div class="flex-space">
               <strong>${log.work_date} (${log.duration} hrs)</strong>
-              ${isEditable ? `<button type="button" class="btn-sm" onclick="editWorkLog('${log.worklog_id}')">Edit</button>` : `<small style="color:#9ca3af;">F</small>`}
+              ${isEditable ? `
+                <div class="action-group">
+                  <button type="button" class="btn-sm" onclick="editWorkLog('${log.worklog_id}')">Edit</button>
+                  <button type="button" class="btn-sm btn-danger" onclick="deleteWorkLog('${log.worklog_id}')">Delete</button>
+                </div>
+              ` : `<small style="color:#9ca3af;">F</small>`}
             </div>
             <div style="font-size:0.85rem; color:#4b5563;">
               <span><strong>${log.project_name}</strong> | ${log.from_time} - ${log.to_time}</span>
@@ -574,6 +582,25 @@
       document.getElementById('work-desc').value = log.work_description;
 
       switchView('view-work-entry');
+    }
+
+    async function deleteWorkLog(worklogId) {
+      const log = cachedTimesheet.find(l => l.worklog_id === worklogId);
+      if (!log) return;
+
+      const confirmDelete = confirm(`Are you sure you want to delete this work log for ${log.work_date} (${log.duration} hrs)?`);
+      if (!confirmDelete) return;
+
+      try {
+        const msg = await callBackend("deleteWorkLog", {
+          worklog_id: worklogId,
+          employee_uid: currentUser.employee_uid
+        });
+        showToast(msg, false);
+        await loadTimesheetHistory();
+      } catch (err) {
+        showToast(err.message);
+      }
     }
   </script>
 </body>
