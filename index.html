@@ -86,7 +86,12 @@
     <button type="button" class="btn-link" onclick="switchView('view-change-password')">Change Password</button>
   </div>
 
-  <!-- VIEW 1B: CHANGE PASSWORD CONTAINER -->
+
+
+
+
+
+<!-- VIEW 1B: CHANGE PASSWORD CONTAINER -->
   <div id="view-change-password" class="hidden card">
     <h2>Change Password</h2>
     <div class="form-group">
@@ -121,9 +126,22 @@
       </div>
     </div>
     <button onclick="executeChangePassword()">Submit New Password</button>
-    <button type="button" onclick="executeResetPassword()" class="btn-secondary">Reset Password (Send to Email)</button>
+    <button type="button" onclick="executeResetPassword()" class="btn-secondary">Reset Password</button>
+
+
+    <!-- Guiding Sentence with Dynamic Email Placeholder -->
+<p style="font-size: 0.82rem; color: #4b5563; text-align: center; margin-top: 10px; line-height: 1.4;">
+  You will receive a new password in your registered email 
+  <strong id="display-user-email" style="color: var(--primary);">(enter Emp Code above)</strong> 
+  after you click on <strong>Reset Password</strong>.
+</p>
+
+    
+
     <button type="button" onclick="switchView('view-login')" class="btn-link">Back to Login</button>
   </div>
+
+  
 
   <!-- VIEW 2: OPERATIONAL DASHBOARD -->
   <div id="view-dashboard" class="hidden">
@@ -361,6 +379,35 @@
       document.getElementById('login-password').value = "";
       switchView('view-login');
     }
+
+
+async function updateRegisteredEmailHint() {
+  const empCode = document.getElementById('change-emp-code').value.trim();
+  const emailDisplay = document.getElementById('display-user-email');
+
+  if (!empCode) {
+    emailDisplay.innerText = "(enter Emp Code above)";
+    return;
+  }
+
+  emailDisplay.innerText = "(checking email...)";
+
+  try {
+    // Calls backend to retrieve email for this employee code
+    const res = await callBackend("getRegisteredEmail", { empCode });
+    if (res && res.email) {
+      emailDisplay.innerText = `(${res.email})`;
+    } else {
+      emailDisplay.innerText = "(email not found)";
+    }
+  } catch (err) {
+    emailDisplay.innerText = "(email not found)";
+  }
+}
+
+
+
+    
   </script>
 </body>
 </html>
