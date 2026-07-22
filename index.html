@@ -392,20 +392,6 @@
       document.getElementById(viewId).classList.remove('hidden');
     }
 
-
-
-
-
-
-
-
-      
-      ['view-login', 'view-change-password', 'view-register-email', 'view-dashboard', 'view-work-entry', 'view-timesheet'].forEach(id => {
-        document.getElementById(id).classList.add('hidden');
-      });
-      document.getElementById(viewId).classList.remove('hidden');
-    }
-
     function togglePasswordVisibility(inputId) {
       const input = document.getElementById(inputId);
       input.classList.toggle('visible');
