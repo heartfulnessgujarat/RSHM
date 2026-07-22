@@ -776,41 +776,75 @@
       }
     }
 
-    async function openLeaveModule() {
-      switchView('view-leave-module');
-      document.getElementById('leaveApplyForm').reset();
-      document.getElementById('leaveDaysBadge').classList.add('hidden');
 
-      try {
-        const [balData, masterData] = await Promise.all([
-          callBackend("getEmployeeLeaveBalances", { empIdentifier: currentUser.emp_code || currentUser.empCode }),
-          callBackend("getLeaveMasterData", {})
-        ]);
 
-        if (balData && balData.balances) {
-          document.getElementById('clBalanceDisplay').innerText = balData.balances.cl || 0;
-          document.getElementById('slBalanceDisplay').innerText = balData.balances.sl || 0;
-          document.getElementById('coBalanceDisplay').innerText = balData.balances.co || 0;
+
+/**
+ * REPLACEMENT FOR openLeaveModule() / loadLeaveBalances()
+ * Fetches updated leave balances for the logged-in user and populates cards/dropdowns.
+ */
+function openLeaveModule() {
+  const empId = document.getElementById('leaveEmpId')?.value || currentUserEmpId; // adjust to your global variable if different
+  const balanceContainer = document.getElementById('leaveBalanceCards');
+
+  if (!empId) {
+    console.warn('No Employee ID found to fetch leave balances.');
+    return;
+  }
+
+  if (balanceContainer) {
+    balanceContainer.innerHTML = '<p class="text-muted">Loading leave balances...</p>';
+  }
+
+  // Call backend to get current leave balance
+  google.script.run
+    .withSuccessHandler(function(response) {
+      if (response && response.success && response.balances) {
+        renderLeaveBalances(response.balances);
+      } else {
+        if (balanceContainer) {
+          balanceContainer.innerHTML = `<p class="text-danger">${response?.message || 'Failed to load balances.'}</p>`;
         }
-
-        cachedLeaveMaster = masterData || { leaveTypes: [], paidHolidays: [] };
-
-        const select = document.getElementById('leaveTypeSelect');
-        select.innerHTML = '<option value="">-- Select Leave Type --</option>';
-        cachedLeaveMaster.leaveTypes.forEach(lt => {
-          select.innerHTML += `<option value="${lt.type}">${lt.type}</option>`;
-        });
-
-        const phSelect = document.getElementById('paidHolidaySelect');
-        phSelect.innerHTML = '<option value="">-- Select Holiday --</option>';
-        cachedLeaveMaster.paidHolidays.forEach(ph => {
-          phSelect.innerHTML += `<option value="${ph.date}">${ph.name} (${ph.date})</option>`;
-        });
-      } catch(e) {
-        showToast("Error loading leave options: " + e.message);
       }
-    }
+    })
+    .withFailureHandler(function(err) {
+      if (balanceContainer) {
+        balanceContainer.innerHTML = `<p class="text-danger">Error: ${err.message}</p>`;
+      }
+    })
+    .getEmployeeLeaveBalances(empId);
+}
 
+/**
+ * Helper to render balance cards dynamically in index.html
+ */
+function renderLeaveBalances(balances) {
+  const container = document.getElementById('leaveBalanceCards');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  // Expecting balances as an array or object, e.g., { CL: 5, SL: 3, EL: 10 }
+  Object.keys(balances).forEach(type => {
+    const cardHtml = `
+      <div class="col-md-4 mb-2">
+        <div class="card text-center shadow-sm">
+          <div class="card-body">
+            <h6 class="card-title text-uppercase text-muted">${type}</h6>
+            <h3 class="card-text text-primary font-weight-bold">${balances[type]}</h3>
+            <small class="text-muted">Days Available</small>
+          </div>
+        </div>
+      </div>
+    `;
+    container.insertAdjacentHTML('beforeend', cardHtml);
+  });
+}
+
+
+
+
+    
     function toggleLeaveFields() {
       const type = document.getElementById('leaveTypeSelect').value;
       const phGroup = document.getElementById('phSelectGroup');
