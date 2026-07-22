@@ -1,3 +1,5 @@
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -767,29 +769,47 @@
     let masterPaidHolidays = [];
     let currentEmployeeBalances = { cl: 0, sl: 0, co: 0 };
 
-    /**
-     * Opens Leave Module View, sets date limits, & Loads Data via callBackend
-     */
-    async function openLeaveModule() {
-      switchView('view-leave-module');
-      if (!currentUser) return;
 
-      // 🟢 Enforce Back-Dated Restriction using edit_window_days
-      enforceLeaveDateLimits();
 
-      try {
-        // Fetch Master Data (Leave Types & Paid Holidays)
-        const masterRes = await callBackend("getLeaveMasterData", {});
-        onLeaveMasterLoaded(masterRes);
 
-        // Fetch Employee Balances
-        const balanceRes = await callBackend("getEmployeeLeaveBalances", { empCode: currentUser.empCode });
-        onBalancesLoaded(balanceRes);
-      } catch (err) {
-        showToast("Error loading leave data: " + err.message);
-      }
-    }
 
+/**
+ * Opens Leave Module View, sets date limits, & loads Data via callBackend
+ */
+async function openLeaveModule() {
+  switchView('view-leave-module');
+  if (!currentUser) return;
+
+  // 🟢 Enforce Back-Dated Restriction using edit_window_days
+  enforceLeaveDateLimits();
+
+  // 🟢 Extract employee code/UID safely regardless of property naming
+  const empIdentifier = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid || currentUser.employeeUid;
+
+  try {
+    // 1. Fetch Master Data (Leave Types & Paid Holidays)
+    const masterRes = await callBackend("getLeaveMasterData", {});
+    onLeaveMasterLoaded(masterRes);
+
+    // 2. Fetch Employee Balances (Sends all key formats as payload)
+    const balanceRes = await callBackend("getEmployeeLeaveBalances", { 
+      emp_code: empIdentifier,
+      empCode: empIdentifier,
+      employee_uid: currentUser.employee_uid || currentUser.employeeUid || empIdentifier
+    });
+    
+    onBalancesLoaded(balanceRes);
+  } catch (err) {
+    showToast("Error loading leave data: " + err.message);
+  }
+}
+
+
+
+
+
+
+    
     /**
      * Prevents selecting dates older than currentConfig.edit_window_days
      */
