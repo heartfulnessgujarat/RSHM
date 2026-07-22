@@ -346,16 +346,38 @@
     let cachedLeaveMaster = { leaveTypes: [], paidHolidays: [] };
     let resendTimer = null;
 
+
+
+
     async function callBackend(action, payload) {
       const response = await fetch(BACKEND_API, {
         method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8"
+        },
         body: JSON.stringify({ action, payload })
       });
-      const result = await response.json();
-      if (!result.success) throw new Error(result.error);
+      
+      const rawText = await response.text();
+      let result;
+      
+      try {
+        result = JSON.parse(rawText);
+      } catch (e) {
+        throw new Error("Invalid response format from server: " + rawText);
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || result.message || "An unknown backend error occurred.");
+      }
       return result.data;
     }
 
+
+
+
+
+    
     function showToast(msg, isError = true) {
       const container = document.getElementById('toast-container');
       container.className = `toast ${isError ? 'toast-error' : 'toast-success'}`;
