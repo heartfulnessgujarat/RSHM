@@ -58,6 +58,7 @@
     .item-row { border-bottom: 1px solid #e5e7eb; padding: 10px 0; font-size: 0.9rem; }
     .flex-space { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
     .action-group { display: flex; gap: 6px; align-items: center; }
+
     /* CUSTOM CONFIRM MODAL STYLES */
     .modal-overlay {
       position: fixed;
@@ -117,7 +118,7 @@
   <!-- VIEW 1: AUTHENTICATION CONTAINER -->
   <div id="view-login" class="card">
     <div class="logo-container">
-      <img src="onehr%20logo.png" alt="OneHR Logo" onerror="this.src='onehr logo.png';">
+      <img src="onehr logo.png" alt="OneHR Logo" onerror="this.src='onehr logo.png';">
     </div>
     <h2>Login for HST Team Members</h2>
     <div class="form-group">
@@ -221,8 +222,8 @@
       <button onclick="openNewWorkLogForm()">Daily Work Entry</button>
       <button onclick="loadTimesheetHistory()" class="btn-secondary">My Timesheet History</button>
       <button onclick="openLeaveModule()" class="btn-secondary" style="margin-top: 8px; background: #2563eb; color: white;">Apply / Check Leave</button>
-
-      <!-- 🟢 Pending Leave Status Box on Dashboard -->
+      
+      <!-- Pending Leave Status Box on Dashboard -->
       <div style="margin-top: 16px; padding: 12px; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb;">
         <h3 style="font-size: 0.9rem; font-weight: 600; color: #374151; margin-bottom: 8px;">Pending Leave Requests</h3>
         <div id="dashboardLeaveStatusContainer">
@@ -274,6 +275,7 @@
   <!-- VIEW 5: LEAVE MANAGEMENT MODULE -->
   <div id="view-leave-module" class="hidden card">
     <h2>Apply for Leave</h2>
+    
     <!-- Live Balances Display -->
     <div style="display: flex; gap: 8px; margin-bottom: 15px; text-align: center;">
       <div style="flex: 1; background: #eff6ff; padding: 10px; border-radius: 8px; border-left: 4px solid #2563eb;">
@@ -289,6 +291,7 @@
         <span id="coBalanceDisplay" style="font-size: 1.2rem; font-weight: bold;">--</span>
       </div>
     </div>
+
     <!-- Leave Application Form -->
     <form id="leaveApplyForm" onsubmit="handleLeaveSubmit(event)">
       <div class="form-group">
@@ -297,6 +300,7 @@
           <option value="">-- Select Leave Type --</option>
         </select>
       </div>
+
       <!-- Paid Holiday Group -->
       <div id="phSelectGroup" class="form-group hidden">
         <label>Select Paid Holiday</label>
@@ -304,6 +308,7 @@
           <option value="">-- Select Holiday --</option>
         </select>
       </div>
+
       <!-- Date Range Group -->
       <div id="dateRangeGroup">
         <div class="form-group">
@@ -315,26 +320,30 @@
           <input type="date" id="leaveToDate" onchange="calculateRequestedDays()">
         </div>
       </div>
+
       <!-- Badge Info -->
       <div id="leaveDaysBadge" class="hidden" style="background: #f3f4f6; padding: 8px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 12px;">
         Total Days Requested: <strong id="calculatedDaysCount" style="color: #2563eb;">0</strong>
         <span id="sundaySkipNote" style="color: #6b7280; font-style: italic; display: block; font-size: 0.75rem;"></span>
       </div>
+
       <div class="form-group">
         <label>Reason for Leave</label>
         <textarea id="leaveReason" rows="3" placeholder="Enter reason..." required></textarea>
       </div>
+
       <button type="submit" id="btnSubmitLeave">Submit Leave Request</button>
       <button type="button" onclick="switchView('view-dashboard')" class="btn-secondary">Return to Dashboard</button>
     </form>
   </div>
-  
+
   <script>
     const BACKEND_API = "https://script.google.com/macros/s/AKfycbxX86VBRJfbDfPk2_HFFCpLv6fMn7To7GX_WgQWmvd7m2_bgr2cXa7nsgc92VdxxmMXCA/exec";
     let currentUser = null;
     let currentConfig = { edit_window_days: 3 };
     let cachedProjects = [];
     let cachedTimesheet = [];
+    let cachedLeaveMaster = { leaveTypes: [], paidHolidays: [] };
     let resendTimer = null;
 
     async function callBackend(action, payload) {
@@ -355,7 +364,7 @@
       window.scrollTo(0, 0);
       setTimeout(() => container.classList.add('hidden'), 4000);
     }
-    
+
     function switchView(viewId) {
       if (viewId === 'view-change-password') {
         const loginCode = document.getElementById('login-emp-code').value.trim();
@@ -375,12 +384,11 @@
       });
       document.getElementById(viewId).classList.remove('hidden');
 
-      // Triggers leave status load whenever switching back to dashboard
       if (viewId === 'view-dashboard') {
         loadDashboardLeaveStatus();
       }
     }
-    
+
     function togglePasswordVisibility(inputId) {
       const input = document.getElementById(inputId);
       input.classList.toggle('visible');
@@ -391,28 +399,32 @@
       return re.test(email);
     }
 
-    /* CUSTOM CONFIRM MODAL PROMISE WRAPPER */
     function showCustomConfirm(message) {
       return new Promise((resolve) => {
         const modal = document.getElementById('custom-confirm-modal');
         const textElement = document.getElementById('confirm-modal-text');
         const btnYes = document.getElementById('btn-confirm-yes');
         const btnNo = document.getElementById('btn-confirm-no');
+
         textElement.innerText = message;
         modal.classList.remove('hidden');
+
         const onYes = () => {
           cleanup();
           resolve(true);
         };
+
         const onNo = () => {
           cleanup();
           resolve(false);
         };
+
         const cleanup = () => {
           modal.classList.add('hidden');
           btnYes.removeEventListener('click', onYes);
           btnNo.removeEventListener('click', onNo);
         };
+
         btnYes.addEventListener('click', onYes);
         btnNo.addEventListener('click', onNo);
       });
@@ -460,12 +472,14 @@
       const currentPassword = document.getElementById('change-curr-pass').value;
       const newPassword = document.getElementById('change-new-pass').value;
       const confPassword = document.getElementById('change-conf-pass').value;
+
       if (!empCode || !currentPassword || !newPassword || !confPassword) {
         return showToast("All fields are required.");
       }
       if (newPassword !== confPassword) {
         return showToast("New Password and Confirm Password do not match.");
       }
+
       try {
         const msg = await callBackend("changePassword", { empCode, currentPassword, newPassword });
         showToast(msg, false);
@@ -492,9 +506,11 @@
       if (!isValidEmailFormat(email)) {
         return showToast("Please enter a valid email address (e.g. name@domain.com).");
       }
+
       const btn = document.getElementById('btn-send-vcode');
       btn.disabled = true;
       btn.innerText = "Sending Code...";
+
       try {
         const msg = await callBackend("sendVerificationCode", { empCode: currentUser.emp_code, email });
         showToast(msg, false);
@@ -515,8 +531,10 @@
       btn.disabled = true;
       btn.style.cursor = "not-allowed";
       btn.style.opacity = "0.6";
+
       let remainingTime = durationInSeconds;
       if (resendTimer) clearInterval(resendTimer);
+
       resendTimer = setInterval(() => {
         const minutes = Math.floor(remainingTime / 60);
         const seconds = remainingTime % 60;
@@ -524,6 +542,7 @@
         
         btn.innerText = `Resend Code (${formattedTime})`;
         remainingTime--;
+
         if (remainingTime < 0) {
           clearInterval(resendTimer);
           btn.disabled = false;
@@ -538,6 +557,7 @@
       const email = document.getElementById('reg-user-email').value.trim();
       const code = document.getElementById('reg-vcode').value.trim();
       if (!email || !code) return showToast("Please enter both email and verification code.");
+
       try {
         const msg = await callBackend("verifyAndRegisterEmail", { empCode: currentUser.emp_code, email, code });
         showToast(msg, false);
@@ -575,6 +595,7 @@
       const fallbackDays = parseInt(currentConfig.edit_window_days) || 3;
       minPast.setDate(today.getDate() - fallbackDays);
       dateInput.min = minPast.toISOString().split('T')[0];
+
       const dropdown = document.getElementById('work-project');
       dropdown.innerHTML = '<option value="">-- Choose Project --</option>';
       cachedProjects.forEach(p => {
@@ -603,13 +624,16 @@
       const projectSelect = document.getElementById('work-project');
       const project_name = projectSelect.options[projectSelect.selectedIndex].text;
       const work_description = document.getElementById('work-desc').value.trim();
+
       const btn = document.getElementById('btn-save-log');
       btn.disabled = true;
       btn.innerText = "Saving Work Log...";
+
       const payload = {
         employee_uid: currentUser.employee_uid || currentUser.employeeUid || currentUser.emp_code || currentUser.empCode,
         work_date, from_time, to_time, project_id, project_name, work_description
       };
+
       try {
         let res;
         if (editingId) {
@@ -634,6 +658,7 @@
       switchView('view-timesheet');
       const listDiv = document.getElementById('timesheet-list');
       listDiv.innerHTML = "<p style='text-align:center; padding:15px;'>Loading records...</p>";
+      
       try {
         cachedTimesheet = await callBackend("getTimesheet", { 
           employee_uid: currentUser.employee_uid || currentUser.employeeUid || currentUser.emp_code || currentUser.empCode 
@@ -650,15 +675,18 @@
         listDiv.innerHTML = "<p style='text-align:center; padding:15px;'>No work logs recorded yet.</p>";
         return;
       }
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const windowDays = parseInt(currentConfig.edit_window_days) || 3;
+
       let html = "";
       cachedTimesheet.forEach(log => {
         const logDate = new Date(log.work_date);
         logDate.setHours(0, 0, 0, 0);
         const diffDays = Math.floor((today - logDate) / (1000 * 60 * 60 * 24));
         const isEditable = diffDays <= windowDays;
+
         html += `
           <div class="item-row">
             <div class="flex-space">
@@ -668,7 +696,7 @@
                   <button type="button" class="btn-sm" onclick="editWorkLog('${log.worklog_id}')">Edit</button>
                   <button type="button" class="btn-sm btn-danger" onclick="deleteWorkLog('${log.worklog_id}')">Delete</button>
                 </div>
-              ` : `<small style="color:#9ca3af;">F</small>`}
+              ` : `<small style="color:#9ca3af;">Locked</small>`}
             </div>
             <div style="font-size:0.85rem; color:#4b5563;">
               <span><strong>${log.project_name}</strong> | ${log.from_time} - ${log.to_time}</span>
@@ -683,6 +711,7 @@
     function editWorkLog(worklogId) {
       const log = cachedTimesheet.find(l => l.worklog_id === worklogId);
       if (!log) return;
+
       setupWorkFormDropdowns();
       document.getElementById('work-entry-title').innerText = "Edit Work Log";
       document.getElementById('editing-worklog-id').value = log.worklog_id;
@@ -691,14 +720,14 @@
       document.getElementById('work-to').value = log.to_time;
       document.getElementById('work-project').value = log.project_id;
       document.getElementById('work-desc').value = log.work_description;
+
       switchView('view-work-entry');
     }
 
     async function deleteWorkLog(worklogId) {
-      const log = cachedTimesheet.find(l => l.worklog_id === worklogId);
-      if (!log) return;
-      const userConfirmed = await showCustomConfirm(`Do you want to delete this work log for ${log.work_date} (${log.duration} hrs)?`);
-      if (!userConfirmed) return;
+      const confirmed = await showCustomConfirm("Do you really want to delete this work log?");
+      if (!confirmed) return;
+
       try {
         const msg = await callBackend("deleteWorkLog", {
           worklog_id: worklogId,
@@ -706,311 +735,173 @@
         });
         showToast(msg, false);
         await loadTimesheetHistory();
-      } catch (err) {
-        showToast(err.message);
+      } catch(e) {
+        showToast(e.message);
       }
     }
 
-    // Global Leave Module Variables
-    let masterLeaveTypes = [];
-    let masterPaidHolidays = [];
-    let currentEmployeeBalances = { cl: 0, sl: 0, co: 0 };
+    async function loadDashboardLeaveStatus() {
+      const container = document.getElementById('dashboardLeaveStatusContainer');
+      if (!container || !currentUser) return;
 
-    /**
-     * Opens Leave Module View, sets date limits, & loads Data via callBackend
-     */
+      try {
+        const res = await callBackend("getEmployeeLeaveRequests", {
+          emp_code: currentUser.emp_code || currentUser.empCode || currentUser.employee_uid
+        });
+
+        if (!res || !res.requests || res.requests.length === 0) {
+          container.innerHTML = `<div style="font-size: 0.85rem; color: #6b7280; font-style: italic;">No leave applications found.</div>`;
+          return;
+        }
+
+        const pending = res.requests.filter(r => String(r.status).toLowerCase() === 'pending');
+        if (pending.length === 0) {
+          container.innerHTML = `<div style="font-size: 0.85rem; color: #16a34a; font-weight: 500;">All leave requests actioned!</div>`;
+          return;
+        }
+
+        let html = "";
+        pending.forEach(r => {
+          html += `
+            <div style="font-size: 0.82rem; border-bottom: 1px dashed #e5e7eb; padding: 6px 0;">
+              <div><strong>${r.leaveType}</strong> (${r.leaveDate})</div>
+              <div style="color: #6b7280;">Reason: ${r.reason || 'N/A'}</div>
+              <div style="color: #d97706; font-weight: 600; margin-top: 2px;">Status: ${r.status}</div>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      } catch(e) {
+        container.innerHTML = `<div style="font-size: 0.82rem; color: #dc2626;">Unable to load status.</div>`;
+      }
+    }
+
     async function openLeaveModule() {
       switchView('view-leave-module');
-      if (!currentUser) return;
-      
-      enforceLeaveDateLimits();
-      const empIdentifier = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid || currentUser.employeeUid;
-      
+      document.getElementById('leaveApplyForm').reset();
+      document.getElementById('leaveDaysBadge').classList.add('hidden');
+
       try {
-        const masterRes = await callBackend("getLeaveMasterData", {});
-        onLeaveMasterLoaded(masterRes);
-        
-        const balanceRes = await callBackend("getEmployeeLeaveBalances", { 
-          emp_code: empIdentifier,
-          empCode: empIdentifier,
-          employee_uid: currentUser.employee_uid || currentUser.employeeUid || empIdentifier
+        const [balData, masterData] = await Promise.all([
+          callBackend("getEmployeeLeaveBalances", { empIdentifier: currentUser.emp_code || currentUser.empCode }),
+          callBackend("getLeaveMasterData", {})
+        ]);
+
+        if (balData && balData.balances) {
+          document.getElementById('clBalanceDisplay').innerText = balData.balances.cl || 0;
+          document.getElementById('slBalanceDisplay').innerText = balData.balances.sl || 0;
+          document.getElementById('coBalanceDisplay').innerText = balData.balances.co || 0;
+        }
+
+        cachedLeaveMaster = masterData || { leaveTypes: [], paidHolidays: [] };
+
+        const select = document.getElementById('leaveTypeSelect');
+        select.innerHTML = '<option value="">-- Select Leave Type --</option>';
+        cachedLeaveMaster.leaveTypes.forEach(lt => {
+          select.innerHTML += `<option value="${lt.type}">${lt.type}</option>`;
         });
-        
-        onBalancesLoaded(balanceRes);
-      } catch (err) {
-        showToast("Error loading leave data: " + err.message);
-      }
-    }
 
-    function enforceLeaveDateLimits() {
-      const windowDays = currentConfig.edit_window_days || 7;
-      const minDate = new Date();
-      minDate.setDate(minDate.getDate() - windowDays);
-      const minDateStr = minDate.toISOString().split('T')[0];
-      const fromInput = document.getElementById('leaveFromDate');
-      const toInput = document.getElementById('leaveToDate');
-      if (fromInput) fromInput.min = minDateStr;
-      if (toInput) toInput.min = minDateStr;
-    }
-
-    function onLeaveMasterLoaded(response) {
-      masterLeaveTypes = response.leaveTypes || [];
-      masterPaidHolidays = response.paidHolidays || [];
-      
-      const leaveSelect = document.getElementById('leaveTypeSelect');
-      leaveSelect.innerHTML = '<option value="">-- Select Leave Type --</option>';
-      masterLeaveTypes.forEach(item => {
-        let opt = document.createElement('option');
-        opt.value = item.approved;
-        opt.textContent = `${item.type} (${item.approved})`;
-        leaveSelect.appendChild(opt);
-      });
-
-      const phSelect = document.getElementById('paidHolidaySelect');
-      if (phSelect) {
+        const phSelect = document.getElementById('paidHolidaySelect');
         phSelect.innerHTML = '<option value="">-- Select Holiday --</option>';
-        masterPaidHolidays.forEach(item => {
-          let opt = document.createElement('option');
-          opt.value = item.date;
-          opt.textContent = `${item.date} - ${item.name}`;
-          phSelect.appendChild(opt);
+        cachedLeaveMaster.paidHolidays.forEach(ph => {
+          phSelect.innerHTML += `<option value="${ph.date}">${ph.name} (${ph.date})</option>`;
         });
-      }
-    }
-
-    function onBalancesLoaded(response) {
-      if (response && response.balances) {
-        currentEmployeeBalances = response.balances;
-        document.getElementById('clBalanceDisplay').textContent = response.balances.cl;
-        document.getElementById('slBalanceDisplay').textContent = response.balances.sl;
-        document.getElementById('coBalanceDisplay').textContent = response.balances.co;
+      } catch(e) {
+        showToast("Error loading leave options: " + e.message);
       }
     }
 
     function toggleLeaveFields() {
-      const selectedCode = document.getElementById('leaveTypeSelect').value;
-      const isHalfDay = selectedCode.includes('1/2');
-      const isPH = (selectedCode === 'PH' || selectedCode === 'ph');
+      const type = document.getElementById('leaveTypeSelect').value;
       const phGroup = document.getElementById('phSelectGroup');
       const dateRangeGroup = document.getElementById('dateRangeGroup');
       const toDateContainer = document.getElementById('toDateContainer');
-      const fromDateLabel = document.getElementById('fromDateLabel');
 
-      if (isPH) {
-        if (phGroup) phGroup.classList.remove('hidden');
-        if (dateRangeGroup) dateRangeGroup.classList.add('hidden');
-        document.getElementById('paidHolidaySelect').required = true;
-        document.getElementById('leaveFromDate').required = false;
-        document.getElementById('leaveToDate').required = false;
+      if (type.toUpperCase().includes('PH')) {
+        phGroup.classList.remove('hidden');
+        dateRangeGroup.classList.add('hidden');
       } else {
-        if (phGroup) phGroup.classList.add('hidden');
-        if (dateRangeGroup) dateRangeGroup.classList.remove('hidden');
-        document.getElementById('paidHolidaySelect').required = false;
-        document.getElementById('leaveFromDate').required = true;
-        if (isHalfDay) {
-          if (toDateContainer) toDateContainer.classList.add('hidden');
-          document.getElementById('leaveToDate').required = false;
-          fromDateLabel.textContent = "Date";
+        phGroup.classList.add('hidden');
+        dateRangeGroup.classList.remove('hidden');
+
+        if (type.toUpperCase().includes('SL') || type.toUpperCase().includes('CO')) {
+          toDateContainer.classList.add('hidden');
         } else {
-          if (toDateContainer) toDateContainer.classList.remove('hidden');
-          document.getElementById('leaveToDate').required = true;
-          fromDateLabel.textContent = "From Date";
+          toDateContainer.classList.remove('hidden');
         }
       }
       calculateRequestedDays();
     }
 
     function calculateRequestedDays() {
-      const selectedCode = document.getElementById('leaveTypeSelect').value;
-      const fromDateVal = document.getElementById('leaveFromDate').value;
-      const toDateVal = document.getElementById('leaveToDate').value;
-      const isHalfDay = selectedCode.includes('1/2');
+      const fromVal = document.getElementById('leaveFromDate').value;
+      const toVal = document.getElementById('leaveToDate').value || fromVal;
       const badge = document.getElementById('leaveDaysBadge');
+      const countEl = document.getElementById('calculatedDaysCount');
 
-      if (!fromDateVal || (!isHalfDay && !toDateVal && !selectedCode.includes('PH'))) {
-        if (badge) badge.classList.add('hidden');
+      if (!fromVal) {
+        badge.classList.add('hidden');
         return;
       }
 
-      if (isHalfDay) {
-        document.getElementById('calculatedDaysCount').textContent = "0.5";
-        document.getElementById('sundaySkipNote').textContent = "";
-        if (badge) badge.classList.remove('hidden');
-        return;
-      }
+      const start = new Date(fromVal);
+      const end = new Date(toVal);
 
-      let start = new Date(fromDateVal);
-      let end = new Date(toDateVal || fromDateVal);
       if (end < start) {
-        showToast("To Date cannot be earlier than From Date!");
-        document.getElementById('leaveToDate').value = fromDateVal;
-        end = new Date(fromDateVal);
+        countEl.innerText = "Invalid Date Range";
+        badge.classList.remove('hidden');
+        return;
       }
 
-      let totalDays = 0;
-      let sundaysSkipped = 0;
-      let current = new Date(start);
-
-      while (current <= end) {
-        if (current.getDay() === 0) {
-          sundaysSkipped++;
-        } else {
-          totalDays++;
-        }
-        current.setDate(current.getDate() + 1);
+      let count = 0;
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        count++;
       }
 
-      document.getElementById('calculatedDaysCount').textContent = totalDays;
-      document.getElementById('sundaySkipNote').textContent = sundaysSkipped > 0 
-        ? `(${sundaysSkipped} Sunday(s) excluded as Weekly Off)` 
-        : "";
-      if (badge) badge.classList.remove('hidden');
+      countEl.innerText = count;
+      badge.classList.remove('hidden');
     }
 
-
-
-
-
-async function handleLeaveSubmit(e) {
-  e.preventDefault();
-  const selectedCode = document.getElementById('leaveTypeSelect').value;
-  const requestedDays = parseFloat(document.getElementById('calculatedDaysCount').textContent) || 0;
-
-  // Real-time Balance Validation
-  if (selectedCode.includes('CL') && requestedDays > currentEmployeeBalances.cl) {
-    return showToast(`Insufficient CL balance! Available: ${currentEmployeeBalances.cl}, Requested: ${requestedDays}`);
-  }
-  if (selectedCode.includes('SL') && requestedDays > currentEmployeeBalances.sl) {
-    return showToast(`Insufficient SL balance! Available: ${currentEmployeeBalances.sl}, Requested: ${requestedDays}`);
-  }
-  if (selectedCode.includes('CO') && requestedDays > currentEmployeeBalances.co) {
-    return showToast(`Insufficient CO balance! Available: ${currentEmployeeBalances.co}, Requested: ${requestedDays}`);
-  }
-
-  const isPH = (selectedCode === 'PH' || selectedCode === 'ph');
-  const empIdentifier = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid || currentUser.employeeUid || "";
-  const empUid = currentUser.employee_uid || currentUser.employeeUid || empIdentifier;
-  const empName = currentUser.employee_name || currentUser.employeeName || currentUser.name || "";
-
-  // 🟢 Safely extract RIC email from all potential property variations
-  const ricEmail = currentUser.reporting_incharge_email || 
-                   currentUser.reportingInchargeEmail || 
-                   currentUser.reporting_incharge_Email ||
-                   currentUser.ric_email || 
-                   currentUser.ricEmail || "";
-
-  const leaveFromVal = isPH ? document.getElementById('paidHolidaySelect').value : document.getElementById('leaveFromDate').value;
-  const leaveToVal = isPH ? document.getElementById('paidHolidaySelect').value : (document.getElementById('leaveToDate').value || document.getElementById('leaveFromDate').value);
-
-  const payload = {
-    employee_uid: empUid,
-    employeeUid: empUid,
-    emp_code: empIdentifier,
-    empCode: empIdentifier,
-    employee_name: empName,
-    employeeName: empName,
-    ricEmail: ricEmail, // 🟢 Correctly populated RIC Email
-    leaveType: selectedCode,
-    leaveDate: leaveFromVal,
-    toDate: leaveToVal,
-    reason: document.getElementById('leaveReason').value
-  };
-
-  const btn = document.getElementById('btnSubmitLeave');
-  btn.disabled = true;
-  btn.textContent = "Submitting...";
-
-  try {
-    const res = await callBackend("applyForLeave", payload);
-    btn.disabled = false;
-    btn.textContent = "Submit Leave Request";
-    showToast("Leave application submitted successfully!", false);
-    document.getElementById('leaveApplyForm').reset();
-    toggleLeaveFields();
-    openLeaveModule(); // Refresh UI and balances
-  } catch (err) {
-    btn.disabled = false;
-    btn.textContent = "Submit Leave Request";
-    showToast("Error: " + err.message);
-  }
-}
-
-
-    
-    
-    
-    
-async function loadDashboardLeaveStatus() {
-  if (!currentUser) return;
-  const empIdentifier = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid || currentUser.employeeUid;
-  try {
-    const res = await callBackend("getEmployeeLeaveRequests", { 
-      emp_code: empIdentifier,
-      empCode: empIdentifier,
-      employee_uid: currentUser.employee_uid || currentUser.employeeUid || empIdentifier
-    });
-    const requests = res.requests || [];
-    
-    const container = document.getElementById('dashboardLeaveStatusContainer');
-    if (!container) return;
-    const pendingRequests = requests.filter(r => r.status === 'Pending');
-    if (pendingRequests.length === 0) {
-      container.innerHTML = `<div style="font-size: 0.85rem; color: #6b7280; font-style: italic; padding: 4px 0;">No pending leave applications.</div>`;
-      return;
-    }
-    let html = `<div style="display: flex; flex-direction: column; gap: 8px;">`;
-    pendingRequests.forEach(req => {
-      // 🟢 Uses strict local formatting (DD-MMM-YYYY)
-      const formattedDate = formatDateToDdMmmYyyy(req.leaveDate || req.leave_date);
+    async function handleLeaveSubmit(e) {
+      e.preventDefault();
+      const type = document.getElementById('leaveTypeSelect').value;
+      const reason = document.getElementById('leaveReason').value.trim();
       
-      html += `
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #fffbe3; border: 1px solid #fef08a; border-radius: 6px; font-size: 0.85rem;">
-          <div>
-            <span style="font-weight: bold; color: #854d0e;">${req.leaveType || req.leave_type}</span> 
-            <span style="color: #4b5563;">(${formattedDate})</span>
-            <p style="font-size: 0.75rem; color: #6b7280; margin-top: 2px;">Reason: ${req.reason}</p>
-          </div>
-          <span style="padding: 3px 8px; background: #fef08a; color: #854d0e; font-weight: 600; border-radius: 4px; font-size: 0.75rem;">Pending Approval</span>
-        </div>`;
-    });
-    html += `</div>`;
-    container.innerHTML = html;
-  } catch (err) {
-    console.error("Error loading leave status:", err);
-  }
-}
+      let leaveDate = document.getElementById('leaveFromDate').value;
+      let toDate = document.getElementById('leaveToDate').value || leaveDate;
 
+      if (type.toUpperCase().includes('PH')) {
+        leaveDate = document.getElementById('paidHolidaySelect').value;
+        toDate = leaveDate;
+      }
 
+      if (!leaveDate) return showToast("Please select valid leave dates.");
 
+      const btn = document.getElementById('btnSubmitLeave');
+      btn.disabled = true;
+      btn.innerText = "Submitting Request...";
 
+      const payload = {
+        employeeUid: currentUser.employee_uid || currentUser.emp_code,
+        empCode: currentUser.emp_code,
+        employeeName: currentUser.employee_name || currentUser.name,
+        leaveType: type,
+        leaveDate: leaveDate,
+        toDate: toDate,
+        reason: reason
+      };
 
-
-
-
-
-
-
-
-    
-
-function formatDateToDdMmmYyyy(dateStr) {
-  if (!dateStr) return '';
-  // Handle ISO strings or plain date strings safely
-  const cleanStr = String(dateStr).split('T')[0]; 
-  const parts = cleanStr.split('-');
-  if (parts.length < 3) return dateStr;
-  
-  const year = parts[0];
-  const monthIdx = parseInt(parts[1], 10) - 1;
-  const day = parts[2];
-  
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${day.padStart(2, '0')}-${monthNames[monthIdx]}-${year}`;
-}
-
-
-
-    
+      try {
+        const res = await callBackend("applyForLeave", payload);
+        showToast(res.message, false);
+        switchView('view-dashboard');
+      } catch(err) {
+        showToast(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Submit Leave Request";
+      }
+    }
   </script>
 </body>
 </html>
