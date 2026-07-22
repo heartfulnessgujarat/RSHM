@@ -229,6 +229,17 @@
       <button onclick="openNewWorkLogForm()">Daily Work Entry</button>
       <button onclick="loadTimesheetHistory()" class="btn-secondary">My Timesheet History</button>
       <button onclick="openLeaveModule()" class="btn-secondary" style="margin-top: 8px; background: #2563eb; color: white;">Apply / Check Leave</button>
+
+<!-- 🟢 Pending Leave Status Box on Dashboard -->
+<div class="mt-4 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+  <h3 class="text-sm font-semibold text-gray-700 mb-2">Pending Leave Requests</h3>
+  <div id="dashboardLeaveStatusContainer">
+    <div class="text-sm text-gray-400 italic">Loading leave status...</div>
+  </div>
+</div>
+
+
+      
     </div>
   </div>
 
@@ -371,29 +382,45 @@
       setTimeout(() => container.classList.add('hidden'), 4000);
     }
 
-    function switchView(viewId) {
-      if (viewId === 'view-change-password') {
-        const loginCode = document.getElementById('login-emp-code').value.trim();
-        if (loginCode) {
-          document.getElementById('change-emp-code').value = loginCode;
-          updateRegisteredEmailHint();
-        }
-      }
 
-      if (viewId === 'view-login') {
-        const changeCode = document.getElementById('change-emp-code').value.trim();
-        if (changeCode) {
-          document.getElementById('login-emp-code').value = changeCode;
-        }
-      }
 
-      // 🟢 ADD 'view-leave-module' TO THIS ARRAY
-      ['view-login', 'view-change-password', 'view-register-email', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module'].forEach(id => {
-        document.getElementById(id).classList.add('hidden');
-      });
-      document.getElementById(viewId).classList.remove('hidden');
+
+    
+
+function switchView(viewId) {
+  if (viewId === 'view-change-password') {
+    const loginCode = document.getElementById('login-emp-code').value.trim();
+    if (loginCode) {
+      document.getElementById('change-emp-code').value = loginCode;
+      updateRegisteredEmailHint();
     }
+  }
 
+  if (viewId === 'view-login') {
+    const changeCode = document.getElementById('change-emp-code').value.trim();
+    if (changeCode) {
+      document.getElementById('login-emp-code').value = changeCode;
+    }
+  }
+
+  ['view-login', 'view-change-password', 'view-register-email', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module'].forEach(id => {
+    document.getElementById(id).classList.add('hidden');
+  });
+  document.getElementById(viewId).classList.remove('hidden');
+
+  // 🟢 ADD THIS: Triggers leave status load whenever switching back to dashboard
+  if (viewId === 'view-dashboard') {
+    loadDashboardLeaveStatus();
+  }
+}
+
+
+
+
+
+
+
+    
     function togglePasswordVisibility(inputId) {
       const input = document.getElementById(inputId);
       input.classList.toggle('visible');
@@ -995,7 +1022,9 @@ async function openLeaveModule() {
     }
 
 
-/**
+
+
+   /**
  * Loads pending leave requests onto the main dashboard
  */
 async function loadDashboardLeaveStatus() {
@@ -1036,9 +1065,6 @@ async function loadDashboardLeaveStatus() {
     console.error("Error loading leave status:", err);
   }
 }
-
-
-
 
 
 
