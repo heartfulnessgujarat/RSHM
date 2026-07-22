@@ -226,6 +226,7 @@
       <h3 style="margin-bottom: 12px; font-size: 1.1rem;">Quick Actions</h3>
       <button onclick="openNewWorkLogForm()">Daily Work Entry</button>
       <button onclick="loadTimesheetHistory()" class="btn-secondary">My Timesheet History</button>
+      <button onclick="openLeaveModule()" class="btn-secondary" style="margin-top: 8px; background: #2563eb; color: white;">Apply / Check Leave</button>
     </div>
   </div>
 
@@ -268,6 +269,78 @@
     <button onclick="switchView('view-dashboard')" class="btn-secondary">Return to Dashboard</button>
   </div>
 
+<!-- VIEW 5: LEAVE MANAGEMENT MODULE -->
+  <div id="view-leave-module" class="hidden card">
+    <h2>Apply for Leave</h2>
+
+    <!-- Live Balances Display -->
+    <div style="display: flex; gap: 8px; margin-bottom: 15px; text-align: center;">
+      <div style="flex: 1; background: #eff6ff; padding: 10px; border-radius: 8px; border-left: 4px solid #2563eb;">
+        <small style="color: #1d4ed8; font-weight: bold; display: block;">CL</small>
+        <span id="clBalanceDisplay" style="font-size: 1.2rem; font-weight: bold;">--</span>
+      </div>
+      <div style="flex: 1; background: #f0fdf4; padding: 10px; border-radius: 8px; border-left: 4px solid #16a34a;">
+        <small style="color: #15803d; font-weight: bold; display: block;">SL</small>
+        <span id="slBalanceDisplay" style="font-size: 1.2rem; font-weight: bold;">--</span>
+      </div>
+      <div style="flex: 1; background: #faf5ff; padding: 10px; border-radius: 8px; border-left: 4px solid #9333ea;">
+        <small style="color: #7e22ce; font-weight: bold; display: block;">CO</small>
+        <span id="coBalanceDisplay" style="font-size: 1.2rem; font-weight: bold;">--</span>
+      </div>
+    </div>
+
+    <!-- Leave Application Form -->
+    <form id="leaveApplyForm" onsubmit="handleLeaveSubmit(event)">
+      
+      <div class="form-group">
+        <label>Select Leave Type</label>
+        <select id="leaveTypeSelect" onchange="toggleLeaveFields()" required>
+          <option value="">-- Select Leave Type --</option>
+        </select>
+      </div>
+
+      <!-- Paid Holiday Group -->
+      <div id="phSelectGroup" class="form-group hidden">
+        <label>Select Paid Holiday</label>
+        <select id="paidHolidaySelect">
+          <option value="">-- Select Holiday --</option>
+        </select>
+      </div>
+
+      <!-- Date Range Group -->
+      <div id="dateRangeGroup">
+        <div class="form-group">
+          <label id="fromDateLabel">From Date</label>
+          <input type="date" id="leaveFromDate" onchange="calculateRequestedDays()">
+        </div>
+        <div class="form-group" id="toDateContainer">
+          <label>To Date</label>
+          <input type="date" id="leaveToDate" onchange="calculateRequestedDays()">
+        </div>
+      </div>
+
+      <!-- Badge Info -->
+      <div id="leaveDaysBadge" class="hidden" style="background: #f3f4f6; padding: 8px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 12px;">
+        Total Days Requested: <strong id="calculatedDaysCount" style="color: #2563eb;">0</strong>
+        <span id="sundaySkipNote" style="color: #6b7280; font-style: italic; display: block; font-size: 0.75rem;"></span>
+      </div>
+
+      <div class="form-group">
+        <label>Reason for Leave</label>
+        <textarea id="leaveReason" rows="3" placeholder="Enter reason..." required></textarea>
+      </div>
+
+      <button type="submit" id="btnSubmitLeave">Submit Leave Request</button>
+      <button type="button" onclick="switchView('view-dashboard')" class="btn-secondary">Return to Dashboard</button>
+    </form>
+  </div>
+
+
+
+
+
+
+  
   <script>
     const BACKEND_API = "https://script.google.com/macros/s/AKfycbxX86VBRJfbDfPk2_HFFCpLv6fMn7To7GX_WgQWmvd7m2_bgr2cXa7nsgc92VdxxmMXCA/exec";
 
@@ -312,6 +385,21 @@
         }
       }
 
+      // 🟢 ADD 'view-leave-module' TO THIS ARRAY
+      ['view-login', 'view-change-password', 'view-register-email', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+      document.getElementById(viewId).classList.remove('hidden');
+    }
+
+
+
+
+
+
+
+
+      
       ['view-login', 'view-change-password', 'view-register-email', 'view-dashboard', 'view-work-entry', 'view-timesheet'].forEach(id => {
         document.getElementById(id).classList.add('hidden');
       });
@@ -686,6 +774,204 @@
         showToast(err.message);
       }
     }
+
+// Global Leave Module Variables
+    let masterLeaveTypes = [];
+    let masterPaidHolidays = [];
+    let currentEmployeeBalances = { cl: 0, sl: 0, co: 0 };
+
+    /**
+     * Opens Leave Module View & Loads Data
+     */
+    function openLeaveModule() {
+      switchView('view-leave-module');
+      if (!currentUser) return;
+      
+      // Load Leave Master
+      google.script.run.withSuccessHandler(onLeaveMasterLoaded).getLeaveMasterData();
+      
+      // Load Employee Balances
+      google.script.run.withSuccessHandler(onBalancesLoaded).getEmployeeLeaveBalances(currentUser.uid || currentUser.empCode);
+    }
+
+    function onLeaveMasterLoaded(response) {
+      if (!response.success) return showToast("Failed to load leave master: " + response.error);
+
+      masterLeaveTypes = response.leaveTypes;
+      masterPaidHolidays = response.paidHolidays;
+
+      // Populate Leave Type Dropdown
+      const leaveSelect = document.getElementById('leaveTypeSelect');
+      leaveSelect.innerHTML = '<option value="">-- Select Leave Type --</option>';
+      masterLeaveTypes.forEach(item => {
+        let opt = document.createElement('option');
+        opt.value = item.approved;
+        opt.textContent = `${item.type} (${item.approved})`;
+        leaveSelect.appendChild(opt);
+      });
+
+      // Populate Paid Holiday Dropdown
+      const phSelect = document.getElementById('paidHolidaySelect');
+      phSelect.innerHTML = '<option value="">-- Select Holiday --</option>';
+      masterPaidHolidays.forEach(item => {
+        let opt = document.createElement('option');
+        opt.value = item.date;
+        opt.textContent = `${item.date} - ${item.name}`;
+        phSelect.appendChild(opt);
+      });
+    }
+
+    function onBalancesLoaded(response) {
+      if (response.success) {
+        currentEmployeeBalances = response.balances;
+        document.getElementById('clBalanceDisplay').textContent = response.balances.cl;
+        document.getElementById('slBalanceDisplay').textContent = response.balances.sl;
+        document.getElementById('coBalanceDisplay').textContent = response.balances.co;
+      }
+    }
+
+    function toggleLeaveFields() {
+      const selectedCode = document.getElementById('leaveTypeSelect').value;
+      const isHalfDay = selectedCode.includes('1/2');
+      const isPH = (selectedCode === 'PH' || selectedCode === 'ph');
+
+      const phGroup = document.getElementById('phSelectGroup');
+      const dateRangeGroup = document.getElementById('dateRangeGroup');
+      const toDateContainer = document.getElementById('toDateContainer');
+      const fromDateLabel = document.getElementById('fromDateLabel');
+
+      if (isPH) {
+        phGroup.classList.remove('hidden');
+        dateRangeGroup.classList.add('hidden');
+        document.getElementById('paidHolidaySelect').required = true;
+        document.getElementById('leaveFromDate').required = false;
+        document.getElementById('leaveToDate').required = false;
+      } else {
+        phGroup.classList.add('hidden');
+        dateRangeGroup.classList.remove('hidden');
+        document.getElementById('paidHolidaySelect').required = false;
+        document.getElementById('leaveFromDate').required = true;
+
+        if (isHalfDay) {
+          toDateContainer.classList.add('hidden');
+          document.getElementById('leaveToDate').required = false;
+          fromDateLabel.textContent = "Date";
+        } else {
+          toDateContainer.classList.remove('hidden');
+          document.getElementById('leaveToDate').required = true;
+          fromDateLabel.textContent = "From Date";
+        }
+      }
+      calculateRequestedDays();
+    }
+
+    function calculateRequestedDays() {
+      const selectedCode = document.getElementById('leaveTypeSelect').value;
+      const fromDateVal = document.getElementById('leaveFromDate').value;
+      const toDateVal = document.getElementById('leaveToDate').value;
+      const isHalfDay = selectedCode.includes('1/2');
+      const badge = document.getElementById('leaveDaysBadge');
+
+      if (!fromDateVal || (!isHalfDay && !toDateVal && !selectedCode.includes('PH'))) {
+        badge.classList.add('hidden');
+        return;
+      }
+
+      if (isHalfDay) {
+        document.getElementById('calculatedDaysCount').textContent = "0.5";
+        document.getElementById('sundaySkipNote').textContent = "";
+        badge.classList.remove('hidden');
+        return;
+      }
+
+      let start = new Date(fromDateVal);
+      let end = new Date(toDateVal || fromDateVal);
+
+      if (end < start) {
+        showToast("To Date cannot be earlier than From Date!");
+        document.getElementById('leaveToDate').value = fromDateVal;
+        end = new Date(fromDateVal);
+      }
+
+      let totalDays = 0;
+      let sundaysSkipped = 0;
+      let current = new Date(start);
+
+      while (current <= end) {
+        if (current.getDay() === 0) {
+          sundaysSkipped++;
+        } else {
+          totalDays++;
+        }
+        current.setDate(current.getDate() + 1);
+      }
+
+      document.getElementById('calculatedDaysCount').textContent = totalDays;
+      document.getElementById('sundaySkipNote').textContent = sundaysSkipped > 0 
+        ? `(${sundaysSkipped} Sunday(s) excluded as Weekly Off)` 
+        : "";
+      badge.classList.remove('hidden');
+    }
+
+    function handleLeaveSubmit(e) {
+      e.preventDefault();
+
+      const selectedCode = document.getElementById('leaveTypeSelect').value;
+      const requestedDays = parseFloat(document.getElementById('calculatedDaysCount').textContent) || 0;
+
+      // Real-time Balance Checking
+      if (selectedCode.includes('CL') && requestedDays > currentEmployeeBalances.cl) {
+        return showToast(`Insufficient CL balance! Available: ${currentEmployeeBalances.cl}, Requested: ${requestedDays}`);
+      }
+      if (selectedCode.includes('SL') && requestedDays > currentEmployeeBalances.sl) {
+        return showToast(`Insufficient SL balance! Available: ${currentEmployeeBalances.sl}, Requested: ${requestedDays}`);
+      }
+      if (selectedCode.includes('CO') && requestedDays > currentEmployeeBalances.co) {
+        return showToast(`Insufficient CO balance! Available: ${currentEmployeeBalances.co}, Requested: ${requestedDays}`);
+      }
+
+      const isPH = (selectedCode === 'PH' || selectedCode === 'ph');
+      const payload = {
+        employeeUid: currentUser.uid || currentUser.empCode,
+        empCode: currentUser.empCode,
+        employeeName: currentUser.name || currentUser.empName,
+        ricEmail: currentUser.ricEmail || '',
+        leaveType: selectedCode,
+        leaveDate: isPH ? document.getElementById('paidHolidaySelect').value : document.getElementById('leaveFromDate').value,
+        toDate: isPH ? document.getElementById('paidHolidaySelect').value : (document.getElementById('leaveToDate').value || document.getElementById('leaveFromDate').value),
+        reason: document.getElementById('leaveReason').value
+      };
+
+      const btn = document.getElementById('btnSubmitLeave');
+      btn.disabled = true;
+      btn.textContent = "Submitting...";
+
+      google.script.run
+        .withSuccessHandler(res => {
+          btn.disabled = false;
+          btn.textContent = "Submit Leave Request";
+          
+          if (res.success) {
+            showToast(res.message, false);
+            document.getElementById('leaveApplyForm').reset();
+            toggleLeaveFields();
+            openLeaveModule(); // Refresh balance UI
+          } else {
+            showToast("Error: " + res.error);
+          }
+        })
+        .applyForLeave(payload);
+    }
+
+
+
+
+
+
+
+
+
+    
   </script>
 </body>
 </html>
