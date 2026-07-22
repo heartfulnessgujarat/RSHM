@@ -784,11 +784,28 @@
  * Fetches updated leave balances for the logged-in user and populates cards/dropdowns.
  */
 function openLeaveModule() {
-  const empId = document.getElementById('leaveEmpId')?.value || currentUserEmpId; // adjust to your global variable if different
+  // 1. Try multiple fallback sources to get the logged-in employee ID safely
+  let empId = document.getElementById('leaveEmpId')?.value || 
+              document.getElementById('empId')?.value ||
+              (typeof currentEmpId !== 'undefined' ? currentEmpId : '') ||
+              (typeof currentUser !== 'undefined' ? (currentUser.empCode || currentUser.empId || currentUser.uid) : '');
+
+  // 2. If still empty, attempt to scrape from the header badge UI (e.g. "ID: EMP001")
+  if (!empId) {
+    const headerText = document.body.innerText || "";
+    const match = headerText.match(/ID:\s*([A-Za-z0-9]+)/i);
+    if (match && match[1]) {
+      empId = match[1].trim();
+    }
+  }
+
   const balanceContainer = document.getElementById('leaveBalanceCards');
 
   if (!empId) {
     console.warn('No Employee ID found to fetch leave balances.');
+    if (balanceContainer) {
+      balanceContainer.innerHTML = '<p class="text-danger">Unable to detect Employee ID. Please re-login.</p>';
+    }
     return;
   }
 
@@ -814,7 +831,15 @@ function openLeaveModule() {
     })
     .getEmployeeLeaveBalances(empId);
 }
+    
 
+
+
+
+
+
+
+    
 /**
  * Helper to render balance cards dynamically in index.html
  */
