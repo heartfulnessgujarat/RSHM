@@ -868,6 +868,9 @@
     }
 
 
+
+
+
 async function handleLeaveSubmit(e) {
   e.preventDefault();
   const selectedCode = document.getElementById('leaveTypeSelect').value;
@@ -888,12 +891,16 @@ async function handleLeaveSubmit(e) {
   const empIdentifier = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid || currentUser.employeeUid || "";
   const empUid = currentUser.employee_uid || currentUser.employeeUid || empIdentifier;
   const empName = currentUser.employee_name || currentUser.employeeName || currentUser.name || "";
-  
-  // Extract RIC email from currentUser object
+
+  // 🟢 Safely extract RIC email from all potential property variations
   const ricEmail = currentUser.reporting_incharge_email || 
                    currentUser.reportingInchargeEmail || 
+                   currentUser.reporting_incharge_Email ||
                    currentUser.ric_email || 
                    currentUser.ricEmail || "";
+
+  const leaveFromVal = isPH ? document.getElementById('paidHolidaySelect').value : document.getElementById('leaveFromDate').value;
+  const leaveToVal = isPH ? document.getElementById('paidHolidaySelect').value : (document.getElementById('leaveToDate').value || document.getElementById('leaveFromDate').value);
 
   const payload = {
     employee_uid: empUid,
@@ -902,10 +909,10 @@ async function handleLeaveSubmit(e) {
     empCode: empIdentifier,
     employee_name: empName,
     employeeName: empName,
-    ricEmail: ricEmail, // 🟢 Passed directly to code.gs for email dispatch
+    ricEmail: ricEmail, // 🟢 Correctly populated RIC Email
     leaveType: selectedCode,
-    leaveDate: isPH ? document.getElementById('paidHolidaySelect').value : document.getElementById('leaveFromDate').value,
-    toDate: isPH ? document.getElementById('paidHolidaySelect').value : (document.getElementById('leaveToDate').value || document.getElementById('leaveFromDate').value),
+    leaveDate: leaveFromVal,
+    toDate: leaveToVal,
     reason: document.getElementById('leaveReason').value
   };
 
@@ -929,6 +936,7 @@ async function handleLeaveSubmit(e) {
 }
 
 
+    
     
     
     
