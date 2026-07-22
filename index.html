@@ -761,30 +761,55 @@
       }
     }
 
+
 // Global Leave Module Variables
     let masterLeaveTypes = [];
     let masterPaidHolidays = [];
     let currentEmployeeBalances = { cl: 0, sl: 0, co: 0 };
 
     /**
-     * Opens Leave Module View & Loads Data
+     * Opens Leave Module View, sets date limits, & Loads Data via callBackend
      */
-    function openLeaveModule() {
+    async function openLeaveModule() {
       switchView('view-leave-module');
       if (!currentUser) return;
-      
-      // Load Leave Master
-      google.script.run.withSuccessHandler(onLeaveMasterLoaded).getLeaveMasterData();
-      
-      // Load Employee Balances
-      google.script.run.withSuccessHandler(onBalancesLoaded).getEmployeeLeaveBalances(currentUser.uid || currentUser.empCode);
+
+      // 🟢 Enforce Back-Dated Restriction using edit_window_days
+      enforceLeaveDateLimits();
+
+      try {
+        // Fetch Master Data (Leave Types & Paid Holidays)
+        const masterRes = await callBackend("getLeaveMasterData", {});
+        onLeaveMasterLoaded(masterRes);
+
+        // Fetch Employee Balances
+        const balanceRes = await callBackend("getEmployeeLeaveBalances", { empCode: currentUser.empCode });
+        onBalancesLoaded(balanceRes);
+      } catch (err) {
+        showToast("Error loading leave data: " + err.message);
+      }
+    }
+
+    /**
+     * Prevents selecting dates older than currentConfig.edit_window_days
+     */
+    function enforceLeaveDateLimits() {
+      const windowDays = currentConfig.edit_window_days || 7; // Default to 7 days
+      const minDate = new Date();
+      minDate.setDate(minDate.getDate() - windowDays);
+
+      const minDateStr = minDate.toISOString().split('T')[0];
+
+      const fromInput = document.getElementById('leaveFromDate');
+      const toInput = document.getElementById('leaveToDate');
+
+      if (fromInput) fromInput.min = minDateStr;
+      if (toInput) toInput.min = minDateStr;
     }
 
     function onLeaveMasterLoaded(response) {
-      if (!response.success) return showToast("Failed to load leave master: " + response.error);
-
-      masterLeaveTypes = response.leaveTypes;
-      masterPaidHolidays = response.paidHolidays;
+      masterLeaveTypes = response.leaveTypes || [];
+      masterPaidHolidays = response.paidHolidays || [];
 
       // Populate Leave Type Dropdown
       const leaveSelect = document.getElementById('leaveTypeSelect');
@@ -798,17 +823,19 @@
 
       // Populate Paid Holiday Dropdown
       const phSelect = document.getElementById('paidHolidaySelect');
-      phSelect.innerHTML = '<option value="">-- Select Holiday --</option>';
-      masterPaidHolidays.forEach(item => {
-        let opt = document.createElement('option');
-        opt.value = item.date;
-        opt.textContent = `${item.date} - ${item.name}`;
-        phSelect.appendChild(opt);
-      });
+      if (phSelect) {
+        phSelect.innerHTML = '<option value="">-- Select Holiday --</option>';
+        masterPaidHolidays.forEach(item => {
+          let opt = document.createElement('option');
+          opt.value = item.date;
+          opt.textContent = `${item.date} - ${item.name}`;
+          phSelect.appendChild(opt);
+        });
+      }
     }
 
     function onBalancesLoaded(response) {
-      if (response.success) {
+      if (response && response.balances) {
         currentEmployeeBalances = response.balances;
         document.getElementById('clBalanceDisplay').textContent = response.balances.cl;
         document.getElementById('slBalanceDisplay').textContent = response.balances.sl;
@@ -827,23 +854,23 @@
       const fromDateLabel = document.getElementById('fromDateLabel');
 
       if (isPH) {
-        phGroup.classList.remove('hidden');
-        dateRangeGroup.classList.add('hidden');
+        if (phGroup) phGroup.classList.remove('hidden');
+        if (dateRangeGroup) dateRangeGroup.classList.add('hidden');
         document.getElementById('paidHolidaySelect').required = true;
         document.getElementById('leaveFromDate').required = false;
         document.getElementById('leaveToDate').required = false;
       } else {
-        phGroup.classList.add('hidden');
-        dateRangeGroup.classList.remove('hidden');
+        if (phGroup) phGroup.classList.add('hidden');
+        if (dateRangeGroup) dateRangeGroup.classList.remove('hidden');
         document.getElementById('paidHolidaySelect').required = false;
         document.getElementById('leaveFromDate').required = true;
 
         if (isHalfDay) {
-          toDateContainer.classList.add('hidden');
+          if (toDateContainer) toDateContainer.classList.add('hidden');
           document.getElementById('leaveToDate').required = false;
           fromDateLabel.textContent = "Date";
         } else {
-          toDateContainer.classList.remove('hidden');
+          if (toDateContainer) toDateContainer.classList.remove('hidden');
           document.getElementById('leaveToDate').required = true;
           fromDateLabel.textContent = "From Date";
         }
@@ -859,14 +886,14 @@
       const badge = document.getElementById('leaveDaysBadge');
 
       if (!fromDateVal || (!isHalfDay && !toDateVal && !selectedCode.includes('PH'))) {
-        badge.classList.add('hidden');
+        if (badge) badge.classList.add('hidden');
         return;
       }
 
       if (isHalfDay) {
         document.getElementById('calculatedDaysCount').textContent = "0.5";
         document.getElementById('sundaySkipNote').textContent = "";
-        badge.classList.remove('hidden');
+        if (badge) badge.classList.remove('hidden');
         return;
       }
 
@@ -896,16 +923,16 @@
       document.getElementById('sundaySkipNote').textContent = sundaysSkipped > 0 
         ? `(${sundaysSkipped} Sunday(s) excluded as Weekly Off)` 
         : "";
-      badge.classList.remove('hidden');
+      if (badge) badge.classList.remove('hidden');
     }
 
-    function handleLeaveSubmit(e) {
+    async function handleLeaveSubmit(e) {
       e.preventDefault();
 
       const selectedCode = document.getElementById('leaveTypeSelect').value;
       const requestedDays = parseFloat(document.getElementById('calculatedDaysCount').textContent) || 0;
 
-      // Real-time Balance Checking
+      // Real-time Balance Validation
       if (selectedCode.includes('CL') && requestedDays > currentEmployeeBalances.cl) {
         return showToast(`Insufficient CL balance! Available: ${currentEmployeeBalances.cl}, Requested: ${requestedDays}`);
       }
@@ -921,7 +948,6 @@
         employeeUid: currentUser.uid || currentUser.empCode,
         empCode: currentUser.empCode,
         employeeName: currentUser.name || currentUser.empName,
-        ricEmail: currentUser.ricEmail || '',
         leaveType: selectedCode,
         leaveDate: isPH ? document.getElementById('paidHolidaySelect').value : document.getElementById('leaveFromDate').value,
         toDate: isPH ? document.getElementById('paidHolidaySelect').value : (document.getElementById('leaveToDate').value || document.getElementById('leaveFromDate').value),
@@ -932,22 +958,22 @@
       btn.disabled = true;
       btn.textContent = "Submitting...";
 
-      google.script.run
-        .withSuccessHandler(res => {
-          btn.disabled = false;
-          btn.textContent = "Submit Leave Request";
-          
-          if (res.success) {
-            showToast(res.message, false);
-            document.getElementById('leaveApplyForm').reset();
-            toggleLeaveFields();
-            openLeaveModule(); // Refresh balance UI
-          } else {
-            showToast("Error: " + res.error);
-          }
-        })
-        .applyForLeave(payload);
+      try {
+        const res = await callBackend("applyForLeave", payload);
+        btn.disabled = false;
+        btn.textContent = "Submit Leave Request";
+
+        showToast("Leave application submitted successfully!", false);
+        document.getElementById('leaveApplyForm').reset();
+        toggleLeaveFields();
+        openLeaveModule(); // Refresh UI and balances
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = "Submit Leave Request";
+        showToast("Error: " + err.message);
+      }
     }
+
 
 
 
