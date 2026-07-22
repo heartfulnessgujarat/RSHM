@@ -867,61 +867,67 @@
       if (badge) badge.classList.remove('hidden');
     }
 
+  
     async function handleLeaveSubmit(e) {
-      e.preventDefault();
-      const selectedCode = document.getElementById('leaveTypeSelect').value;
-      const requestedDays = parseFloat(document.getElementById('calculatedDaysCount').textContent) || 0;
+  e.preventDefault();
+  const selectedCode = document.getElementById('leaveTypeSelect').value;
+  const requestedDays = parseFloat(document.getElementById('calculatedDaysCount').textContent) || 0;
 
-      // Real-time Balance Validation
-      if (selectedCode.includes('CL') && requestedDays > currentEmployeeBalances.cl) {
-        return showToast(`Insufficient CL balance! Available: ${currentEmployeeBalances.cl}, Requested: ${requestedDays}`);
-      }
-      if (selectedCode.includes('SL') && requestedDays > currentEmployeeBalances.sl) {
-        return showToast(`Insufficient SL balance! Available: ${currentEmployeeBalances.sl}, Requested: ${requestedDays}`);
-      }
-      if (selectedCode.includes('CO') && requestedDays > currentEmployeeBalances.co) {
-        return showToast(`Insufficient CO balance! Available: ${currentEmployeeBalances.co}, Requested: ${requestedDays}`);
-      }
+  // Real-time Balance Validation
+  if (selectedCode.includes('CL') && requestedDays > currentEmployeeBalances.cl) {
+    return showToast(`Insufficient CL balance! Available: ${currentEmployeeBalances.cl}, Requested: ${requestedDays}`);
+  }
+  if (selectedCode.includes('SL') && requestedDays > currentEmployeeBalances.sl) {
+    return showToast(`Insufficient SL balance! Available: ${currentEmployeeBalances.sl}, Requested: ${requestedDays}`);
+  }
+  if (selectedCode.includes('CO') && requestedDays > currentEmployeeBalances.co) {
+    return showToast(`Insufficient CO balance! Available: ${currentEmployeeBalances.co}, Requested: ${requestedDays}`);
+  }
 
-      const isPH = (selectedCode === 'PH' || selectedCode === 'ph');
-      const empIdentifier = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid || currentUser.employeeUid || "";
-      const empUid = currentUser.employee_uid || currentUser.employeeUid || empIdentifier;
-      const empName = currentUser.employee_name || currentUser.employeeName || currentUser.name || "";
+  const isPH = (selectedCode === 'PH' || selectedCode === 'ph');
+  const empIdentifier = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid || currentUser.employeeUid || "";
+  const empUid = currentUser.employee_uid || currentUser.employeeUid || empIdentifier;
+  const empName = currentUser.employee_name || currentUser.employeeName || currentUser.name || "";
 
-      // 🟢 Payload correctly structured for backend matching
-      const payload = {
-        employee_uid: empUid,
-        employeeUid: empUid,
-        emp_code: empIdentifier,
-        empCode: empIdentifier,
-        employee_name: empName,
-        employeeName: empName,
-        leaveType: selectedCode,
-        leaveDate: isPH ? document.getElementById('paidHolidaySelect').value : document.getElementById('leaveFromDate').value,
-        toDate: isPH ? document.getElementById('paidHolidaySelect').value : (document.getElementById('leaveToDate').value || document.getElementById('leaveFromDate').value),
-        reason: document.getElementById('leaveReason').value
-      };
+  const payload = {
+    employee_uid: empUid,
+    employeeUid: empUid,
+    emp_code: empIdentifier,
+    empCode: empIdentifier,
+    employee_name: empName,
+    employeeName: empName,
+    leaveType: selectedCode,
+    leaveDate: isPH ? document.getElementById('paidHolidaySelect').value : document.getElementById('leaveFromDate').value,
+    toDate: isPH ? document.getElementById('paidHolidaySelect').value : (document.getElementById('leaveToDate').value || document.getElementById('leaveFromDate').value),
+    reason: document.getElementById('leaveReason').value
+  };
 
-      const btn = document.getElementById('btnSubmitLeave');
-      btn.disabled = true;
-      btn.textContent = "Submitting...";
+  const btn = document.getElementById('btnSubmitLeave');
+  btn.disabled = true;
+  btn.textContent = "Submitting...";
 
-      try {
-        // 🟢 Calls "handleApplyForLeave" action on backend
-        const res = await callBackend("handleApplyForLeave", payload);
-        btn.disabled = false;
-        btn.textContent = "Submit Leave Request";
-        showToast("Leave application submitted successfully!", false);
-        document.getElementById('leaveApplyForm').reset();
-        toggleLeaveFields();
-        openLeaveModule(); // Refresh UI and balances
-      } catch (err) {
-        btn.disabled = false;
-        btn.textContent = "Submit Leave Request";
-        showToast("Error: " + err.message);
-      }
-    }
+  try {
+    // 🟢 Action name changed back to 'applyForLeave' to match code.gs router
+    const res = await callBackend("applyForLeave", payload);
+    btn.disabled = false;
+    btn.textContent = "Submit Leave Request";
+    showToast("Leave application submitted successfully!", false);
+    document.getElementById('leaveApplyForm').reset();
+    toggleLeaveFields();
+    openLeaveModule(); // Refresh UI and balances
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = "Submit Leave Request";
+    showToast("Error: " + err.message);
+  }
+}
+    
+    
 
+
+
+
+    
     /**
      * Loads pending leave requests onto the main dashboard
      */
