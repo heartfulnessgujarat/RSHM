@@ -923,50 +923,77 @@
 }
     
     
+async function loadDashboardLeaveStatus() {
+  if (!currentUser) return;
+  const empIdentifier = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid || currentUser.employeeUid;
+  try {
+    const res = await callBackend("getEmployeeLeaveRequests", { 
+      emp_code: empIdentifier,
+      empCode: empIdentifier,
+      employee_uid: currentUser.employee_uid || currentUser.employeeUid || empIdentifier
+    });
+    const requests = res.requests || [];
+    
+    const container = document.getElementById('dashboardLeaveStatusContainer');
+    if (!container) return;
+    const pendingRequests = requests.filter(r => r.status === 'Pending');
+    if (pendingRequests.length === 0) {
+      container.innerHTML = `<div style="font-size: 0.85rem; color: #6b7280; font-style: italic; padding: 4px 0;">No pending leave applications.</div>`;
+      return;
+    }
+    let html = `<div style="display: flex; flex-direction: column; gap: 8px;">`;
+    pendingRequests.forEach(req => {
+      // 🟢 Uses strict local formatting (DD-MMM-YYYY)
+      const formattedDate = formatDateToDdMmmYyyy(req.leaveDate || req.leave_date);
+      
+      html += `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #fffbe3; border: 1px solid #fef08a; border-radius: 6px; font-size: 0.85rem;">
+          <div>
+            <span style="font-weight: bold; color: #854d0e;">${req.leaveType || req.leave_type}</span> 
+            <span style="color: #4b5563;">(${formattedDate})</span>
+            <p style="font-size: 0.75rem; color: #6b7280; margin-top: 2px;">Reason: ${req.reason}</p>
+          </div>
+          <span style="padding: 3px 8px; background: #fef08a; color: #854d0e; font-weight: 600; border-radius: 4px; font-size: 0.75rem;">Pending Approval</span>
+        </div>`;
+    });
+    html += `</div>`;
+    container.innerHTML = html;
+  } catch (err) {
+    console.error("Error loading leave status:", err);
+  }
+}
+
+
+
+
+
+
+
+
 
 
 
 
     
-    /**
-     * Loads pending leave requests onto the main dashboard
-     */
-    async function loadDashboardLeaveStatus() {
-      if (!currentUser) return;
-      const empIdentifier = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid || currentUser.employeeUid;
-      try {
-        const res = await callBackend("getEmployeeLeaveRequests", { 
-          emp_code: empIdentifier,
-          empCode: empIdentifier,
-          employee_uid: currentUser.employee_uid || currentUser.employeeUid || empIdentifier
-        });
-        const requests = res.requests || [];
-        
-        const container = document.getElementById('dashboardLeaveStatusContainer');
-        if (!container) return;
-        const pendingRequests = requests.filter(r => r.status === 'Pending');
-        if (pendingRequests.length === 0) {
-          container.innerHTML = `<div style="font-size: 0.85rem; color: #6b7280; font-style: italic; padding: 4px 0;">No pending leave applications.</div>`;
-          return;
-        }
-        let html = `<div style="display: flex; flex-direction: column; gap: 8px;">`;
-        pendingRequests.forEach(req => {
-          html += `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #fffbe3; border: 1px solid #fef08a; border-radius: 6px; font-size: 0.85rem;">
-              <div>
-                <span style="font-weight: bold; color: #854d0e;">${req.leaveType}</span> 
-                <span style="color: #4b5563;">(${req.leaveDate})</span>
-                <p style="font-size: 0.75rem; color: #6b7280; margin-top: 2px;">Reason: ${req.reason}</p>
-              </div>
-              <span style="padding: 3px 8px; background: #fef08a; color: #854d0e; font-weight: 600; border-radius: 4px; font-size: 0.75rem;">Pending Approval</span>
-            </div>`;
-        });
-        html += `</div>`;
-        container.innerHTML = html;
-      } catch (err) {
-        console.error("Error loading leave status:", err);
-      }
-    }
+
+function formatDateToDdMmmYyyy(dateStr) {
+  if (!dateStr) return '';
+  // Handle ISO strings or plain date strings safely
+  const cleanStr = String(dateStr).split('T')[0]; 
+  const parts = cleanStr.split('-');
+  if (parts.length < 3) return dateStr;
+  
+  const year = parts[0];
+  const monthIdx = parseInt(parts[1], 10) - 1;
+  const day = parts[2];
+  
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${day.padStart(2, '0')}-${monthNames[monthIdx]}-${year}`;
+}
+
+
+
+    
   </script>
 </body>
 </html>
