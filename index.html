@@ -778,110 +778,103 @@
 
 
 
-
-
-
 /**
  * REPLACEMENT FOR openLeaveModule() / loadLeaveBalances()
- * Compatible with GitHub Pages via fetch API
+ * Compatible with GitHub Pages using BACKEND_API
  */
 async function openLeaveModule() {
-  // 1. Try multiple fallback sources to get the logged-in employee ID safely
-  let empId = document.getElementById('leaveEmpId')?.value || 
-              document.getElementById('empId')?.value ||
-              (typeof currentEmpId !== 'undefined' ? currentEmpId : '') ||
-              (typeof currentUser !== 'undefined' ? (currentUser.empCode || currentUser.empId || currentUser.uid) : '');
+  // 1. Switch UI view to the leave module card
+  if (typeof switchView === 'function') {
+    switchView('view-leave-module');
+  }
 
-  // 2. If still empty, attempt to scrape from the header badge UI (e.g. "ID: EMP001")
+  // 2. Try multiple fallback sources to get the logged-in employee ID safely
+  let empId = (typeof currentUser !== 'undefined' && currentUser) 
+              ? (currentUser.empCode || currentUser.empId || currentUser.uid) 
+              : '';
+
   if (!empId) {
-    const headerText = document.body.innerText || "";
-    const match = headerText.match(/ID:\s*([A-Za-z0-9]+)/i);
-    if (match && match[1]) {
-      empId = match[1].trim();
+    empId = document.getElementById('leaveEmpId')?.value || 
+            document.getElementById('login-emp-code')?.value || '';
+  }
+
+  // Fallback: Scrape from UI header badge ("ID: EMP001")
+  if (!empId) {
+    const codeElem = document.getElementById('dash-user-code');
+    if (codeElem && codeElem.innerText) {
+      const match = codeElem.innerText.match(/ID:\s*([A-Za-z0-9]+)/i);
+      if (match && match[1]) empId = match[1].trim();
     }
   }
 
-  const balanceContainer = document.getElementById('leaveBalanceCards');
-
   if (!empId) {
     console.warn('No Employee ID found to fetch leave balances.');
-    if (balanceContainer) {
-      balanceContainer.innerHTML = '<p class="text-danger">Unable to detect Employee ID. Please re-login.</p>';
+    if (typeof showToast === 'function') {
+      showToast('Unable to detect Employee ID. Please re-login.', 'error');
     }
     return;
   }
 
-  if (balanceContainer) {
-    balanceContainer.innerHTML = '<p class="text-muted">Loading leave balances...</p>';
-  }
+  // 3. Set balance displays to loading state
+  const clElem = document.getElementById('clBalanceDisplay');
+  const slElem = document.getElementById('slBalanceDisplay');
+  const coElem = document.getElementById('coBalanceDisplay');
 
-  // Determine standard Google Apps Script Web App Endpoint URL from existing script config
-  const apiUrl = typeof SCRIPT_URL !== 'undefined' ? SCRIPT_URL : (typeof GAS_URL !== 'undefined' ? GAS_URL : '');
+  if (clElem) clElem.innerText = '..';
+  if (slElem) slElem.innerText = '..';
+  if (coElem) coElem.innerText = '..';
+
+  // Determine standard Google Apps Script Web App Endpoint URL
+  const apiUrl = typeof BACKEND_API !== 'undefined' ? BACKEND_API : 
+                 (typeof SCRIPT_URL !== 'undefined' ? SCRIPT_URL : '');
 
   if (!apiUrl) {
-    console.error('SCRIPT_URL or GAS_URL is not defined in index.html');
-    if (balanceContainer) {
-      balanceContainer.innerHTML = '<p class="text-danger">Backend API URL is not configured.</p>';
+    console.error('BACKEND_API is not defined in index.html');
+    if (typeof showToast === 'function') {
+      showToast('Backend API URL is not configured.', 'error');
     }
     return;
   }
 
   try {
-    // 3. Make HTTP request to Google Apps Script Web App
+    // 4. Make HTTP request to Google Apps Script Web App
     const response = await fetch(`${apiUrl}?action=getEmployeeLeaveBalances&empIdentifier=${encodeURIComponent(empId)}`);
     const data = await response.json();
 
     if (data && (data.success || data.balances)) {
-      if (typeof renderLeaveBalances === 'function') {
-        renderLeaveBalances(data.balances || data);
-      }
+      renderLeaveBalances(data.balances || data);
     } else {
-      if (balanceContainer) {
-        balanceContainer.innerHTML = `<p class="text-danger">${data?.message || 'Failed to load balances.'}</p>`;
+      if (typeof showToast === 'function') {
+        showToast(data?.message || 'Failed to load balances.', 'error');
       }
     }
   } catch (err) {
     console.error("Error fetching leave balances:", err);
-    if (balanceContainer) {
-      balanceContainer.innerHTML = `<p class="text-danger">Error fetching balances: ${err.message}</p>`;
+    if (typeof showToast === 'function') {
+      showToast('Error fetching leave balances: ' + err.message, 'error');
     }
   }
 }
 
-    
-
-
-
-
-
-
-    
 /**
- * Helper to render balance cards dynamically in index.html
+ * Helper to render balance values dynamically in index.html spans
  */
 function renderLeaveBalances(balances) {
-  const container = document.getElementById('leaveBalanceCards');
-  if (!container) return;
+  if (!balances) return;
 
-  container.innerHTML = '';
+  const clElem = document.getElementById('clBalanceDisplay');
+  const slElem = document.getElementById('slBalanceDisplay');
+  const coElem = document.getElementById('coBalanceDisplay');
 
-  // Expecting balances as an array or object, e.g., { CL: 5, SL: 3, EL: 10 }
-  Object.keys(balances).forEach(type => {
-    const cardHtml = `
-      <div class="col-md-4 mb-2">
-        <div class="card text-center shadow-sm">
-          <div class="card-body">
-            <h6 class="card-title text-uppercase text-muted">${type}</h6>
-            <h3 class="card-text text-primary font-weight-bold">${balances[type]}</h3>
-            <small class="text-muted">Days Available</small>
-          </div>
-        </div>
-      </div>
-    `;
-    container.insertAdjacentHTML('beforeend', cardHtml);
-  });
+  if (clElem) clElem.innerText = balances.cl !== undefined ? balances.cl : (balances.CL !== undefined ? balances.CL : '0');
+  if (slElem) slElem.innerText = balances.sl !== undefined ? balances.sl : (balances.SL !== undefined ? balances.SL : '0');
+  if (coElem) coElem.innerText = balances.co !== undefined ? balances.co : (balances.CO !== undefined ? balances.CO : '0');
 }
 
+    
+
+
+    
 
 
 
