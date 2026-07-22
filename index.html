@@ -779,11 +779,13 @@
 
 
 
+
+
 /**
  * REPLACEMENT FOR openLeaveModule() / loadLeaveBalances()
- * Fetches updated leave balances for the logged-in user and populates cards/dropdowns.
+ * Compatible with GitHub Pages via fetch API
  */
-function openLeaveModule() {
+async function openLeaveModule() {
   // 1. Try multiple fallback sources to get the logged-in employee ID safely
   let empId = document.getElementById('leaveEmpId')?.value || 
               document.getElementById('empId')?.value ||
@@ -813,26 +815,40 @@ function openLeaveModule() {
     balanceContainer.innerHTML = '<p class="text-muted">Loading leave balances...</p>';
   }
 
-  // Call backend to get current leave balance
-  google.script.run
-    .withSuccessHandler(function(response) {
-      if (response && response.success && response.balances) {
-        renderLeaveBalances(response.balances);
-      } else {
-        if (balanceContainer) {
-          balanceContainer.innerHTML = `<p class="text-danger">${response?.message || 'Failed to load balances.'}</p>`;
-        }
-      }
-    })
-    .withFailureHandler(function(err) {
-      if (balanceContainer) {
-        balanceContainer.innerHTML = `<p class="text-danger">Error: ${err.message}</p>`;
-      }
-    })
-    .getEmployeeLeaveBalances(empId);
-}
-    
+  // Determine standard Google Apps Script Web App Endpoint URL from existing script config
+  const apiUrl = typeof SCRIPT_URL !== 'undefined' ? SCRIPT_URL : (typeof GAS_URL !== 'undefined' ? GAS_URL : '');
 
+  if (!apiUrl) {
+    console.error('SCRIPT_URL or GAS_URL is not defined in index.html');
+    if (balanceContainer) {
+      balanceContainer.innerHTML = '<p class="text-danger">Backend API URL is not configured.</p>';
+    }
+    return;
+  }
+
+  try {
+    // 3. Make HTTP request to Google Apps Script Web App
+    const response = await fetch(`${apiUrl}?action=getEmployeeLeaveBalances&empIdentifier=${encodeURIComponent(empId)}`);
+    const data = await response.json();
+
+    if (data && (data.success || data.balances)) {
+      if (typeof renderLeaveBalances === 'function') {
+        renderLeaveBalances(data.balances || data);
+      }
+    } else {
+      if (balanceContainer) {
+        balanceContainer.innerHTML = `<p class="text-danger">${data?.message || 'Failed to load balances.'}</p>`;
+      }
+    }
+  } catch (err) {
+    console.error("Error fetching leave balances:", err);
+    if (balanceContainer) {
+      balanceContainer.innerHTML = `<p class="text-danger">Error fetching balances: ${err.message}</p>`;
+    }
+  }
+}
+
+    
 
 
 
