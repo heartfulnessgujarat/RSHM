@@ -867,8 +867,8 @@
       if (badge) badge.classList.remove('hidden');
     }
 
-  
-    async function handleLeaveSubmit(e) {
+
+async function handleLeaveSubmit(e) {
   e.preventDefault();
   const selectedCode = document.getElementById('leaveTypeSelect').value;
   const requestedDays = parseFloat(document.getElementById('calculatedDaysCount').textContent) || 0;
@@ -888,6 +888,12 @@
   const empIdentifier = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid || currentUser.employeeUid || "";
   const empUid = currentUser.employee_uid || currentUser.employeeUid || empIdentifier;
   const empName = currentUser.employee_name || currentUser.employeeName || currentUser.name || "";
+  
+  // Extract RIC email from currentUser object
+  const ricEmail = currentUser.reporting_incharge_email || 
+                   currentUser.reportingInchargeEmail || 
+                   currentUser.ric_email || 
+                   currentUser.ricEmail || "";
 
   const payload = {
     employee_uid: empUid,
@@ -896,6 +902,7 @@
     empCode: empIdentifier,
     employee_name: empName,
     employeeName: empName,
+    ricEmail: ricEmail, // 🟢 Passed directly to code.gs for email dispatch
     leaveType: selectedCode,
     leaveDate: isPH ? document.getElementById('paidHolidaySelect').value : document.getElementById('leaveFromDate').value,
     toDate: isPH ? document.getElementById('paidHolidaySelect').value : (document.getElementById('leaveToDate').value || document.getElementById('leaveFromDate').value),
@@ -907,7 +914,6 @@
   btn.textContent = "Submitting...";
 
   try {
-    // 🟢 Action name changed back to 'applyForLeave' to match code.gs router
     const res = await callBackend("applyForLeave", payload);
     btn.disabled = false;
     btn.textContent = "Submit Leave Request";
@@ -921,6 +927,9 @@
     showToast("Error: " + err.message);
   }
 }
+
+
+    
     
     
 async function loadDashboardLeaveStatus() {
