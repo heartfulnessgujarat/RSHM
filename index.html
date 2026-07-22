@@ -995,7 +995,47 @@ async function openLeaveModule() {
     }
 
 
+/**
+ * Loads pending leave requests onto the main dashboard
+ */
+async function loadDashboardLeaveStatus() {
+  if (!currentUser) return;
 
+  const empIdentifier = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid || currentUser.employeeUid;
+
+  try {
+    const res = await callBackend("getEmployeeLeaveRequests", { emp_code: empIdentifier });
+    const requests = res.requests || [];
+    
+    const container = document.getElementById('dashboardLeaveStatusContainer');
+    if (!container) return;
+
+    const pendingRequests = requests.filter(r => r.status === 'Pending');
+
+    if (pendingRequests.length === 0) {
+      container.innerHTML = `<div class="text-sm text-gray-500 italic p-2">No pending leave applications.</div>`;
+      return;
+    }
+
+    let html = `<div class="space-y-2">`;
+    pendingRequests.forEach(req => {
+      html += `
+        <div class="flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
+          <div>
+            <span class="font-bold text-yellow-800">${req.leaveType}</span> 
+            <span class="text-gray-600">(${req.leaveDate})</span>
+            <p class="text-xs text-gray-500">Reason: ${req.reason}</p>
+          </div>
+          <span class="px-2 py-1 bg-yellow-200 text-yellow-800 font-semibold rounded text-xs">Pending Approval</span>
+        </div>`;
+    });
+    html += `</div>`;
+
+    container.innerHTML = html;
+  } catch (err) {
+    console.error("Error loading leave status:", err);
+  }
+}
 
 
 
