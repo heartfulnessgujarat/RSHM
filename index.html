@@ -1045,7 +1045,9 @@ function calculateRequestedDays() {
     async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
-  const submitBtn = document.getElementById('leaveSubmitBtn') || e?.target?.querySelector('button[type="submit"]');
+const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.querySelector('button[type="submit"]');
+
+      
   const statusDiv = document.getElementById('leaveStatusMessage');
 
   // 1. UI Loading State
