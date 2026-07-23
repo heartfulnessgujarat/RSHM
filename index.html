@@ -888,10 +888,6 @@ function renderLeaveBalances(balances) {
     
 
 
-    
-
-
-
     function toggleLeaveFields() {
   const typeSelect = document.getElementById('leaveTypeSelect');
   const type = typeSelect ? typeSelect.value.toUpperCase() : '';
@@ -914,6 +910,10 @@ function renderLeaveBalances(balances) {
     if (dateRangeGroup) dateRangeGroup.classList.remove('hidden');
   }
 
+  // Calculate dates
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+
   // Set past date restriction (edit window limit, default 7 days)
   const editWindowDays = (typeof CONFIG !== 'undefined' && CONFIG.edit_window_days) 
                          ? parseInt(CONFIG.edit_window_days, 10) 
@@ -926,12 +926,32 @@ function renderLeaveBalances(balances) {
   const fromInput = document.getElementById('leaveFromDate');
   const toInput = document.getElementById('leaveToDate');
 
-  if (fromInput) fromInput.min = minDateStr;
-  if (toInput) toInput.min = minDateStr;
+  if (fromInput && toInput) {
+    // Standard min date limit (edit window lookback)
+    fromInput.min = minDateStr;
+    toInput.min = minDateStr;
+
+    // Sick Leave (SL) specific rule: NO FUTURE DATES
+    if (type.includes('SL')) {
+      fromInput.max = todayStr;
+      toInput.max = todayStr;
+    } else {
+      // Allow future dates for CL, CO, etc.
+      fromInput.removeAttribute('max');
+      toInput.removeAttribute('max');
+    }
+  }
 
   calculateRequestedDays();
 }
 
+
+
+
+
+
+
+    
 function calculateRequestedDays() {
   const fromInput = document.getElementById('leaveFromDate');
   const toInput = document.getElementById('leaveToDate');
