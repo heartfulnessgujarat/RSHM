@@ -469,6 +469,9 @@ const BACKEND_API = "https://script.google.com/macros/s/AKfycbzs7hkjrD44PxBfVuXf
       }
     }
 
+
+
+    
     async function executeLogin() {
       const empCode = document.getElementById('login-emp-code').value.trim();
       const password = document.getElementById('login-password').value;
@@ -597,17 +600,30 @@ const BACKEND_API = "https://script.google.com/macros/s/AKfycbzs7hkjrD44PxBfVuXf
       switchView('view-login');
     }
 
-    async function openDashboard() {
+
+
+
+async function openDashboard() {
+      // 1. Instantly display user info and switch view with zero network delay
       document.getElementById('dash-user-name').innerText = currentUser.employee_name || currentUser.employeeName || currentUser.name || "Welcome User";
       document.getElementById('dash-user-code').innerText = `ID: ${currentUser.emp_code || currentUser.empCode || ''}`;
-      
-      const metaData = await callBackend("getAppMeta", {});
-      currentConfig = metaData.config || { edit_window_days: 3 };
-      cachedProjects = metaData.projects || [];
-      setupWorkFormDropdowns();
       switchView('view-dashboard');
+
+      // 2. Fetch metadata in the background without blocking the UI
+      try {
+        const metaData = await callBackend("getAppMeta", {});
+        currentConfig = metaData.config || { edit_window_days: 3 };
+        cachedProjects = metaData.projects || [];
+        setupWorkFormDropdowns();
+      } catch (e) {
+        console.warn("Background metadata fetch failed, using defaults:", e);
+      }
     }
 
+
+
+
+    
     function setupWorkFormDropdowns() {
       const dateInput = document.getElementById('work-date');
       const today = new Date();
