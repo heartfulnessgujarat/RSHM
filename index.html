@@ -947,16 +947,12 @@ function renderLeaveBalances(balances) {
 
 
 
-
-
-
-
 function calculateRequestedDays() {
   const fromInput = document.getElementById('leaveFromDate');
   const toInput = document.getElementById('leaveToDate');
   
   const fromVal = fromInput ? fromInput.value : '';
-  const toVal = (toInput && toInput.value) ? toInput.value : fromVal;
+  const toVal = toInput ? toInput.value : '';
 
   const badge = document.getElementById('leaveDaysBadge');
   const countEl = document.getElementById('calculatedDaysCount');
@@ -968,12 +964,13 @@ function calculateRequestedDays() {
   const effectiveDaysRow = document.getElementById('effectiveDaysRow');
   const effectiveDaysCountEl = document.getElementById('effectiveDaysCount');
 
-  if (!fromVal) {
+  // Hide badge until BOTH dates are filled
+  if (!fromVal || !toVal) {
     if (badge) badge.classList.add('hidden');
     return;
   }
 
-  // Parse YYYY-MM-DD explicitly to prevent UTC timezone shifts
+  // Parse YYYY-MM-DD explicitly
   const [fYear, fMonth, fDay] = fromVal.split('-').map(Number);
   const [tYear, tMonth, tDay] = toVal.split('-').map(Number);
 
@@ -988,7 +985,7 @@ function calculateRequestedDays() {
     return;
   }
 
-  // Fetch WeeklyOff day from CONFIG (e.g., 'Sunday', 'Monday', etc.)
+  // Fetch WeeklyOff day from CONFIG
   const weeklyOffName = (typeof CONFIG !== 'undefined' && CONFIG.WeeklyOff) 
                         ? CONFIG.WeeklyOff.trim() 
                         : 'Sunday';
