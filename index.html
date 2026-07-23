@@ -296,9 +296,16 @@
     <form id="leaveApplyForm" onsubmit="handleLeaveSubmit(event)">
       <div class="form-group">
         <label>Select Leave Type</label>
-        <select id="leaveTypeSelect" onchange="toggleLeaveFields()" required>
-          <option value="">-- Select Leave Type --</option>
-        </select>
+
+     <select id="leaveTypeSelect" onchange="toggleLeaveFields()" required>
+  <option value="">-- Select Leave Type --</option>
+  <option value="CL">Casual Leave (CL)</option>
+  <option value="SL">Sick Leave (SL)</option>
+  <option value="CO">Compensatory Off (CO)</option>
+</select>
+
+
+        
       </div>
 
       <!-- Paid Holiday Group -->
@@ -500,6 +507,9 @@
       }
     }
 
+
+    
+                                      
     async function executeSendVerificationCode() {
       const email = document.getElementById('reg-user-email').value.trim();
       if (!email) return showToast("Please enter an email address.");
@@ -856,6 +866,10 @@ async function openLeaveModule() {
   }
 }
 
+
+
+
+    
 /**
  * Helper to render balance values dynamically in index.html spans
  */
@@ -1018,14 +1032,7 @@ async function handleLeaveSubmit(e) {
   }
 }
 
-
-
-
-
-
-
-
-    
+   
   </script>
 </body>
 </html>
