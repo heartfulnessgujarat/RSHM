@@ -1035,7 +1035,8 @@ function calculateRequestedDays() {
 }
 
 
-async function handleLeaveSubmit(e) {
+    
+    async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
   const submitBtn = document.getElementById('leaveSubmitBtn') || e?.target?.querySelector('button[type="submit"]');
@@ -1055,7 +1056,7 @@ async function handleLeaveSubmit(e) {
                  || (typeof loggedInUser !== 'undefined' && loggedInUser) 
                  || JSON.parse(localStorage.getItem('currentUser') || localStorage.getItem('user') || '{}');
 
-    // Extract employee details matching your Firebase schema keys
+    // Extract employee details matching your schema keys
     const empCode = document.getElementById('leaveEmpId')?.value?.trim() 
                   || userObj.emp_code 
                   || userObj.employee_uid 
@@ -1076,7 +1077,7 @@ async function handleLeaveSubmit(e) {
       toDate = fromDate;
     }
 
-    // Read calculated days from the UI badge
+    // Read calculated days from UI badge
     const effectiveDaysEl = document.getElementById('effectiveDaysCount');
     const calculatedDaysEl = document.getElementById('calculatedDaysCount');
     
@@ -1094,9 +1095,8 @@ async function handleLeaveSubmit(e) {
     if (!fromDate) throw new Error('Please select a From Date.');
     if (totalDays <= 0) throw new Error('Invalid date selection or leave duration is 0 days.');
 
-    // 4. Construct Payload (matching backend expectations)
+    // 4. Construct Payload
     const payload = {
-      action: 'applyLeave',
       employeeId: empCode,
       employeeName: empName,
       leaveType: leaveType,
@@ -1107,50 +1107,54 @@ async function handleLeaveSubmit(e) {
       appliedAt: new Date().toISOString()
     };
 
-    // 5. Submit Execution
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      google.script.run
-        .withSuccessHandler(handleSuccess)
-        .withFailureHandler(handleError)
-        .handleApplyForLeave(payload);
-    } else if (typeof SCRIPT_URL !== 'undefined' || (typeof CONFIG !== 'undefined' && CONFIG.scriptUrl)) {
-      const webAppUrl = typeof SCRIPT_URL !== 'undefined' ? SCRIPT_URL : CONFIG.scriptUrl;
-
-      fetch(webAppUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      .then(() => handleSuccess({ success: true, message: 'Leave application submitted successfully!' }))
-      .catch(err => handleError(err));
+    // 5. Submit via BACKEND_API or callBackend Helper
+    let response;
+    if (typeof callBackend === 'function') {
+      response = await callBackend("applyLeave", payload);
     } else {
-      // Fallback submission handler for custom project functions
-      if (typeof submitLeaveToDatabase === 'function') {
-        submitLeaveToDatabase(payload, handleSuccess, handleError);
-      } else {
-        console.log('Submitted Payload:', payload);
-        handleSuccess({ success: true, message: 'Leave application submitted successfully!' });
-      }
+      const targetUrl = typeof BACKEND_API !== 'undefined' ? BACKEND_API : SCRIPT_URL;
+      const res = await fetch(targetUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'applyLeave', ...payload })
+      });
+      response = await res.json();
     }
 
-    function handleSuccess(response) {
-      if (submitBtn) submitBtn.disabled = false;
-      if (statusDiv) {
-        statusDiv.style.color = '#1e8e3e';
-        statusDiv.innerText = (response && response.message) ? response.message : 'Leave application submitted successfully!';
-      }
-      const leaveForm = document.getElementById('leaveForm') || document.querySelector('form');
-      if (leaveForm) leaveForm.reset();
-
-      const badge = document.getElementById('leaveDaysBadge');
-      if (badge) badge.classList.add('hidden');
-
-      if (typeof loadLeaveBalances === 'function') {
-        loadLeaveBalances(payload.employeeId);
-      }
+    // Handle Success
+    if (statusDiv) {
+      statusDiv.style.color = '#1e8e3e';
+      statusDiv.innerText = (response && response.message) ? response.message : 'Leave application submitted successfully!';
     }
 
+    const leaveForm = document.getElementById('leaveForm') || document.querySelector('form');
+    if (leaveForm) leaveForm.reset();
+
+    const badge = document.getElementById('leaveDaysBadge');
+    if (badge) badge.classList.add('hidden');
+
+    if (typeof loadLeaveBalances === 'function') {
+      loadLeaveBalances(empCode);
+    }
+
+  } catch (err) {
+    console.error('Leave submission error:', err);
+    if (statusDiv) {
+      statusDiv.style.color = '#d93025';
+      statusDiv.innerText = err.message || 'An error occurred while submitting your leave application.';
+    }
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+    
+    
+    
+    
+    
+    
+    
+    
     function handleError(error) {
       if (submitBtn) submitBtn.disabled = false;
       if (statusDiv) {
