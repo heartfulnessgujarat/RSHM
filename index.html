@@ -327,12 +327,12 @@
           <input type="date" id="leaveToDate" onchange="calculateRequestedDays()">
         </div>
       </div>
-
-      <!-- Badge Info -->
-      <div id="leaveDaysBadge" class="hidden" style="background: #f3f4f6; padding: 8px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 12px;">
-        Total Days Requested: <strong id="calculatedDaysCount" style="color: #2563eb;">0</strong>
-        <span id="sundaySkipNote" style="color: #6b7280; font-style: italic; display: block; font-size: 0.75rem;"></span>
-      </div>
+<!-- Badge Info -->
+<div id="leaveDaysBadge" class="hidden" style="background: #f3f4f6; padding: 10px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 12px; line-height: 1.6;">
+  <div>Total Days Requested: <strong id="calculatedDaysCount" style="color: #2563eb;">0</strong></div>
+  <div id="weeklyOffRow" class="hidden">No of Weekly Off (<span id="weeklyOffDayName">Sunday</span>): <strong id="weeklyOffCount" style="color: #d97706;">0</strong></div>
+  <div id="effectiveDaysRow" class="hidden">Effective No of Leave Days: <strong id="effectiveDaysCount" style="color: #059669;">0</strong></div>
+</div>
 
       <div class="form-group">
         <label>Reason for Leave</label>
@@ -951,7 +951,6 @@ function renderLeaveBalances(balances) {
 
 
 
-    
 function calculateRequestedDays() {
   const fromInput = document.getElementById('leaveFromDate');
   const toInput = document.getElementById('leaveToDate');
@@ -961,32 +960,76 @@ function calculateRequestedDays() {
 
   const badge = document.getElementById('leaveDaysBadge');
   const countEl = document.getElementById('calculatedDaysCount');
+  
+  const weeklyOffRow = document.getElementById('weeklyOffRow');
+  const weeklyOffDayNameEl = document.getElementById('weeklyOffDayName');
+  const weeklyOffCountEl = document.getElementById('weeklyOffCount');
+  
+  const effectiveDaysRow = document.getElementById('effectiveDaysRow');
+  const effectiveDaysCountEl = document.getElementById('effectiveDaysCount');
 
   if (!fromVal) {
     if (badge) badge.classList.add('hidden');
     return;
   }
 
-  const start = new Date(fromVal);
-  const end = new Date(toVal);
+  // Parse YYYY-MM-DD explicitly to prevent UTC timezone shifts
+  const [fYear, fMonth, fDay] = fromVal.split('-').map(Number);
+  const [tYear, tMonth, tDay] = toVal.split('-').map(Number);
+
+  const start = new Date(fYear, fMonth - 1, fDay);
+  const end = new Date(tYear, tMonth - 1, tDay);
 
   if (end < start) {
     if (countEl) countEl.innerText = "Invalid Date Range";
+    if (weeklyOffRow) weeklyOffRow.classList.add('hidden');
+    if (effectiveDaysRow) effectiveDaysRow.classList.add('hidden');
     if (badge) badge.classList.remove('hidden');
     return;
   }
 
-  let count = 0;
+  // Fetch WeeklyOff day from CONFIG (e.g., 'Sunday', 'Monday', etc.)
+  const weeklyOffName = (typeof CONFIG !== 'undefined' && CONFIG.WeeklyOff) 
+                        ? CONFIG.WeeklyOff.trim() 
+                        : 'Sunday';
+
+  const dayMap = {
+    'Sunday': 0,
+    'Monday': 1,
+    'Tuesday': 2,
+    'Wednesday': 3,
+    'Thursday': 4,
+    'Friday': 5,
+    'Saturday': 6
+  };
+
+  const targetDayIndex = dayMap[weeklyOffName] !== undefined ? dayMap[weeklyOffName] : 0;
+
+  let totalDays = 0;
+  let weeklyOffCount = 0;
+
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    count++;
+    totalDays++;
+    if (d.getDay() === targetDayIndex) {
+      weeklyOffCount++;
+    }
   }
 
-  if (countEl) countEl.innerText = count;
+  const effectiveLeaveDays = totalDays - weeklyOffCount;
+
+  // Display Total Days
+  if (countEl) countEl.innerText = totalDays;
+
+  // Display Weekly Off and Effective Days Breakdown
+  if (weeklyOffDayNameEl) weeklyOffDayNameEl.innerText = weeklyOffName;
+  if (weeklyOffCountEl) weeklyOffCountEl.innerText = weeklyOffCount;
+  if (effectiveDaysCountEl) effectiveDaysCountEl.innerText = effectiveLeaveDays;
+
+  if (weeklyOffRow) weeklyOffRow.classList.remove('hidden');
+  if (effectiveDaysRow) effectiveDaysRow.classList.remove('hidden');
+
   if (badge) badge.classList.remove('hidden');
 }
-
-
-
 
 
 
