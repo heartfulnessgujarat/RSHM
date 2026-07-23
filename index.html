@@ -1029,8 +1029,6 @@ function calculateRequestedDays() {
 }
 
 
-
-
 async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -1045,14 +1043,22 @@ async function handleLeaveSubmit(e) {
   }
 
   try {
-    // 2. Collect Form Values (Matching your exact Firebase schema)
+    // 2. Resolve Logged-In User Object across common app state variables
+    const userObj = (typeof currentUser !== 'undefined' && currentUser) 
+                 || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) 
+                 || (typeof loggedInUser !== 'undefined' && loggedInUser) 
+                 || JSON.parse(localStorage.getItem('currentUser') || localStorage.getItem('user') || '{}');
+
+    // Extract employee details matching your Firebase schema keys
     const empCode = document.getElementById('leaveEmpId')?.value?.trim() 
-                  || (typeof CURRENT_USER !== 'undefined' ? (CURRENT_USER.emp_code || CURRENT_USER.employee_uid) : '')
+                  || userObj.emp_code 
+                  || userObj.employee_uid 
                   || localStorage.getItem('emp_code') 
                   || '';
 
     const empName = document.getElementById('leaveEmpName')?.value?.trim() 
-                    || (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER.employee_name : '')
+                    || userObj.employee_name 
+                    || userObj.emp_name 
                     || localStorage.getItem('employee_name') 
                     || '';
 
@@ -1154,7 +1160,11 @@ async function handleLeaveSubmit(e) {
       statusDiv.innerText = err.message;
     }
   }
-}    
+}
+
+
+
+
 
 
 
