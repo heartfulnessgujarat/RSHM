@@ -1029,21 +1029,10 @@ function calculateRequestedDays() {
 }
 
 
-
-
-
-
-    
-
-/**
- * REPLACEMENT FOR handleLeaveSubmit(e)
- * Replaces the existing handleLeaveSubmit in index.html.
- * Retains 'async' because it awaits manager lookup before submitting.
- */
 async function handleLeaveSubmit(e) {
-  e.preventDefault();
+  if (e && e.preventDefault) e.preventDefault();
 
-  const submitBtn = document.getElementById('leaveSubmitBtn');
+  const submitBtn = document.getElementById('leaveSubmitBtn') || e?.target?.querySelector('button[type="submit"]');
   const statusDiv = document.getElementById('leaveStatusMessage');
 
   // 1. UI Loading State
@@ -1055,17 +1044,39 @@ async function handleLeaveSubmit(e) {
 
   try {
     // 2. Collect Form Values
-    const empId = document.getElementById('leaveEmpId')?.value?.trim();
-    const empName = document.getElementById('leaveEmpName')?.value?.trim();
+    const empId = document.getElementById('leaveEmpId')?.value?.trim() || (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER.emp_id : '');
+    const empName = document.getElementById('leaveEmpName')?.value?.trim() || (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER.emp_name : '');
     const leaveType = document.getElementById('leaveTypeSelect')?.value;
     const fromDate = document.getElementById('leaveFromDate')?.value;
-    const toDate = document.getElementById('leaveToDate')?.value;
-    const totalDays = parseFloat(document.getElementById('leaveTotalDays')?.value || 0);
-    const reason = document.getElementById('leaveReason')?.value?.trim();
+    
+    // Fallback to fromDate if toDate container is hidden or unselected
+    let toDate = document.getElementById('leaveToDate')?.value;
+    if (!toDate || toDate === '') {
+      toDate = fromDate;
+    }
+
+    // Retrieve effective total leave days calculated by calculateRequestedDays()
+    const effectiveDaysEl = document.getElementById('effectiveDaysCount');
+    const calculatedDaysEl = document.getElementById('calculatedDaysCount');
+    
+    let totalDays = 0;
+    if (effectiveDaysEl && effectiveDaysEl.innerText && !isNaN(effectiveDaysEl.innerText)) {
+      totalDays = parseFloat(effectiveDaysEl.innerText);
+    } else if (calculatedDaysEl && calculatedDaysEl.innerText && !isNaN(calculatedDaysEl.innerText)) {
+      totalDays = parseFloat(calculatedDaysEl.innerText);
+    }
+
+    const reason = document.getElementById('leaveReason')?.value?.trim() || document.querySelector('textarea')?.value?.trim() || '';
 
     // 3. Client Validation
-    if (!empId || !leaveType || !fromDate || !toDate || totalDays <= 0) {
-      throw new Error('Please fill in all required fields with valid dates.');
+    if (!leaveType) {
+      throw new Error('Please select a leave type.');
+    }
+    if (!fromDate) {
+      throw new Error('Please select a From Date.');
+    }
+    if (totalDays <= 0) {
+      throw new Error('Invalid date selection or leave duration is 0 days.');
     }
 
     // 4. Construct Payload
@@ -1081,37 +1092,50 @@ async function handleLeaveSubmit(e) {
     };
 
     // 5. Submit to Apps Script Backend (code.gs)
-    google.script.run
-      .withSuccessHandler(function(response) {
-        if (submitBtn) submitBtn.disabled = false;
-        
-        if (response && response.success) {
-          if (statusDiv) {
-            statusDiv.style.color = '#1e8e3e';
-            statusDiv.innerText = response.message || 'Leave application submitted successfully!';
-          }
-          // Reset the form
-          document.getElementById('leaveForm')?.reset();
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (submitBtn) submitBtn.disabled = false;
+          
+          if (response && response.success) {
+            if (statusDiv) {
+              statusDiv.style.color = '#1e8e3e';
+              statusDiv.innerText = response.message || 'Leave application submitted successfully!';
+            }
+            // Reset the form & badge
+            const leaveForm = document.getElementById('leaveForm') || document.querySelector('form');
+            if (leaveForm) leaveForm.reset();
 
-          // Refresh balances on screen if function exists
-          if (typeof loadLeaveBalances === 'function') {
-            loadLeaveBalances(payload.employeeId);
+            const badge = document.getElementById('leaveDaysBadge');
+            if (badge) badge.classList.add('hidden');
+
+            // Refresh balances on screen if function exists
+            if (typeof loadLeaveBalances === 'function') {
+              loadLeaveBalances(payload.employeeId);
+            }
+          } else {
+            if (statusDiv) {
+              statusDiv.style.color = '#d93025';
+              statusDiv.innerText = (response && response.message) ? response.message : 'Error submitting leave application.';
+            }
           }
-        } else {
+        })
+        .withFailureHandler(function(error) {
+          if (submitBtn) submitBtn.disabled = false;
           if (statusDiv) {
             statusDiv.style.color = '#d93025';
-            statusDiv.innerText = (response && response.message) ? response.message : 'Error submitting leave application.';
+            statusDiv.innerText = 'Server Error: ' + (error.message || error);
           }
-        }
-      })
-      .withFailureHandler(function(error) {
-        if (submitBtn) submitBtn.disabled = false;
-        if (statusDiv) {
-          statusDiv.style.color = '#d93025';
-          statusDiv.innerText = 'Server Error: ' + error.message;
-        }
-      })
-      .handleApplyForLeave(payload);
+        })
+        .handleApplyForLeave(payload);
+    } else {
+      console.log('Local/Preview Environment - Payload construct:', payload);
+      if (submitBtn) submitBtn.disabled = false;
+      if (statusDiv) {
+        statusDiv.style.color = '#1e8e3e';
+        statusDiv.innerText = 'Simulated Submission Success (Local Mode)';
+      }
+    }
 
   } catch (err) {
     if (submitBtn) submitBtn.disabled = false;
@@ -1121,6 +1145,9 @@ async function handleLeaveSubmit(e) {
     }
   }
 }
+
+
+
 
    
   </script>
