@@ -334,14 +334,23 @@
   <div id="effectiveDaysRow" class="hidden">Effective No of Leave Days: <strong id="effectiveDaysCount" style="color: #059669;">0</strong></div>
 </div>
 
-      <div class="form-group">
+
+
+
+    <div class="form-group">
         <label>Reason for Leave</label>
         <textarea id="leaveReason" rows="3" placeholder="Enter reason..." required></textarea>
       </div>
+      
+      <!-- Added status message display container -->
+      <div id="leaveStatusMessage" style="margin-top: 10px; margin-bottom: 10px; font-size: 0.9rem; font-weight: 600; text-align: center;"></div>
 
       <button type="submit" id="btnSubmitLeave">Submit Leave Request</button>
       <button type="button" onclick="switchView('view-dashboard')" class="btn-secondary">Return to Dashboard</button>
     </form>
+
+
+    
   </div>
 
   <script>
