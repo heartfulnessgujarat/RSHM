@@ -1145,31 +1145,7 @@ function calculateRequestedDays() {
   }
 }
     
-    
-    
-    
-    
-    
-    
-    
-    function handleError(error) {
-      if (submitBtn) submitBtn.disabled = false;
-      if (statusDiv) {
-        statusDiv.style.color = '#d93025';
-        statusDiv.innerText = 'Server Error: ' + (error.message || error);
-      }
-    }
-
-  } catch (err) {
-    if (submitBtn) submitBtn.disabled = false;
-    if (statusDiv) {
-      statusDiv.style.color = '#d93025';
-      statusDiv.innerText = err.message;
-    }
-  }
-
-   
-
+  
 
    
   </script>
