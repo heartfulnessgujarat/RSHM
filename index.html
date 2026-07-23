@@ -892,58 +892,88 @@ function renderLeaveBalances(balances) {
 
 
 
-    
     function toggleLeaveFields() {
-      const type = document.getElementById('leaveTypeSelect').value;
-      const phGroup = document.getElementById('phSelectGroup');
-      const dateRangeGroup = document.getElementById('dateRangeGroup');
-      const toDateContainer = document.getElementById('toDateContainer');
+  const typeSelect = document.getElementById('leaveTypeSelect');
+  const type = typeSelect ? typeSelect.value.toUpperCase() : '';
 
-      if (type.toUpperCase().includes('PH')) {
-        phGroup.classList.remove('hidden');
-        dateRangeGroup.classList.add('hidden');
-      } else {
-        phGroup.classList.add('hidden');
-        dateRangeGroup.classList.remove('hidden');
+  const phGroup = document.getElementById('phSelectGroup');
+  const dateRangeGroup = document.getElementById('dateRangeGroup');
+  const toDateContainer = document.getElementById('toDateContainer');
 
-        if (type.toUpperCase().includes('SL') || type.toUpperCase().includes('CO')) {
-          toDateContainer.classList.add('hidden');
-        } else {
-          toDateContainer.classList.remove('hidden');
-        }
-      }
-      calculateRequestedDays();
-    }
+  // Always keep To Date container visible for all leave types (CL, SL, CO)
+  if (toDateContainer) {
+    toDateContainer.classList.remove('hidden');
+  }
 
-    function calculateRequestedDays() {
-      const fromVal = document.getElementById('leaveFromDate').value;
-      const toVal = document.getElementById('leaveToDate').value || fromVal;
-      const badge = document.getElementById('leaveDaysBadge');
-      const countEl = document.getElementById('calculatedDaysCount');
+  // Handle Public Holiday (PH) vs Date Range groups
+  if (type.includes('PH')) {
+    if (phGroup) phGroup.classList.remove('hidden');
+    if (dateRangeGroup) dateRangeGroup.classList.add('hidden');
+  } else {
+    if (phGroup) phGroup.classList.add('hidden');
+    if (dateRangeGroup) dateRangeGroup.classList.remove('hidden');
+  }
 
-      if (!fromVal) {
-        badge.classList.add('hidden');
-        return;
-      }
+  // Set past date restriction (edit window limit, default 7 days)
+  const editWindowDays = (typeof CONFIG !== 'undefined' && CONFIG.edit_window_days) 
+                         ? parseInt(CONFIG.edit_window_days, 10) 
+                         : 7;
 
-      const start = new Date(fromVal);
-      const end = new Date(toVal);
+  const minDate = new Date();
+  minDate.setDate(minDate.getDate() - editWindowDays);
+  const minDateStr = minDate.toISOString().split('T')[0];
 
-      if (end < start) {
-        countEl.innerText = "Invalid Date Range";
-        badge.classList.remove('hidden');
-        return;
-      }
+  const fromInput = document.getElementById('leaveFromDate');
+  const toInput = document.getElementById('leaveToDate');
 
-      let count = 0;
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        count++;
-      }
+  if (fromInput) fromInput.min = minDateStr;
+  if (toInput) toInput.min = minDateStr;
 
-      countEl.innerText = count;
-      badge.classList.remove('hidden');
-    }
+  calculateRequestedDays();
+}
 
+function calculateRequestedDays() {
+  const fromInput = document.getElementById('leaveFromDate');
+  const toInput = document.getElementById('leaveToDate');
+  
+  const fromVal = fromInput ? fromInput.value : '';
+  const toVal = (toInput && toInput.value) ? toInput.value : fromVal;
+
+  const badge = document.getElementById('leaveDaysBadge');
+  const countEl = document.getElementById('calculatedDaysCount');
+
+  if (!fromVal) {
+    if (badge) badge.classList.add('hidden');
+    return;
+  }
+
+  const start = new Date(fromVal);
+  const end = new Date(toVal);
+
+  if (end < start) {
+    if (countEl) countEl.innerText = "Invalid Date Range";
+    if (badge) badge.classList.remove('hidden');
+    return;
+  }
+
+  let count = 0;
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    count++;
+  }
+
+  if (countEl) countEl.innerText = count;
+  if (badge) badge.classList.remove('hidden');
+}
+
+
+
+
+
+
+
+
+
+    
 
 /**
  * REPLACEMENT FOR handleLeaveSubmit(e)
