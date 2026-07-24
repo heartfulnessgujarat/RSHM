@@ -1182,7 +1182,8 @@ const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.queryS
 }
 
 
-    async function loadLeaveMasterOptions() {
+
+async function loadLeaveMasterOptions() {
   try {
     const result = await callBackend("getLeaveMasterData", {}); 
     const selectElem = document.getElementById('leaveTypeSelect');
@@ -1194,8 +1195,6 @@ const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.queryS
     const leaveTypesArray = result.leaveTypes || [];
     
     leaveTypesArray.forEach((item, index) => {
-      console.log(`Item ${index}:`, item); // Check console to see exact property names inside the object
-      
       // Look for any possible property name holding the leave title and code
       const leaveName = item.type_of_leave || item.leaveType || item.name || item.title || Object.values(item)[0] || '';
       const unapprovedCode = item.leave_code_unapproved || item.code || item.unapproved || '';
@@ -1213,7 +1212,6 @@ const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.queryS
 }
 
     
-
     
 
 
