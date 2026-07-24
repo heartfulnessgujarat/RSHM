@@ -1182,27 +1182,40 @@ const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.queryS
 }
 
 
-    
 async function loadLeaveMasterOptions() {
   try {
     const result = await callBackend("getLeaveMasterData", {}); 
-    console.log("RAW BACKEND RESPONSE:", result); // Check this in your browser console (F12)
-    
     const selectElem = document.getElementById('leaveTypeSelect');
+    
     if (!selectElem) return;
     
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
 
-    // Let's check what properties exist on result
-    if (result) {
-      console.log("Keys available in result:", Object.keys(result));
-    }
+    // Target the leaveTypes array from the backend response object
+    const leaveTypesArray = result.leaveTypes || [];
+
+    leaveTypesArray.forEach(item => {
+      const leaveName = item.type_of_leave || item.name || '';
+      const unapprovedCode = item.leave_code_unapproved || item.code || '';
+      
+      if (leaveName) {
+        const option = document.createElement('option');
+        // Set value to the exact string name expected by your backend submission handler
+        option.value = leaveName; 
+        option.textContent = unapprovedCode ? `${leaveName} (${unapprovedCode.toUpperCase()})` : leaveName;
+        selectElem.appendChild(option);
+      }
+    });
 
   } catch (err) {
     console.error("Error loading leave master:", err);
   }
 }
-   
+
+
+
+
+       
   </script>
 </body>
 </html>
