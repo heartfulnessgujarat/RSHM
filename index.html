@@ -1185,22 +1185,23 @@ const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.queryS
 async function loadLeaveMasterOptions() {
   try {
     const result = await callBackend("getLeaveMasterData", {}); 
-    const selectElem = document.getElementById('leaveTypeSelect');
+    console.log("Leave Master Raw Result:", result); // Debug check
     
+    const selectElem = document.getElementById('leaveTypeSelect');
     if (!selectElem) return;
     
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
-    
-    // Support both uppercase and lowercase property naming from backend responses
-    const leaveTypesArray = result.LeaveTypes || result.leaveTypes || [];
+
+    // Check all possible casing variations or direct array return
+    const leaveTypesArray = result.LeaveTypes || result.leaveTypes || result.leave_types || (Array.isArray(result) ? result : []);
     
     leaveTypesArray.forEach(item => {
-      const leaveName = item.type_of_leave || item.name || '';
+      // Safely extract names and codes supporting various schema field names
+      const leaveName = item.type_of_leave || item.name || item.leave_name || '';
       const unapprovedCode = item.leave_code_unapproved || item.code || '';
       
       if (leaveName) {
         const option = document.createElement('option');
-        // Set value to the exact string name expected by your backend submission handler
         option.value = leaveName; 
         option.textContent = unapprovedCode ? `${leaveName} (${unapprovedCode.toUpperCase()})` : leaveName;
         selectElem.appendChild(option);
@@ -1211,6 +1212,7 @@ async function loadLeaveMasterOptions() {
   }
 }
 
+    
 
 
        
