@@ -1181,66 +1181,33 @@ const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.queryS
   }
 }
 
-
 async function loadLeaveMasterOptions() {
-
   try {
-
-    const result = await callBackend("getLeaveMasterData", {}); 
-
+    const response = await fetch(`${WEB_APP_URL}?action=getLeaveMasterData`);
+    const result = await response.json();
+    
     const selectElem = document.getElementById('leaveTypeSelect');
-
-    
-
     if (!selectElem) return;
-
     
-
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
 
-
-
     const leaveTypesArray = result.leaveTypes || [];
-
     
-
-    leaveTypesArray.forEach((item, index) => {
-
-      console.log(`Item ${index}:`, item); // Check console to see exact property names inside the object
-
+    leaveTypesArray.Item((item) => {
+      const leaveName = item.type_of_leave || '';
+      const unapprovedCode = item.leave_code_unapproved || '';
       
-
-      // Look for any possible property name holding the leave title and code
-
-      const leaveName = item.type_of_leave || item.leaveType || item.name || item.title || Object.values(item)[0] || '';
-
-      const unapprovedCode = item.leave_code_unapproved || item.code || item.unapproved || '';
-
-      
-
       if (leaveName) {
-
         const option = document.createElement('option');
-
         option.value = leaveName; 
-
         option.textContent = unapprovedCode ? `${leaveName} (${unapprovedCode.toUpperCase()})` : leaveName;
-
         selectElem.appendChild(option);
-
       }
-
     });
-
   } catch (err) {
-
     console.error("Error loading leave master:", err);
-
   }
-
-} 
-
-
+}
         
     
 
