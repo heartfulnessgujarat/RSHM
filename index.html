@@ -1181,24 +1181,24 @@ const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.queryS
   }
 }
 
-async function loadLeaveMasterOptions() {
+
+    async function loadLeaveMasterOptions() {
   try {
-    // Replace the URL string below with your actual deployed Google Apps Script Web App URL
-    const scriptUrl = "https://script.google.com/macros/s/AKfycbzs7hkjrD44PxBfVuXfLthimSassquuDtctKLk1Q7uKagXOZX5jee5jFPzbsbBsjE02Qg/exec";
-    
-    const response = await fetch(`${scriptUrl}?action=getLeaveMasterData`);
-    const result = await response.json();
-    
+    const result = await callBackend("getLeaveMasterData", {}); 
     const selectElem = document.getElementById('leaveTypeSelect');
+    
     if (!selectElem) return;
     
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
 
     const leaveTypesArray = result.leaveTypes || [];
     
-    leaveTypesArray.forEach((item) => {
-      const leaveName = item.type_of_leave || '';
-      const unapprovedCode = item.leave_code_unapproved || '';
+    leaveTypesArray.forEach((item, index) => {
+      console.log(`Item ${index}:`, item); // Check console to see exact property names inside the object
+      
+      // Look for any possible property name holding the leave title and code
+      const leaveName = item.type_of_leave || item.leaveType || item.name || item.title || Object.values(item)[0] || '';
+      const unapprovedCode = item.leave_code_unapproved || item.code || item.unapproved || '';
       
       if (leaveName) {
         const option = document.createElement('option');
@@ -1211,6 +1211,11 @@ async function loadLeaveMasterOptions() {
     console.error("Error loading leave master:", err);
   }
 }
+
+    
+
+    
+
 
        
   </script>
