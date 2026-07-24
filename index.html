@@ -1174,6 +1174,34 @@ const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.queryS
     if (submitBtn) submitBtn.disabled = false;
   }
 }
+
+
+// ADD THIS JAVASCRIPT FUNCTION TO FETCH AND POPULATE LEAVE TYPES DYNAMICALLY
+async function loadLeaveMasterOptions() {
+  try {
+    // Fetch leave master directly from Firebase via backend or direct RTDB fetch
+    const leaveMasters = await callBackend("getLeaveMaster", {}); // or your fetch mechanism for masters/leave_master
+    const selectElem = document.getElementById('leaveTypeSelect');
+    
+    if (!selectElem) return;
+    
+    selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
+
+    for (const key in leaveMasters) {
+      const leaveObj = leaveMasters[key];
+      const leaveName = leaveObj.type_of_leave || key;
+      const unapprovedCode = leaveObj.leave_code_unapproved || '';
+      
+      const option = document.createElement('option');
+      option.value = leaveName; // Passing the full leave type name so backend can map it accurately
+      option.textContent = `${leaveName} (${unapprovedCode.toUpperCase()})`;
+      selectElem.appendChild(option);
+    }
+  } catch (err) {
+    console.error("Error loading leave master:", err);
+  }
+}
+
     
   
 
