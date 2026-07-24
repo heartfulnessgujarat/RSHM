@@ -1181,6 +1181,7 @@ const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.queryS
   }
 }
 
+
 async function loadLeaveMasterOptions() {
   try {
     const result = await callBackend("getLeaveMasterData", {}); 
@@ -1190,19 +1191,35 @@ async function loadLeaveMasterOptions() {
     
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
 
-    // Access the leaveTypes array/object from the response structure
+    // Safely get the list of leave types
     const leaveMasters = result.leaveTypes || result;
+    
+    // Convert to a standard array whether Firebase returned an Object or an Array
+    const itemsArray = Array.isArray(leaveMasters) ? leaveMasters : Object.values(leaveMasters);
 
-    for (const key in leaveMasters) {
-      const leaveObj = leaveMasters[key];
-      const leaveName = leaveObj.type_of_leave || leaveObj.name || key;
-      const unapprovedCode = leaveObj.leave_code_unapproved || leaveObj.code || '';
-      
-      const option = document.createElement('option');
-      option.value = leaveName; 
-      option.textContent = unapprovedCode ? `${leaveName} (${unapprovedCode.toUpperCase()})` : leaveName;
-      selectElem.appendChild(option);
-    }
+    itemsArray.forEach(item => {
+      let leaveName = '';
+      let unapprovedCode = '';
+
+      // If the backend returned a simple list of strings (e.g., ["CL", "SL", "CO"])
+      if (typeof item === 'string') {
+        leaveName = item;
+      } 
+      // If the backend returned objects (e.g., { type_of_leave: "Casual Leave", code: "cl" })
+      else if (typeof item === 'object' && item !== null) {
+        leaveName = item.type_of_leave || item.name || item.leaveName || '';
+        unapprovedCode = item.leave_code_unapproved || item.code || '';
+      }
+
+      // Only add to dropdown if a valid name was found
+      if (leaveName) {
+        const option = document.createElement('option');
+        option.value = leaveName; 
+        option.textContent = unapprovedCode ? `${leaveName} (${unapprovedCode.toUpperCase()})` : leaveName;
+        selectElem.appendChild(option);
+      }
+    });
+
   } catch (err) {
     console.error("Error loading leave master:", err);
   }
