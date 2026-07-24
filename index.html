@@ -1182,23 +1182,23 @@ const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.queryS
 }
 
 
-async function loadLeaveMasterOptions() {
+    async function loadLeaveMasterOptions() {
   try {
     const result = await callBackend("getLeaveMasterData", {}); 
-    console.log("Leave Master Raw Result:", result); // Debug check
-    
     const selectElem = document.getElementById('leaveTypeSelect');
+    
     if (!selectElem) return;
     
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
 
-    // Check all possible casing variations or direct array return
-    const leaveTypesArray = result.LeaveTypes || result.leaveTypes || result.leave_types || (Array.isArray(result) ? result : []);
+    const leaveTypesArray = result.leaveTypes || [];
     
-    leaveTypesArray.forEach(item => {
-      // Safely extract names and codes supporting various schema field names
-      const leaveName = item.type_of_leave || item.name || item.leave_name || '';
-      const unapprovedCode = item.leave_code_unapproved || item.code || '';
+    leaveTypesArray.forEach((item, index) => {
+      console.log(`Item ${index}:`, item); // Check console to see exact property names inside the object
+      
+      // Look for any possible property name holding the leave title and code
+      const leaveName = item.type_of_leave || item.leaveType || item.name || item.title || Object.values(item)[0] || '';
+      const unapprovedCode = item.leave_code_unapproved || item.code || item.unapproved || '';
       
       if (leaveName) {
         const option = document.createElement('option');
@@ -1211,6 +1211,8 @@ async function loadLeaveMasterOptions() {
     console.error("Error loading leave master:", err);
   }
 }
+
+    
 
     
 
