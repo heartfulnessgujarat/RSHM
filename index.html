@@ -1190,10 +1190,10 @@ async function loadLeaveMasterOptions() {
     if (!selectElem) return;
     
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
-
-    // Target the leaveTypes array from the backend response object
-    const leaveTypesArray = result.leaveTypes || [];
-
+    
+    // Support both uppercase and lowercase property naming from backend responses
+    const leaveTypesArray = result.LeaveTypes || result.leaveTypes || [];
+    
     leaveTypesArray.forEach(item => {
       const leaveName = item.type_of_leave || item.name || '';
       const unapprovedCode = item.leave_code_unapproved || item.code || '';
@@ -1206,12 +1206,10 @@ async function loadLeaveMasterOptions() {
         selectElem.appendChild(option);
       }
     });
-
   } catch (err) {
     console.error("Error loading leave master:", err);
   }
 }
-
 
 
 
