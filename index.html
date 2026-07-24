@@ -1182,11 +1182,10 @@ const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.queryS
 }
 
 
-// ADD THIS JAVASCRIPT FUNCTION TO FETCH AND POPULATE LEAVE TYPES DYNAMICALLY
 async function loadLeaveMasterOptions() {
   try {
-    // Fetch leave master directly from Firebase via backend or direct RTDB fetch
-    const leaveMasters = await callBackend("getLeaveMaster", {}); // or your fetch mechanism for masters/leave_master
+    // Fetch leave master using the correct backend action name
+    const leaveMasters = await callBackend("getLeaveMasterData", {}); 
     const selectElem = document.getElementById('leaveTypeSelect');
     
     if (!selectElem) return;
@@ -1207,8 +1206,6 @@ async function loadLeaveMasterOptions() {
     console.error("Error loading leave master:", err);
   }
 }
-
-    
   
 
    
