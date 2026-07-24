@@ -1181,9 +1181,13 @@ const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.queryS
   }
 }
 
+
 async function loadLeaveMasterOptions() {
   try {
-    const response = await fetch(`${WEB_APP_URL}?action=getLeaveMasterData`);
+    // Use your existing global variable name for the backend URL (e.g., SCRIPT_URL, BACKEND_URL, or GOOGLE_SCRIPT_URL)
+    const backendUrl = typeof SCRIPT_URL !== 'undefined' ? SCRIPT_URL : (typeof BACKEND_URL !== 'undefined' ? BACKEND_URL : '');
+    
+    const response = await fetch(`${backendUrl}?action=getLeaveMasterData`);
     const result = await response.json();
     
     const selectElem = document.getElementById('leaveTypeSelect');
@@ -1193,7 +1197,7 @@ async function loadLeaveMasterOptions() {
 
     const leaveTypesArray = result.leaveTypes || [];
     
-    leaveTypesArray.Item((item) => {
+    leaveTypesArray.forEach((item) => {
       const leaveName = item.type_of_leave || '';
       const unapprovedCode = item.leave_code_unapproved || '';
       
@@ -1208,9 +1212,6 @@ async function loadLeaveMasterOptions() {
     console.error("Error loading leave master:", err);
   }
 }
-        
-    
-
 
        
   </script>
