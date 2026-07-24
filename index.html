@@ -1182,12 +1182,12 @@ const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.queryS
 }
 
 
-
 async function loadLeaveMasterOptions() {
   try {
     const result = await callBackend("getLeaveMasterData", {}); 
-    const selectElem = document.getElementById('leaveTypeSelect');
+    console.log("Leave Master Result from Backend:", result); // Check browser console for this
     
+    const selectElem = document.getElementById('leaveTypeSelect');
     if (!selectElem) return;
     
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
@@ -1195,7 +1195,6 @@ async function loadLeaveMasterOptions() {
     const leaveTypesArray = result.leaveTypes || [];
     
     leaveTypesArray.forEach((item, index) => {
-      // Look for any possible property name holding the leave title and code
       const leaveName = item.type_of_leave || item.leaveType || item.name || item.title || Object.values(item)[0] || '';
       const unapprovedCode = item.leave_code_unapproved || item.code || item.unapproved || '';
       
@@ -1211,7 +1210,7 @@ async function loadLeaveMasterOptions() {
   }
 }
 
-    
+        
     
 
 
