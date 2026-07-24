@@ -1181,13 +1181,12 @@ const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.queryS
   }
 }
 
-
 async function loadLeaveMasterOptions() {
   try {
-    // Use your existing global variable name for the backend URL (e.g., SCRIPT_URL, BACKEND_URL, or GOOGLE_SCRIPT_URL)
-    const backendUrl = typeof SCRIPT_URL !== 'undefined' ? SCRIPT_URL : (typeof BACKEND_URL !== 'undefined' ? BACKEND_URL : '');
+    // Replace the URL string below with your actual deployed Google Apps Script Web App URL
+    const scriptUrl = "https://script.google.com/macros/s/AKfycbzs7hkjrD44PxBfVuXfLthimSassquuDtctKLk1Q7uKagXOZX5jee5jFPzbsbBsjE02Qg/exec";
     
-    const response = await fetch(`${backendUrl}?action=getLeaveMasterData`);
+    const response = await fetch(`${scriptUrl}?action=getLeaveMasterData`);
     const result = await response.json();
     
     const selectElem = document.getElementById('leaveTypeSelect');
