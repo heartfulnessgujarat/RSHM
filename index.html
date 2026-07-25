@@ -1179,13 +1179,14 @@ function calculateRequestedDays() {
 }
 
 
+
+
     
-    async function handleLeaveSubmit(e) {
+    
+async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
-const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.querySelector('button[type="submit"]');
-
-      
+  const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.querySelector('button[type="submit"]');
   const statusDiv = document.getElementById('leaveStatusMessage');
 
   // 1. UI Loading State
@@ -1273,15 +1274,37 @@ const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.queryS
       statusDiv.innerText = (response && response.message) ? response.message : 'Leave application submitted successfully!';
     }
 
+    // --- FORM RESET & CLEANUP ---
     const leaveForm = document.getElementById('leaveForm') || document.querySelector('form');
     if (leaveForm) leaveForm.reset();
 
     const badge = document.getElementById('leaveDaysBadge');
     if (badge) badge.classList.add('hidden');
 
+    const weeklyOffRow = document.getElementById('weeklyOffRow');
+    if (weeklyOffRow) weeklyOffRow.classList.add('hidden');
+
+    const effectiveDaysRow = document.getElementById('effectiveDaysRow');
+    if (effectiveDaysRow) effectiveDaysRow.classList.add('hidden');
+
+    const phGroup = document.getElementById('phSelectGroup');
+    if (phGroup) phGroup.classList.add('hidden');
+
+    // Refresh balances in the background
     if (typeof loadLeaveBalances === 'function') {
       loadLeaveBalances(empCode);
     }
+
+    // --- 3-SECOND AUTO-NAVIGATION TIMER ---
+    setTimeout(() => {
+      // Clear out the success status message for the next time the form opens
+      if (statusDiv) statusDiv.innerText = '';
+      
+      // Switch back to dashboard / home view (adjust view ID as per your app routing)
+      if (typeof switchView === 'function') {
+        switchView('view-dashboard'); // or 'view-home' depending on your app architecture
+      }
+    }, 3000);
 
   } catch (err) {
     console.error('Leave submission error:', err);
@@ -1295,6 +1318,14 @@ const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.queryS
 }
 
 
+
+
+
+
+
+
+
+    
     async function loadLeaveMasterOptions() {
   try {
     const result = await callBackend("getLeaveMasterData", {}); 
