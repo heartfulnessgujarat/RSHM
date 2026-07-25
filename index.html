@@ -697,7 +697,6 @@ async function openDashboard() {
 
 
 
-
 async function executeWorkSubmit(e) {
   e.preventDefault();
   const editingId = document.getElementById('editing-worklog-id').value;
@@ -714,57 +713,44 @@ async function executeWorkSubmit(e) {
   btn.innerText = "Saving Work Log...";
 
   const activeUid = currentUser.employee_uid || currentUser.employeeUid || currentUser.emp_code || currentUser.empCode;
-  console.log("--- WORK SUBMIT DEBUG START ---");
-  console.log("Active UID:", activeUid);
-  console.log("Attempting entry -> Date:", work_date, "From:", from_time, "To:", to_time);
 
   try {
     // --- CLIENT-SIDE OVERLAP CHECK ---
     const fetchUrl = `https://rshm-portal-default-rtdb.asia-southeast1.firebasedatabase.app/daily_work/${activeUid}.json`;
-    console.log("Fetching logs from URL:", fetchUrl);
-    
     const response = await fetch(fetchUrl);
-    const existingLogs = await response.json();
-    console.log("Existing logs fetched from Firebase:", existingLogs);
+    
+    if (!response.ok) {
+      console.warn("Direct Firebase fetch blocked or unauthorized (Status:", response.status, "). Skipping client-side check and letting backend handle submission.");
+    } else {
+      const existingLogs = await response.json();
 
-    if (existingLogs) {
-      const [newStartH, newStartM] = from_time.split(':').map(Number);
-      const [newEndH, newEndM] = to_time.split(':').map(Number);
-      const newStartTotal = newStartH * 60 + newStartM;
-      const newEndTotal = newEndH * 60 + newEndM;
-      console.log(`New entry minutes -> Start: ${newStartTotal}, End: ${newEndTotal}`);
+      if (existingLogs && typeof existingLogs === 'object') {
+        const [newStartH, newStartM] = from_time.split(':').map(Number);
+        const [newEndH, newEndM] = to_time.split(':').map(Number);
+        const newStartTotal = newStartH * 60 + newStartM;
+        const newEndTotal = newEndH * 60 + newEndM;
 
-      for (const logId in existingLogs) {
-        const log = existingLogs[logId];
-        if (!log) continue;
+        for (const logId in existingLogs) {
+          if (logId === 'error') continue; // Skip error keys if present
+          const log = existingLogs[logId];
+          if (!log || typeof log !== 'object') continue;
 
-        console.log(`Checking log ID [${logId}]:`, log.work_date, log.from_time, "to", log.to_time);
+          // Check if it's on the same date and NOT the same log being edited
+          if (log.work_date === work_date && logId !== editingId && log.worklog_id !== editingId) {
+            if (!log.from_time || !log.to_time) continue;
 
-        // Check if it's on the same date and NOT the same log being edited
-        if (log.work_date === work_date && logId !== editingId && log.worklog_id !== editingId) {
-          if (!log.from_time || !log.to_time) {
-            console.log(`Skipping log [${logId}] due to missing time fields.`);
-            continue;
+            const [exStartH, exStartM] = log.from_time.split(':').map(Number);
+            const [exEndH, exEndM] = log.to_time.split(':').map(Number);
+            const exStartTotal = exStartH * 60 + exStartM;
+            const exEndTotal = exEndH * 60 + exEndM;
+
+            // Overlap condition: (NewStart < ExEnd) AND (NewEnd > ExStart)
+            if (newStartTotal < exEndTotal && newEndTotal > exStartTotal) {
+              throw new Error(`Time overlap detected! You already have an entry on ${work_date} from ${log.from_time} to ${log.to_time}.`);
+            }
           }
-
-          const [exStartH, exStartM] = log.from_time.split(':').map(Number);
-          const [exEndH, exEndM] = log.to_time.split(':').map(Number);
-          const exStartTotal = exStartH * 60 + exStartM;
-          const exEndTotal = exEndH * 60 + exEndM;
-
-          console.log(`Comparing with existing -> ExStart: ${exStartTotal}, ExEnd: ${exEndTotal}`);
-
-          // Overlap condition: (NewStart < ExEnd) AND (NewEnd > ExStart)
-          if (newStartTotal < exEndTotal && newEndTotal > exStartTotal) {
-            console.error(`OVERLAP DETECTED! Conflict with log [${logId}]`);
-            throw new Error(`Time overlap detected! You already have an entry on ${work_date} from ${log.from_time} to ${log.to_time}.`);
-          }
-        } else {
-          console.log(`Skipped check for log [${logId}] (Different date or currently editing ID)`);
         }
       }
-    } else {
-      console.log("No existing logs found for this UID in Firebase.");
     }
     // --- END OVERLAP CHECK ---
 
@@ -785,12 +771,10 @@ async function executeWorkSubmit(e) {
     document.getElementById('work-form').reset();
     switchView('view-dashboard');
   } catch(err) {
-    console.error("Catch block triggered:", err.message);
     showToast(err.message);
   } finally {
     btn.disabled = false;
     btn.innerText = "Submit Work Log";
-    console.log("--- WORK SUBMIT DEBUG END ---");
   }
 }
 
