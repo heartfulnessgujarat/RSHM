@@ -1394,30 +1394,21 @@ const leaveType = document.getElementById('leaveTypeSelect')?.value;
 
 
 
+async function loadLeaveMasterOptions() {
+  const selectElem = document.getElementById('leaveTypeSelect');
+  if (!selectElem) return;
 
-
-
-
-
-
-    
-    async function loadLeaveMasterOptions() {
   try {
-    const result = await callBackend("getLeaveMasterData", {}); 
-    const selectElem = document.getElementById('leaveTypeSelect');
+    const result = await callBackend("getLeaveMasterData", {});
     
-    if (!selectElem) return;
-    
+    // Reset dropdown
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
 
+    // Populate Leave Types from backend
     const leaveTypesArray = result.leaveTypes || [];
-    
-    leaveTypesArray.forEach((item, index) => {
-      console.log(`Item ${index}:`, item); // Check console to see exact property names inside the object
-      
-      // Look for any possible property name holding the leave title and code
-      const leaveName = item.type_of_leave || item.leaveType || item.name || item.title || Object.values(item)[0] || '';
-      const unapprovedCode = item.leave_code_unapproved || item.code || item.unapproved || '';
+    leaveTypesArray.forEach((item) => {
+      const leaveName = item.type || item.type_of_leave || item.leaveType || item.name || '';
+      const unapprovedCode = item.unapproved || item.leave_code_unapproved || item.code || '';
       
       if (leaveName) {
         const option = document.createElement('option');
@@ -1427,34 +1418,20 @@ const leaveType = document.getElementById('leaveTypeSelect')?.value;
       }
     });
 
-
-// Populate Paid Holidays Dropdown with date_ph and name_ph
-    const phSelectElem = document.getElementById('phSelect');
-    if (phSelectElem && result.paidHolidays) {
-      phSelectElem.innerHTML = '<option value="">-- Select Holiday --</option>';
-      result.paidHolidays.forEach(ph => {
-        const phDate = ph.date_ph || ph.date || '';
-        const phName = ph.name_ph || ph.name || '';
-        
-        if (phDate) {
-          const option = document.createElement('option');
-          option.value = phDate; // Used for submission value
-          option.textContent = `${phDate} (${phName})`; // Display format like "Monday, 26 January 2026 (Republic Day)"
-          phSelectElem.appendChild(option);
-        }
-      });
+    // Save edit window configuration globally if available
+    if (result.editWindowDays && typeof CONFIG !== 'undefined') {
+      CONFIG.edit_window_days = result.editWindowDays;
     }
-    
 
-
-
-    
   } catch (err) {
     console.error("Error loading leave master:", err);
+    selectElem.innerHTML = '<option value="">-- Error Loading Options --</option>';
   }
 }
 
-    
+
+
+
 
 async function executeLoginResetPassword() {
   const empCode = document.getElementById('login-emp-code').value.trim();
