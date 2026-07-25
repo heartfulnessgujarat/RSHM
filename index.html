@@ -715,45 +715,6 @@ async function executeWorkSubmit(e) {
   const activeUid = currentUser.employee_uid || currentUser.employeeUid || currentUser.emp_code || currentUser.empCode;
 
   try {
-    // --- CLIENT-SIDE OVERLAP CHECK ---
-    const fetchUrl = `https://rshm-portal-default-rtdb.asia-southeast1.firebasedatabase.app/daily_work/${activeUid}.json`;
-    const response = await fetch(fetchUrl);
-    
-    if (!response.ok) {
-      console.warn("Direct Firebase fetch blocked or unauthorized (Status:", response.status, "). Skipping client-side check and letting backend handle submission.");
-    } else {
-      const existingLogs = await response.json();
-
-      if (existingLogs && typeof existingLogs === 'object') {
-        const [newStartH, newStartM] = from_time.split(':').map(Number);
-        const [newEndH, newEndM] = to_time.split(':').map(Number);
-        const newStartTotal = newStartH * 60 + newStartM;
-        const newEndTotal = newEndH * 60 + newEndM;
-
-        for (const logId in existingLogs) {
-          if (logId === 'error') continue; // Skip error keys if present
-          const log = existingLogs[logId];
-          if (!log || typeof log !== 'object') continue;
-
-          // Check if it's on the same date and NOT the same log being edited
-          if (log.work_date === work_date && logId !== editingId && log.worklog_id !== editingId) {
-            if (!log.from_time || !log.to_time) continue;
-
-            const [exStartH, exStartM] = log.from_time.split(':').map(Number);
-            const [exEndH, exEndM] = log.to_time.split(':').map(Number);
-            const exStartTotal = exStartH * 60 + exStartM;
-            const exEndTotal = exEndH * 60 + exEndM;
-
-            // Overlap condition: (NewStart < ExEnd) AND (NewEnd > ExStart)
-            if (newStartTotal < exEndTotal && newEndTotal > exStartTotal) {
-              throw new Error(`Time overlap detected! You already have an entry on ${work_date} from ${log.from_time} to ${log.to_time}.`);
-            }
-          }
-        }
-      }
-    }
-    // --- END OVERLAP CHECK ---
-
     const payload = {
       employee_uid: activeUid,
       work_date, from_time, to_time, project_id, project_name, work_description
@@ -766,19 +727,22 @@ async function executeWorkSubmit(e) {
       showToast("Work log updated successfully!", false);
     } else {
       res = await callBackend("submitWorkLog", payload);
+      // If backend throws an error due to overlap, it will be caught in the catch block below
       showToast(`Work log saved (${res.duration} hrs)!`, false);
     }
+    
     document.getElementById('work-form').reset();
     switchView('view-dashboard');
   } catch(err) {
-    showToast(err.message);
+    // This will now catch any error thrown by your Apps Script backend (including overlap rejections)
+    showToast(err.message || err);
   } finally {
     btn.disabled = false;
     btn.innerText = "Submit Work Log";
   }
 }
 
-
+    
     
 
     
