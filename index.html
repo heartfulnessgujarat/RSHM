@@ -299,35 +299,40 @@
   </div>
 
 
+  
 
   <!-- VIEW 5: LEAVE MANAGEMENT MODULE -->
   <div id="view-leave-module" class="hidden card">
+
+
+
+<!-- Live Balances Display (4 Compact Boxes) -->
+    <div style="display: flex; gap: 6px; margin-bottom: 12px; text-align: center;">
+      <div style="flex: 1; background: #eff6ff; padding: 6px 4px; border-radius: 6px; border-left: 3px solid #2563eb;">
+        <small style="color: #1d4ed8; font-weight: bold; display: block; font-size: 0.75rem;">CL</small>
+        <span id="clBalanceDisplay" style="font-size: 1rem; font-weight: bold;">--</span>
+      </div>
+      <div style="flex: 1; background: #f0fdf4; padding: 6px 4px; border-radius: 6px; border-left: 3px solid #16a34a;">
+        <small style="color: #15803d; font-weight: bold; display: block; font-size: 0.75rem;">SL</small>
+        <span id="slBalanceDisplay" style="font-size: 1rem; font-weight: bold;">--</span>
+      </div>
+      <div style="flex: 1; background: #faf5ff; padding: 6px 4px; border-radius: 6px; border-left: 3px solid #9333ea;">
+        <small style="color: #7e22ce; font-weight: bold; display: block; font-size: 0.75rem;">CO</small>
+        <span id="coBalanceDisplay" style="font-size: 1rem; font-weight: bold;">--</span>
+      </div>
+      <div style="flex: 1; background: #fff7ed; padding: 6px 4px; border-radius: 6px; border-left: 3px solid #ea580c;">
+        <small style="color: #c2410c; font-weight: bold; display: block; font-size: 0.75rem;">PH</small>
+        <span id="phBalanceDisplay" style="font-size: 1rem; font-weight: bold;">--</span>
+      </div>
+    </div>
+
+    <!-- Section Heading Placed Below Balances -->
     <div style="text-align: center; margin-bottom: 15px;">
-      <div style="font-size: 0.85rem; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Leave Balance</div>
-      <h2 style="margin: 2px 0 0 0; font-size: 1.5rem; font-weight: bold;">Apply for Leave</h2>
+      <div style="font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Leave Management</div>
+      <h2 style="margin: 2px 0 0 0; font-size: 1.35rem; font-weight: bold;">Apply for Leave</h2>
     </div>
     
-    <!-- Live Balances Display -->
-
-
-
-
     
-    <div style="display: flex; gap: 8px; margin-bottom: 15px; text-align: center;">
-      <div style="flex: 1; background: #eff6ff; padding: 10px; border-radius: 8px; border-left: 4px solid #2563eb;">
-        <small style="color: #1d4ed8; font-weight: bold; display: block;">CL</small>
-        <span id="clBalanceDisplay" style="font-size: 1.2rem; font-weight: bold;">--</span>
-      </div>
-      <div style="flex: 1; background: #f0fdf4; padding: 10px; border-radius: 8px; border-left: 4px solid #16a34a;">
-        <small style="color: #15803d; font-weight: bold; display: block;">SL</small>
-        <span id="slBalanceDisplay" style="font-size: 1.2rem; font-weight: bold;">--</span>
-      </div>
-      <div style="flex: 1; background: #faf5ff; padding: 10px; border-radius: 8px; border-left: 4px solid #9333ea;">
-        <small style="color: #7e22ce; font-weight: bold; display: block;">CO</small>
-        <span id="coBalanceDisplay" style="font-size: 1.2rem; font-weight: bold;">--</span>
-      </div>
-    </div>
-
     <!-- Leave Application Form -->
     <form id="leaveApplyForm" onsubmit="handleLeaveSubmit(event)">
       <div class="form-group">
@@ -936,11 +941,32 @@ async function executeWorkSubmit(e) {
  * Compatible with GitHub Pages using BACKEND_API (Includes PH Balance Support)
  */
 async function openLeaveModule() {
-  // 1. Switch UI view to the leave module card
+
+
+
+// 1. Switch UI view to the leave module card & reset form inputs for a fresh state
   if (typeof switchView === 'function') {
     switchView('view-leave-module');
   }
 
+  const formElem = document.getElementById('leaveApplyForm');
+  if (formElem) formElem.reset();
+
+  const badgeElem = document.getElementById('leaveDaysBadge');
+  if (badgeElem) badgeElem.classList.add('hidden');
+
+  const weeklyOffRowElem = document.getElementById('weeklyOffRow');
+  if (weeklyOffRowElem) weeklyOffRowElem.classList.add('hidden');
+
+  const effectiveDaysRowElem = document.getElementById('effectiveDaysRow');
+  if (effectiveDaysRowElem) effectiveDaysRowElem.classList.add('hidden');
+
+  const statusMsgElem = document.getElementById('leaveStatusMessage');
+  if (statusMsgElem) statusMsgElem.innerText = '';
+
+
+
+  
   // 2. Try multiple fallback sources to get the logged-in employee ID safely
   let empId = (typeof currentUser !== 'undefined' && currentUser) 
               ? (currentUser.empCode || currentUser.empId || currentUser.uid) 
@@ -1295,16 +1321,36 @@ async function handleLeaveSubmit(e) {
       loadLeaveBalances(empCode);
     }
 
-    // --- 3-SECOND AUTO-NAVIGATION TIMER ---
+
+
+// --- 3-SECOND AUTO-NAVIGATION & BACKGROUND RESET TIMER ---
     setTimeout(() => {
-      // Clear out the success status message for the next time the form opens
       if (statusDiv) statusDiv.innerText = '';
       
-      // Switch back to dashboard / home view (adjust view ID as per your app routing)
+      const leaveForm = document.getElementById('leaveApplyForm');
+      if (leaveForm) leaveForm.reset();
+
+      const badge = document.getElementById('leaveDaysBadge');
+      if (badge) badge.classList.add('hidden');
+
+      const weeklyOffRow = document.getElementById('weeklyOffRow');
+      if (weeklyOffRow) weeklyOffRow.classList.add('hidden');
+
+      const effectiveDaysRow = document.getElementById('effectiveDaysRow');
+      if (effectiveDaysRow) effectiveDaysRow.classList.add('hidden');
+
+      const phGroup = document.getElementById('phSelectGroup');
+      if (phGroup) phGroup.classList.add('hidden');
+
       if (typeof switchView === 'function') {
-        switchView('view-dashboard'); // or 'view-home' depending on your app architecture
+        switchView('view-dashboard');
       }
     }, 3000);
+
+   
+
+
+    
 
   } catch (err) {
     console.error('Leave submission error:', err);
