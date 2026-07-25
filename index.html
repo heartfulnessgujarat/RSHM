@@ -926,9 +926,14 @@ async function executeWorkSubmit(e) {
 
 
 
+
+
+
+
+
 /**
  * REPLACEMENT FOR openLeaveModule() / loadLeaveBalances()
- * Compatible with GitHub Pages using BACKEND_API
+ * Compatible with GitHub Pages using BACKEND_API (Includes PH Balance Support)
  */
 async function openLeaveModule() {
   // 1. Switch UI view to the leave module card
@@ -963,14 +968,16 @@ async function openLeaveModule() {
     return;
   }
 
-  // 3. Set balance displays to loading state
+  // 3. Set balance displays to loading state (Including PH)
   const clElem = document.getElementById('clBalanceDisplay');
   const slElem = document.getElementById('slBalanceDisplay');
   const coElem = document.getElementById('coBalanceDisplay');
+  const phElem = document.getElementById('phBalanceDisplay');
 
   if (clElem) clElem.innerText = '..';
   if (slElem) slElem.innerText = '..';
   if (coElem) coElem.innerText = '..';
+  if (phElem) phElem.innerText = '..';
 
   // Determine standard Google Apps Script Web App Endpoint URL
   const apiUrl = typeof BACKEND_API !== 'undefined' ? BACKEND_API : 
@@ -1004,12 +1011,8 @@ async function openLeaveModule() {
   }
 }
 
-
-
-
-    
 /**
- * Helper to render balance values dynamically in index.html spans
+ * Helper to render balance values dynamically in index.html spans (Includes PH)
  */
 function renderLeaveBalances(balances) {
   if (!balances) return;
@@ -1017,14 +1020,23 @@ function renderLeaveBalances(balances) {
   const clElem = document.getElementById('clBalanceDisplay');
   const slElem = document.getElementById('slBalanceDisplay');
   const coElem = document.getElementById('coBalanceDisplay');
+  const phElem = document.getElementById('phBalanceDisplay');
 
   if (clElem) clElem.innerText = balances.cl !== undefined ? balances.cl : (balances.CL !== undefined ? balances.CL : '0');
   if (slElem) slElem.innerText = balances.sl !== undefined ? balances.sl : (balances.SL !== undefined ? balances.SL : '0');
   if (coElem) coElem.innerText = balances.co !== undefined ? balances.co : (balances.CO !== undefined ? balances.CO : '0');
+  if (phElem) phElem.innerText = balances.ph !== undefined ? balances.ph : (balances.PH !== undefined ? balances.PH : '0');
 }
+
 
     
 
+
+
+
+
+
+    
 
     function toggleLeaveFields() {
   const typeSelect = document.getElementById('leaveTypeSelect');
