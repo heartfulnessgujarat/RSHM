@@ -221,17 +221,29 @@
     <button type="button" onclick="executeLogout()" class="btn-link" style="margin-top: 15px;">Back to Login</button>
   </div>
 
-  <!-- VIEW 2: OPERATIONAL DASHBOARD -->
-  <div id="view-dashboard" class="hidden">
-    <div class="nav-header">
+
+
+<!-- GLOBAL PERSISTENT HEADER (Visible across all operational views) -->
+  <div id="global-header" class="hidden" style="max-width: 600px; margin: 0 auto 15px auto; padding: 0 10px;">
+    <div class="nav-header" style="background: white; padding: 12px 16px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center;">
       <div>
-        <h4 id="dash-user-name">Welcome User</h4>
+        <h4 id="dash-user-name" style="margin: 0; font-size: 1rem;">Welcome User</h4>
         <small id="dash-user-code" style="color:#6b7280;"></small>
       </div>
       <button onclick="executeLogout()" style="width:auto; padding: 6px 12px; font-size:0.85rem;" class="btn-secondary">Logout</button>
     </div>
-    
+  </div>
+
+  <!-- VIEW 2: OPERATIONAL DASHBOARD -->
+  <div id="view-dashboard" class="hidden">
     <div class="card">
+
+
+      
+
+
+
+      
       <h3 style="margin-bottom: 12px; font-size: 1.1rem;">Quick Actions</h3>
       <button onclick="openNewWorkLogForm()">Daily Work Entry</button>
       <button onclick="loadTimesheetHistory()" class="btn-secondary">My Timesheet History</button>
@@ -406,7 +418,6 @@ function showToast(msg, isError = true) {
 
     
 
-    
 
 function switchView(viewId) {
       if (viewId === 'view-change-password') {
@@ -427,17 +438,23 @@ function switchView(viewId) {
       });
       document.getElementById(viewId).classList.remove('hidden');
 
+      // Control Global Header visibility (visible everywhere except auth screens)
+      const isAuthView = ['view-login', 'view-change-password', 'view-register-email'].includes(viewId);
+      document.getElementById('global-header').classList.toggle('hidden', isAuthView);
+
       if (viewId === 'view-dashboard') {
         loadDashboardLeaveStatus();
       }
       
-      // ADD THIS LINE:
       if (viewId === 'view-leave-module') {
         loadLeaveMasterOptions();
       }
     }
+    
 
 
+
+    
 
 
     
