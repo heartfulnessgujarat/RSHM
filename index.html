@@ -298,11 +298,21 @@
     <button onclick="switchView('view-dashboard')" class="btn-secondary">Return to Dashboard</button>
   </div>
 
+
+
   <!-- VIEW 5: LEAVE MANAGEMENT MODULE -->
   <div id="view-leave-module" class="hidden card">
-    <h2>Apply for Leave</h2>
+    <div style="text-align: center; margin-bottom: 15px;">
+      <div style="font-size: 0.85rem; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Leave Balance</div>
+      <h2 style="margin: 2px 0 0 0; font-size: 1.5rem; font-weight: bold;">Apply for Leave</h2>
+    </div>
     
     <!-- Live Balances Display -->
+
+
+
+
+    
     <div style="display: flex; gap: 8px; margin-bottom: 15px; text-align: center;">
       <div style="flex: 1; background: #eff6ff; padding: 10px; border-radius: 8px; border-left: 4px solid #2563eb;">
         <small style="color: #1d4ed8; font-weight: bold; display: block;">CL</small>
@@ -433,7 +443,13 @@ function switchView(viewId) {
           document.getElementById('login-emp-code').value = changeCode;
         }
       }
-      ['view-login', 'view-change-password', 'view-register-email', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module'].forEach(id => {
+
+
+
+  
+
+  
+    ['view-login', 'view-change-password', 'view-register-email', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module'].forEach(id => {
         document.getElementById(id).classList.add('hidden');
       });
       document.getElementById(viewId).classList.remove('hidden');
@@ -441,6 +457,18 @@ function switchView(viewId) {
       // Control Global Header visibility (visible everywhere except auth screens)
       const isAuthView = ['view-login', 'view-change-password', 'view-register-email'].includes(viewId);
       document.getElementById('global-header').classList.toggle('hidden', isAuthView);
+
+      // Clear any lingering toast messages or local form status notices when changing views
+      const toastContainer = document.getElementById('toast-container');
+      if (toastContainer) toastContainer.classList.add('hidden');
+      const leaveStatusMsg = document.getElementById('leaveStatusMessage');
+      if (leaveStatusMsg) leaveStatusMsg.innerText = '';
+
+
+
+
+
+  
 
       if (viewId === 'view-dashboard') {
         loadDashboardLeaveStatus();
