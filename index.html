@@ -694,7 +694,8 @@ async function openDashboard() {
       switchView('view-work-entry');
     }
 
-    async function executeWorkSubmit(e) {
+
+async function executeWorkSubmit(e) {
       e.preventDefault();
       const editingId = document.getElementById('editing-worklog-id').value;
       const work_date = document.getElementById('work-date').value;
@@ -709,12 +710,44 @@ async function openDashboard() {
       btn.disabled = true;
       btn.innerText = "Saving Work Log...";
 
-      const payload = {
-        employee_uid: currentUser.employee_uid || currentUser.employeeUid || currentUser.emp_code || currentUser.empCode,
-        work_date, from_time, to_time, project_id, project_name, work_description
-      };
+      const activeUid = currentUser.employee_uid || currentUser.employeeUid || currentUser.emp_code || currentUser.empCode;
 
       try {
+        // --- CLIENT-SIDE OVERLAP CHECK ---
+        const response = await fetch(`https://rshm-core-system-default-rtdb.firebaseio.com/daily_work/${activeUid}.json`);
+        const existingLogs = await response.json();
+
+        if (existingLogs) {
+          // Convert new entry times to minutes from midnight for easy comparison
+          const [newStartH, newStartM] = from_time.split(':').map(Number);
+          const [newEndH, newEndM] = to_time.split(':').map(Number);
+          const newStartTotal = newStartH * 60 + newStartM;
+          const newEndTotal = newEndH * 60 + newEndM;
+
+          for (const logId in existingLogs) {
+            const log = existingLogs[logId];
+            
+            // Check if it's on the same date and NOT the same log being edited
+            if (log.work_date === work_date && logId !== editingId) {
+              const [exStartH, exStartM] = log.from_time.split(':').map(Number);
+              const [exEndH, exEndM] = log.to_time.split(':').map(Number);
+              const exStartTotal = exStartH * 60 + exStartM;
+              const exEndTotal = exEndH * 60 + exEndM;
+
+              // Overlap condition: (NewStart < ExEnd) AND (NewEnd > ExStart)
+              if (newStartTotal < exEndTotal && newEndTotal > exStartTotal) {
+                throw new Error(`You have already made an entry on this same date from ${log.from_time} to ${log.to_time}. Overlapping time slots are not allowed.`);
+              }
+            }
+          }
+        }
+        // --- END OVERLAP CHECK ---
+
+        const payload = {
+          employee_uid: activeUid,
+          work_date, from_time, to_time, project_id, project_name, work_description
+        };
+
         let res;
         if (editingId) {
           payload.worklog_id = editingId;
@@ -733,6 +766,11 @@ async function openDashboard() {
         btn.innerText = "Submit Work Log";
       }
     }
+
+
+    
+
+    
 
     async function loadTimesheetHistory() {
       switchView('view-timesheet');
@@ -1266,11 +1304,7 @@ async function executeLoginResetPassword() {
 }
 
 
-    
-
-
-    
-    
+       
 
 
        
