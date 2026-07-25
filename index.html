@@ -504,8 +504,9 @@ function switchView(viewId) {
       }
     }
 
-    async function executeChangePassword() {
-      const empCode = document.getElementById('change-emp-code').value.trim();
+async function executeChangePassword() {
+      const empCodeInput = document.getElementById('change-emp-code');
+      const empCode = empCodeInput ? empCodeInput.value.trim() : "";
       const currentPassword = document.getElementById('change-curr-pass').value;
       const newPassword = document.getElementById('change-new-pass').value;
       const confPassword = document.getElementById('change-conf-pass').value;
@@ -520,6 +521,16 @@ function switchView(viewId) {
       try {
         const msg = await callBackend("changePassword", { empCode, currentPassword, newPassword });
         showToast(msg, false);
+        
+        // --- ENHANCEMENT: Clear password fields but KEEP empCode intact, then switch to login ---
+        document.getElementById('change-curr-pass').value = "";
+        document.getElementById('change-new-pass').value = "";
+        document.getElementById('change-conf-pass').value = "";
+        
+        // If your login screen has its own emp code input, pre-fill it here so it's ready for login
+        const loginEmpInput = document.getElementById('login-emp-code'); // Adjust ID if different
+        if (loginEmpInput) loginEmpInput.value = empCode;
+
         switchView('view-login');
       } catch(e) {
         showToast(e.message);
@@ -527,19 +538,24 @@ function switchView(viewId) {
     }
 
     async function executeResetPassword() {
-      const empCode = document.getElementById('change-emp-code').value.trim();
+      const empCodeInput = document.getElementById('change-emp-code');
+      const empCode = empCodeInput ? empCodeInput.value.trim() : "";
+      
       if (!empCode) return showToast("Please enter Employee Code to reset password.");
       try {
         const msg = await callBackend("resetPassword", { empCode });
         showToast(msg, false);
+
+        // --- ENHANCEMENT: Switch to login view with empCode ready for the temporary password ---
+        const loginEmpInput = document.getElementById('login-emp-code'); // Adjust ID if different
+        if (loginEmpInput) loginEmpInput.value = empCode;
+
+        switchView('view-login');
       } catch(e) {
         showToast(e.message);
       }
     }
 
-
-    
-                                      
     async function executeSendVerificationCode() {
       const email = document.getElementById('reg-user-email').value.trim();
       if (!email) return showToast("Please enter an email address.");
@@ -617,6 +633,7 @@ function switchView(viewId) {
 
 
 
+    
 
 async function openDashboard() {
       // 1. Instantly display user info and switch view with zero network delay
