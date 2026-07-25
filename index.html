@@ -306,8 +306,13 @@
 
 
 
-<!-- Live Balances Display (4 Compact Boxes) -->
-    <div style="display: flex; gap: 6px; margin-bottom: 12px; text-align: center;">
+<!-- Small Center-Aligned Title at the Very Top -->
+    <div style="text-align: center; margin-bottom: 8px;">
+      <div style="font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Leave Balance</div>
+    </div>
+
+    <!-- Live Balances Display (4 Compact Boxes) -->
+    <div style="display: flex; gap: 6px; margin-bottom: 15px; text-align: center;">
       <div style="flex: 1; background: #eff6ff; padding: 6px 4px; border-radius: 6px; border-left: 3px solid #2563eb;">
         <small style="color: #1d4ed8; font-weight: bold; display: block; font-size: 0.75rem;">CL</small>
         <span id="clBalanceDisplay" style="font-size: 1rem; font-weight: bold;">--</span>
@@ -326,12 +331,17 @@
       </div>
     </div>
 
-    <!-- Section Heading Placed Below Balances -->
+    <!-- Main Heading Placed Below Balances -->
     <div style="text-align: center; margin-bottom: 15px;">
-      <div style="font-size: 0.75rem; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Leave Management</div>
-      <h2 style="margin: 2px 0 0 0; font-size: 1.35rem; font-weight: bold;">Apply for Leave</h2>
+      <h2 style="margin: 0; font-size: 1.35rem; font-weight: bold;">Apply for Leave</h2>
     </div>
-    
+
+
+
+
+
+
+
     
     <!-- Leave Application Form -->
     <form id="leaveApplyForm" onsubmit="handleLeaveSubmit(event)">
