@@ -1073,15 +1073,7 @@ function renderLeaveBalances(balances) {
 
 
     
-
-
-
-
-
-
-    
-
-    function toggleLeaveFields() {
+function toggleLeaveFields() {
   const typeSelect = document.getElementById('leaveTypeSelect');
   const type = typeSelect ? typeSelect.value.toUpperCase() : '';
 
@@ -1089,25 +1081,24 @@ function renderLeaveBalances(balances) {
   const dateRangeGroup = document.getElementById('dateRangeGroup');
   const toDateContainer = document.getElementById('toDateContainer');
 
-  // Always keep To Date container visible for all leave types (CL, SL, CO)
-  if (toDateContainer) {
-    toDateContainer.classList.remove('hidden');
-  }
+  // Check if Paid Holiday is selected (supports "PH" or "PAID HOLIDAY")
+  const isPh = type.includes('PH') || type.includes('PAID HOLIDAY');
 
   // Handle Public Holiday (PH) vs Date Range groups
-  if (type.includes('PH')) {
+  if (isPh) {
     if (phGroup) phGroup.classList.remove('hidden');
     if (dateRangeGroup) dateRangeGroup.classList.add('hidden');
+    if (toDateContainer) toDateContainer.classList.add('hidden');
   } else {
     if (phGroup) phGroup.classList.add('hidden');
     if (dateRangeGroup) dateRangeGroup.classList.remove('hidden');
+    if (toDateContainer) toDateContainer.classList.remove('hidden');
   }
 
-  // Calculate dates
+  // Calculate dates for standard leave types
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
 
-  // Set past date restriction (edit window limit, default 7 days)
   const editWindowDays = (typeof CONFIG !== 'undefined' && CONFIG.edit_window_days) 
                          ? parseInt(CONFIG.edit_window_days, 10) 
                          : 7;
@@ -1120,25 +1111,28 @@ function renderLeaveBalances(balances) {
   const toInput = document.getElementById('leaveToDate');
 
   if (fromInput && toInput) {
-    // Standard min date limit (edit window lookback)
     fromInput.min = minDateStr;
     toInput.min = minDateStr;
 
-    // Sick Leave (SL) specific rule: NO FUTURE DATES
     if (type.includes('SL')) {
       fromInput.max = todayStr;
       toInput.max = todayStr;
     } else {
-      // Allow future dates for CL, CO, etc.
       fromInput.removeAttribute('max');
       toInput.removeAttribute('max');
     }
   }
 
-  calculateRequestedDays();
+  if (typeof calculateRequestedDays === 'function') {
+    calculateRequestedDays();
+  }
 }
 
 
+
+
+
+    
 
 function calculateRequestedDays() {
   const fromInput = document.getElementById('leaveFromDate');
