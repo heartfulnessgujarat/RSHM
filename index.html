@@ -1073,30 +1073,20 @@ function renderLeaveBalances(balances) {
 
 
 
-    
+
 function toggleLeaveFields() {
   const typeSelect = document.getElementById('leaveTypeSelect');
   const type = typeSelect ? typeSelect.value.toUpperCase() : '';
 
-  const phGroup = document.getElementById('phSelectGroup');
   const dateRangeGroup = document.getElementById('dateRangeGroup');
   const toDateContainer = document.getElementById('toDateContainer');
-  const reasonContainer = document.getElementById('leaveReason')?.closest('div') || document.getElementById('reasonContainer');
 
-  // Check if Paid Holiday is selected (supports "PH" or "PAID HOLIDAY")
-  const isPh = type.includes('PH') || type.includes('PAID HOLIDAY');
+  if (toDateContainer) {
+    toDateContainer.classList.remove('hidden');
+  }
 
-  // Handle visibility based on leave type
-  if (isPh) {
-    if (phGroup) phGroup.classList.remove('hidden');
-    if (dateRangeGroup) dateRangeGroup.classList.add('hidden');
-    if (toDateContainer) toDateContainer.classList.add('hidden');
-    if (reasonContainer) reasonContainer.classList.add('hidden'); // Hide reason box for PH
-  } else {
-    if (phGroup) phGroup.classList.add('hidden');
-    if (dateRangeGroup) dateRangeGroup.classList.remove('hidden');
-    if (toDateContainer) toDateContainer.classList.remove('hidden');
-    if (reasonContainer) reasonContainer.classList.remove('hidden'); // Show reason box for standard leaves
+  if (dateRangeGroup) {
+    dateRangeGroup.classList.remove('hidden');
   }
 
   // Calculate dates for standard leave types
@@ -1130,9 +1120,8 @@ function toggleLeaveFields() {
   if (typeof calculateRequestedDays === 'function') {
     calculateRequestedDays();
   }
-}    
-
-
+}
+    
 
     
 
