@@ -1072,7 +1072,7 @@ function renderLeaveBalances(balances) {
 }
 
 
-    
+
 function toggleLeaveFields() {
   const typeSelect = document.getElementById('leaveTypeSelect');
   const type = typeSelect ? typeSelect.value.toUpperCase() : '';
@@ -1080,55 +1080,29 @@ function toggleLeaveFields() {
   const phGroup = document.getElementById('phSelectGroup');
   const dateRangeGroup = document.getElementById('dateRangeGroup');
   const toDateContainer = document.getElementById('toDateContainer');
+  
+  // Find your reason wrapper/container (adjust ID/class if needed, or target the textarea container)
+  const reasonContainer = document.getElementById('leaveReason')?.closest('div') || document.getElementById('reasonContainer');
 
-  // Check if Paid Holiday is selected (supports "PH" or "PAID HOLIDAY")
   const isPh = type.includes('PH') || type.includes('PAID HOLIDAY');
 
-  // Handle Public Holiday (PH) vs Date Range groups
   if (isPh) {
     if (phGroup) phGroup.classList.remove('hidden');
     if (dateRangeGroup) dateRangeGroup.classList.add('hidden');
     if (toDateContainer) toDateContainer.classList.add('hidden');
+    if (reasonContainer) reasonContainer.classList.add('hidden'); // Hide reason for PH
   } else {
     if (phGroup) phGroup.classList.add('hidden');
     if (dateRangeGroup) dateRangeGroup.classList.remove('hidden');
     if (toDateContainer) toDateContainer.classList.remove('hidden');
+    if (reasonContainer) reasonContainer.classList.remove('hidden'); // Show reason for other leaves
   }
 
-  // Calculate dates for standard leave types
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-
-  const editWindowDays = (typeof CONFIG !== 'undefined' && CONFIG.edit_window_days) 
-                         ? parseInt(CONFIG.edit_window_days, 10) 
-                         : 7;
-
-  const minDate = new Date();
-  minDate.setDate(minDate.getDate() - editWindowDays);
-  const minDateStr = minDate.toISOString().split('T')[0];
-
-  const fromInput = document.getElementById('leaveFromDate');
-  const toInput = document.getElementById('leaveToDate');
-
-  if (fromInput && toInput) {
-    fromInput.min = minDateStr;
-    toInput.min = minDateStr;
-
-    if (type.includes('SL')) {
-      fromInput.max = todayStr;
-      toInput.max = todayStr;
-    } else {
-      fromInput.removeAttribute('max');
-      toInput.removeAttribute('max');
-    }
-  }
-
-  if (typeof calculateRequestedDays === 'function') {
-    calculateRequestedDays();
-  }
+  // ... rest of your date setting logic ...
 }
+    
 
-
+    
 
 
 
@@ -1426,18 +1400,27 @@ const leaveType = document.getElementById('leaveTypeSelect')?.value;
     });
 
 
-
-  // Populate Paid Holidays Dropdown with Date and Name
+// Populate Paid Holidays Dropdown with date_ph and name_ph
     const phSelectElem = document.getElementById('phSelect');
     if (phSelectElem && result.paidHolidays) {
-      phSelectElem.innerHTML = '<option value="">-- Select Paid Holiday --</option>';
+      phSelectElem.innerHTML = '<option value="">-- Select Holiday --</option>';
       result.paidHolidays.forEach(ph => {
-        const option = document.createElement('option');
-        option.value = ph.date;
-        option.textContent = `${ph.date} - ${ph.name}`;
-        phSelectElem.appendChild(option);
+        const phDate = ph.date_ph || ph.date || '';
+        const phName = ph.name_ph || ph.name || '';
+        
+        if (phDate) {
+          const option = document.createElement('option');
+          option.value = phDate; // Used for submission value
+          option.textContent = `${phDate} (${phName})`; // Display format like "Monday, 26 January 2026 (Republic Day)"
+          phSelectElem.appendChild(option);
+        }
       });
-    }
+ //   }
+    
+
+
+
+    
   } catch (err) {
     console.error("Error loading leave master:", err);
   }
