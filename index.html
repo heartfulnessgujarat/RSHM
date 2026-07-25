@@ -105,24 +105,19 @@
 <body>
   <div id="toast-container" class="hidden"></div>
   
-  <!-- CUSTOM DELETE CONFIRMATION MODAL -->
+<!-- CUSTOM CONFIRMATION MODAL -->
   <div id="custom-confirm-modal" class="modal-overlay hidden">
     <div class="modal-card">
-      <h3>Are you sure?</h3>
-      <p id="confirm-modal-text">Do you really want to delete this work log?</p>
-      <div class="modal-actions">
-        <button id="btn-confirm-yes" class="btn-danger">1. Yes, Delete, Please</button>
-        <button id="btn-confirm-no" class="btn-secondary" style="margin-top:0;">2. No, Do not Delete</button>
+      <h3 style="margin-bottom: 8px;">Are you sure?</h3>
+      <p id="confirm-modal-text" style="margin-bottom: 20px;"></p>
+      <div class="modal-actions" style="display: flex; gap: 10px; justify-content: center;">
+        <button id="btn-confirm-yes" class="btn-primary" style="flex: 1; margin-top: 0;">Yes</button>
+        <button id="btn-confirm-no" class="btn-secondary" style="flex: 1; margin-top: 0;">No</button>
       </div>
     </div>
   </div>
 
-
-
-
-
-
-  
+ 
 
  
   <!-- VIEW 1: AUTHENTICATION CONTAINER -->
@@ -446,6 +441,7 @@ function switchView(viewId) {
       return re.test(email);
     }
 
+    
     function showCustomConfirm(message) {
       return new Promise((resolve) => {
         const modal = document.getElementById('custom-confirm-modal');
