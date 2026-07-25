@@ -141,7 +141,14 @@
       </div>
     </div>
     <button onclick="executeLogin()">Login</button>
-    <button type="button" class="btn-link" onclick="switchView('view-change-password')">Change Password</button>
+
+    <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 15px;">
+      <button type="button" onclick="switchView('view-change-password')" class="btn-link" style="margin-top: 0;">Change Password</button>
+      <span style="color: #cbd5e1; font-size: 0.9rem;">|</span>
+      <button type="button" onclick="executeMainResetPassword()" class="btn-link" style="margin-top: 0;">Reset Password</button>
+    </div>
+
+    
   </div>
 
   <!-- VIEW 1B: CHANGE PASSWORD CONTAINER -->
@@ -537,6 +544,7 @@ async function executeChangePassword() {
       }
     }
 
+    
     async function executeResetPassword() {
       const empCodeInput = document.getElementById('change-emp-code');
       const empCode = empCodeInput ? empCodeInput.value.trim() : "";
