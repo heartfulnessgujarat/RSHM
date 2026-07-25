@@ -143,7 +143,21 @@
     <button onclick="executeLogin()">Login</button>
 
     <div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 15px;">
+
+
+<div style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 15px;">
       <button type="button" onclick="switchView('view-change-password')" class="btn-link" style="margin-top: 0;">Change Password</button>
+      <span style="color: #cbd5e1; font-size: 0.9rem;">|</span>
+      <button type="button" onclick="executeResetPassword()" class="btn-link" style="margin-top: 0;">Reset Password</button>
+    </div>
+
+      
+      
+//      <button type="button" onclick="switchView('view-change-password')" class="btn-link" style="margin-top: 0;">Change Password</button>
+
+
+
+      
       <span style="color: #cbd5e1; font-size: 0.9rem;">|</span>
       <button type="button" onclick="executeMainResetPassword()" class="btn-link" style="margin-top: 0;">Reset Password</button>
     </div>
@@ -186,12 +200,20 @@
       </div>
     </div>
     <button onclick="executeChangePassword()">Submit New Password</button>
-    <button type="button" onclick="executeResetPassword()" class="btn-secondary">Reset Password</button>
-    <p style="font-size: 0.82rem; color: #4b5563; text-align: center; margin-top: 10px; line-height: 1.4;">
-      You will receive a new password in your registered email 
-      <strong id="display-user-email" style="color: var(--primary);">(enter Emp Code above)</strong> 
-      after you click on <strong>Reset Password</strong>.
-    </p>
+
+
+
+
+    
+//    <button type="button" onclick="executeResetPassword()" class="btn-secondary">Reset Password</button>
+//    <p style="font-size: 0.82rem; color: #4b5563; text-align: center; margin-top: 10px; line-height: 1.4;">
+//     You will receive a new password in your registered email 
+ //     <strong id="display-user-email" style="color: var(--primary);">(enter Emp Code above)</strong> 
+ //     after you click on <strong>Reset Password</strong>.
+//    </p>
+
+
+    
     <button type="button" onclick="switchView('view-login')" class="btn-link">Back to Login</button>
   </div>
 
