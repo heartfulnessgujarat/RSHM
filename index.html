@@ -1250,25 +1250,30 @@ const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.queryS
 }
 
 
-  async function executeLoginResetPassword() {
+async function executeLoginResetPassword() {
   const empCode = document.getElementById('login-emp-code').value.trim();
   if (!empCode) {
     showToast("Please enter Employee Code to reset password.");
     return;
   }
   
-  const confirmAction = await showCustomConfirm(`Do you want a new password sent to the registered email for Employee Code: ${empCode}?`);
+  // Custom confirmation with exact text requested
+  const confirmAction = await showCustomConfirm("Are you sure you want to reset your password ?");
   if (!confirmAction) return;
 
   try {
-    const res = await callBackend("resetPassword", { empCode });
+    const res = callBackend("resetPassword", { empCode });
     showToast(res.message || "A new temporary password has been emailed to you.", false);
   } catch (err) {
     showToast(err.message || "Failed to reset password.");
   }
 }
+
+
     
 
+
+    
     
 
 
