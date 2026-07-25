@@ -903,6 +903,10 @@ async function executeWorkSubmit(e) {
       }
     }
 
+
+
+
+    
     async function loadDashboardLeaveStatus() {
       const container = document.getElementById('dashboardLeaveStatusContainer');
       if (!container || !currentUser) return;
@@ -1039,6 +1043,9 @@ async function openLeaveModule() {
         showToast(data?.message || 'Failed to load balances.', 'error');
       }
     }
+
+
+    
   } catch (err) {
     console.error("Error fetching leave balances:", err);
     if (typeof showToast === 'function') {
@@ -1252,13 +1259,29 @@ async function handleLeaveSubmit(e) {
                     || localStorage.getItem('employee_name') 
                     || '';
 
-    const leaveType = document.getElementById('leaveTypeSelect')?.value;
-    const fromDate = document.getElementById('leaveFromDate')?.value;
-    
+
+
+const leaveType = document.getElementById('leaveTypeSelect')?.value;
+    let fromDate = document.getElementById('leaveFromDate')?.value;
     let toDate = document.getElementById('leaveToDate')?.value;
+    
+    // If Paid Holiday (PH) is selected, grab date from the PH dropdown
+    const isPh = leaveType && leaveType.toUpperCase().includes('PH');
+    const phDateSelect = document.getElementById('phSelect')?.value;
+    
+    if (isPh) {
+      if (!phDateSelect) throw new Error('Please select a Paid Holiday.');
+      fromDate = phDateSelect;
+      toDate = phDateSelect;
+    }
+
     if (!toDate || toDate === '') {
       toDate = fromDate;
     }
+
+
+
+    
 
     // Read calculated days from UI badge
     const effectiveDaysEl = document.getElementById('effectiveDaysCount');
@@ -1407,11 +1430,26 @@ async function handleLeaveSubmit(e) {
         selectElem.appendChild(option);
       }
     });
+
+
+
+  // Populate Paid Holidays Dropdown with Date and Name
+    const phSelectElem = document.getElementById('phSelect');
+    if (phSelectElem && result.paidHolidays) {
+      phSelectElem.innerHTML = '<option value="">-- Select Paid Holiday --</option>';
+      result.paidHolidays.forEach(ph => {
+        const option = document.createElement('option');
+        option.value = ph.date;
+        option.textContent = `${ph.date} - ${ph.name}`;
+        phSelectElem.appendChild(option);
+      });
+    }
   } catch (err) {
     console.error("Error loading leave master:", err);
   }
 }
 
+    
 
 async function executeLoginResetPassword() {
   const empCode = document.getElementById('login-emp-code').value.trim();
