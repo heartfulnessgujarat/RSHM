@@ -388,15 +388,25 @@ const BACKEND_API = "https://script.google.com/macros/s/AKfycbzs7hkjrD44PxBfVuXf
       return result.data;
     }
 
-    function showToast(msg, isError = true) {
+
+
+function showToast(msg, isError = true) {
       const container = document.getElementById('toast-container');
       container.className = `toast ${isError ? 'toast-error' : 'toast-success'}`;
       container.innerText = msg;
+      
+      // Add text alignment and padding for a clean left-aligned look
+      container.style.textAlign = 'left';
+      container.style.paddingLeft = '20px'; // Optional: gives breathing room from the left edge
+      
       container.classList.remove('hidden');
       window.scrollTo(0, 0);
       setTimeout(() => container.classList.add('hidden'), 4000);
     }
 
+    
+
+    
 
 function switchView(viewId) {
       if (viewId === 'view-change-password') {
