@@ -695,77 +695,88 @@ async function openDashboard() {
     }
 
 
+
+
+
+
+    
 async function executeWorkSubmit(e) {
-      e.preventDefault();
-      const editingId = document.getElementById('editing-worklog-id').value;
-      const work_date = document.getElementById('work-date').value;
-      const from_time = document.getElementById('work-from').value;
-      const to_time = document.getElementById('work-to').value;
-      const project_id = document.getElementById('work-project').value;
-      const projectSelect = document.getElementById('work-project');
-      const project_name = projectSelect.options[projectSelect.selectedIndex].text;
-      const work_description = document.getElementById('work-desc').value.trim();
+  e.preventDefault();
+  const editingId = document.getElementById('editing-worklog-id').value;
+  const work_date = document.getElementById('work-date').value;
+  const from_time = document.getElementById('work-from').value;
+  const to_time = document.getElementById('work-to').value;
+  const project_id = document.getElementById('work-project').value;
+  const projectSelect = document.getElementById('work-project');
+  const project_name = projectSelect.options[projectSelect.selectedIndex].text;
+  const work_description = document.getElementById('work-desc').value.trim();
 
-      const btn = document.getElementById('btn-save-log');
-      btn.disabled = true;
-      btn.innerText = "Saving Work Log...";
+  const btn = document.getElementById('btn-save-log');
+  btn.disabled = true;
+  btn.innerText = "Saving Work Log...";
 
-      const activeUid = currentUser.employee_uid || currentUser.employeeUid || currentUser.emp_code || currentUser.empCode;
+  const activeUid = currentUser.employee_uid || currentUser.employeeUid || currentUser.emp_code || currentUser.empCode;
 
-      try {
-        // --- CLIENT-SIDE OVERLAP CHECK ---
-        const response = await fetch(`https://rshm-core-system-default-rtdb.firebaseio.com/daily_work/${activeUid}.json`);
-        const existingLogs = await response.json();
+  try {
+    // --- CLIENT-SIDE OVERLAP CHECK ---
+    const response = await fetch(`https://rshm-portal-default-rtdb.asia-southeast1.firebasedatabase.app/daily_work/${activeUid}.json`);
+    const existingLogs = await response.json();
 
-        if (existingLogs) {
-          // Convert new entry times to minutes from midnight for easy comparison
-          const [newStartH, newStartM] = from_time.split(':').map(Number);
-          const [newEndH, newEndM] = to_time.split(':').map(Number);
-          const newStartTotal = newStartH * 60 + newStartM;
-          const newEndTotal = newEndH * 60 + newEndM;
+    if (existingLogs) {
+      // Convert new entry times to minutes from midnight
+      const [newStartH, newStartM] = from_time.split(':').map(Number);
+      const [newEndH, newEndM] = to_time.split(':').map(Number);
+      const newStartTotal = newStartH * 60 + newStartM;
+      const newEndTotal = newEndH * 60 + newEndM;
 
-          for (const logId in existingLogs) {
-            const log = existingLogs[logId];
-            
-            // Check if it's on the same date and NOT the same log being edited
-            if (log.work_date === work_date && logId !== editingId) {
-              const [exStartH, exStartM] = log.from_time.split(':').map(Number);
-              const [exEndH, exEndM] = log.to_time.split(':').map(Number);
-              const exStartTotal = exStartH * 60 + exStartM;
-              const exEndTotal = exEndH * 60 + exEndM;
+      for (const logId in existingLogs) {
+        const log = existingLogs[logId];
+        if (!log) continue;
 
-              // Overlap condition: (NewStart < ExEnd) AND (NewEnd > ExStart)
-              if (newStartTotal < exEndTotal && newEndTotal > exStartTotal) {
-                throw new Error(`You have already made an entry on this same date from ${log.from_time} to ${log.to_time}. Overlapping time slots are not allowed.`);
-              }
-            }
+        // Check if it's on the same date and NOT the same log being edited
+        if (log.work_date === work_date && logId !== editingId && log.worklog_id !== editingId) {
+          if (!log.from_time || !log.to_time) continue;
+
+          const [exStartH, exStartM] = log.from_time.split(':').map(Number);
+          const [exEndH, exEndM] = log.to_time.split(':').map(Number);
+          const exStartTotal = exStartH * 60 + exStartM;
+          const exEndTotal = exEndH * 60 + exEndM;
+
+          // Overlap condition: (NewStart < ExEnd) AND (NewEnd > ExStart)
+          if (newStartTotal < exEndTotal && newEndTotal > exStartTotal) {
+            throw new Error(`Time overlap detected! You already have an entry on ${work_date} from ${log.from_time} to ${log.to_time}.`);
           }
         }
-        // --- END OVERLAP CHECK ---
-
-        const payload = {
-          employee_uid: activeUid,
-          work_date, from_time, to_time, project_id, project_name, work_description
-        };
-
-        let res;
-        if (editingId) {
-          payload.worklog_id = editingId;
-          res = await callBackend("updateWorkLog", payload);
-          showToast("Work log updated successfully!", false);
-        } else {
-          res = await callBackend("submitWorkLog", payload);
-          showToast(`Work log saved (${res.duration} hrs)!`, false);
-        }
-        document.getElementById('work-form').reset();
-        switchView('view-dashboard');
-      } catch(err) {
-        showToast(err.message);
-      } finally {
-        btn.disabled = false;
-        btn.innerText = "Submit Work Log";
       }
     }
+    // --- END OVERLAP CHECK ---
+
+    const payload = {
+      employee_uid: activeUid,
+      work_date, from_time, to_time, project_id, project_name, work_description
+    };
+
+    let res;
+    if (editingId) {
+      payload.worklog_id = editingId;
+      res = await callBackend("updateWorkLog", payload);
+      showToast("Work log updated successfully!", false);
+    } else {
+      res = await callBackend("submitWorkLog", payload);
+      showToast(`Work log saved (${res.duration} hrs)!`, false);
+    }
+    document.getElementById('work-form').reset();
+    switchView('view-dashboard');
+  } catch(err) {
+    showToast(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerText = "Submit Work Log";
+  }
+}
+
+
+
 
 
     
