@@ -1236,7 +1236,6 @@ async function handleLeaveSubmit(e) {
   const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.querySelector('button[type="submit"]');
   const statusDiv = document.getElementById('leaveStatusMessage');
 
-  // 1. UI Loading State
   if (submitBtn) submitBtn.disabled = true;
   if (statusDiv) {
     statusDiv.style.color = '#1a73e8';
@@ -1244,7 +1243,6 @@ async function handleLeaveSubmit(e) {
   }
 
   try {
-    // 2. Resolve Logged-In User Object
     const userObj = (typeof currentUser !== 'undefined' && currentUser) 
                  || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) 
                  || (typeof loggedInUser !== 'undefined' && loggedInUser) 
@@ -1262,7 +1260,23 @@ async function handleLeaveSubmit(e) {
                     || localStorage.getItem('employee_name') 
                     || '';
 
-    const leaveType = document.getElementById('leaveTypeSelect')?.value;
+    const leaveTypeEl = document.getElementById('leaveTypeSelect');
+    const leaveType = leaveTypeEl ? leaveTypeEl.value : '';
+    
+    // --- LIVE INSPECTION LOGS ---
+    console.log("----------------------------------------");
+    console.log("[DEBUG INSPECT] leaveTypeElement:", leaveTypeEl);
+    console.log("[DEBUG INSPECT] leaveType value:", JSON.stringify(leaveType));
+    
+    const phSelectEl = document.getElementById('paidHolidaySelect');
+    console.log("[DEBUG INSPECT] paidHolidaySelect element:", phSelectEl);
+    console.log("[DEBUG INSPECT] paidHolidaySelect value:", phSelectEl ? JSON.stringify(phSelectEl.value) : 'NOT FOUND');
+    
+    const fromDateEl = document.getElementById('leaveFromDate');
+    console.log("[DEBUG INSPECT] leaveFromDate element:", fromDateEl);
+    console.log("[DEBUG INSPECT] leaveFromDate value:", fromDateEl ? JSON.stringify(fromDateEl.value) : 'NOT FOUND');
+    console.log("----------------------------------------");
+
     if (!leaveType) throw new Error('Please select a leave type.');
 
     const isPh = leaveType.toUpperCase().includes('PH');
@@ -1270,21 +1284,19 @@ async function handleLeaveSubmit(e) {
     let toDate = '';
     let totalDays = 0;
 
-    // 3. Resolve Dates & Duration based on Leave Type
     if (isPh) {
-      const phDateSelect = document.getElementById('paidHolidaySelect')?.value;
+      const phDateSelect = phSelectEl ? phSelectEl.value : '';
       if (!phDateSelect) throw new Error('Please select a Paid Holiday.');
       fromDate = phDateSelect;
       toDate = phDateSelect;
       totalDays = 1;
     } else {
-      fromDate = document.getElementById('leaveFromDate')?.value;
+      fromDate = fromDateEl ? fromDateEl.value : '';
       toDate = document.getElementById('leaveToDate')?.value;
       
       if (!fromDate) throw new Error('Please select a From Date.');
       if (!toDate || toDate === '') toDate = fromDate;
 
-      // Read calculated days from UI badge for standard leaves
       const effectiveDaysEl = document.getElementById('effectiveDaysCount');
       const calculatedDaysEl = document.getElementById('calculatedDaysCount');
       
@@ -1299,12 +1311,10 @@ async function handleLeaveSubmit(e) {
 
     const reason = document.getElementById('leaveReason')?.value?.trim() || 'Paid Holiday Application';
 
-    // 4. Firebase Direct Checks for Paid Holiday (PH) Constraints
     if (isPh && typeof firebase !== 'undefined' && firebase.database) {
       const dbRef = firebase.database().ref();
       const currentYear = new Date(fromDate).getFullYear();
 
-      // Fetch all requests and filter client-side to avoid strict index matching issues on emp_code/employeeId
       const snapshot = await dbRef.child('leave_requests').once('value');
       let phCount = 0;
       let alreadyApplied = false;
@@ -1329,16 +1339,10 @@ async function handleLeaveSubmit(e) {
         }
       });
 
-      if (alreadyApplied) {
-        throw new Error('You have already applied for this PH');
-      }
-
-      if (phCount >= 10) {
-        throw new Error('You have reached the maximum limit of 10 Paid Holidays for the calendar year.');
-      }
+      if (alreadyApplied) throw new Error('You have already applied for this PH');
+      if (phCount >= 10) throw new Error('You have reached the maximum limit of 10 Paid Holidays for the calendar year.');
     }
 
-    // 5. Construct Payload
     const payload = {
       emp_code: empCode,
       employeeId: empCode,
@@ -1354,7 +1358,6 @@ async function handleLeaveSubmit(e) {
 
     console.log("-> Submitting leave payload:", payload);
 
-    // 6. Submit via backend/Firebase
     let response;
     if (typeof callBackend === 'function') {
       response = await callBackend("applyLeave", payload);
@@ -1368,13 +1371,11 @@ async function handleLeaveSubmit(e) {
       response = await res.json();
     }
 
-    // Handle Success
     if (statusDiv) {
       statusDiv.style.color = '#1e8e3e';
       statusDiv.innerText = (response && response.message) ? response.message : 'Leave application submitted successfully!';
     }
 
-    // --- FORM RESET & CLEANUP ---
     const leaveForm = document.getElementById('leaveApplyForm') || document.getElementById('leaveForm') || document.querySelector('form');
     if (leaveForm) leaveForm.reset();
 
@@ -1387,7 +1388,6 @@ async function handleLeaveSubmit(e) {
       loadLeaveBalances(empCode);
     }
 
-    // --- 3-SECOND AUTO-NAVIGATION ---
     setTimeout(() => {
       if (statusDiv) statusDiv.innerText = '';
       if (leaveForm) leaveForm.reset();
@@ -1406,7 +1406,8 @@ async function handleLeaveSubmit(e) {
     if (submitBtn) submitBtn.disabled = false;
   }
 }
-    
+
+
 
     
     
