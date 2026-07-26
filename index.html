@@ -1079,7 +1079,8 @@ function toggleLeaveFields() {
   const phGroup = document.getElementById('phSelectGroup');
   const dateRangeGroup = document.getElementById('dateRangeGroup');
   const toDateContainer = document.getElementById('toDateContainer');
-  const reasonContainer = document.getElementById('leaveReason')?.closest('div') || document.getElementById('reasonContainer');
+  const reasonTextarea = document.getElementById('leaveReason');
+  const reasonContainer = reasonTextarea?.closest('div') || document.getElementById('reasonContainer');
 
   // Check if Paid Holiday is selected (supports "PH" or "PAID HOLIDAY")
   const isPh = type.includes('PH') || type.includes('PAID HOLIDAY');
@@ -1089,12 +1090,26 @@ function toggleLeaveFields() {
     if (phGroup) phGroup.classList.remove('hidden');
     if (dateRangeGroup) dateRangeGroup.classList.add('hidden');
     if (toDateContainer) toDateContainer.classList.add('hidden');
-    if (reasonContainer) reasonContainer.classList.add('hidden'); // Hide reason box for PH
+    if (reasonContainer) reasonContainer.classList.add('hidden'); 
+    
+    // Remove 'required' so hidden textarea doesn't block form submission
+    if (reasonTextarea) {
+      reasonTextarea.removeAttribute('required');
+      reasonTextarea.value = 'Paid Holiday Application'; // Set a default value for backend payload
+    }
   } else {
     if (phGroup) phGroup.classList.add('hidden');
     if (dateRangeGroup) dateRangeGroup.classList.remove('hidden');
     if (toDateContainer) toDateContainer.classList.remove('hidden');
-    if (reasonContainer) reasonContainer.classList.remove('hidden'); // Show reason box for standard leaves
+    if (reasonContainer) reasonContainer.classList.remove('hidden'); 
+    
+    // Restore 'required' for standard leaves
+    if (reasonTextarea) {
+      reasonTextarea.setAttribute('required', 'true');
+      if (reasonTextarea.value === 'Paid Holiday Application') {
+        reasonTextarea.value = '';
+      }
+    }
   }
 
   // Calculate dates for standard leave types
