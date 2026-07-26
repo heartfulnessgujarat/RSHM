@@ -1229,8 +1229,6 @@ function calculateRequestedDays() {
 }
 
 
-
-
 async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -1281,7 +1279,6 @@ async function handleLeaveSubmit(e) {
       toDate = phDateVal;
       totalDays = 1;
 
-      // Capture exact dropdown text (Date + Holiday Name)
       if (phSelectEl && phSelectEl.selectedIndex !== -1) {
         const selectedOptionText = phSelectEl.options[phSelectEl.selectedIndex].text;
         if (selectedOptionText) {
@@ -1310,12 +1307,11 @@ async function handleLeaveSubmit(e) {
 
     const reason = document.getElementById('leaveReason')?.value?.trim() || (isPh ? finalLeaveType : 'Leave Application');
 
-    // Firebase Validation & Direct Balance Update for PH
+    // Diagnostic Firebase Check & Balance Update
     if (isPh && typeof firebase !== 'undefined' && firebase.database) {
       const dbRef = firebase.database().ref();
       const currentYear = new Date(fromDate).getFullYear();
 
-      // Check existing requests for limits / duplicates
       const snapshot = await dbRef.child('leave_requests').once('value');
       let phCount = 0;
       let alreadyApplied = false;
@@ -1343,21 +1339,23 @@ async function handleLeaveSubmit(e) {
       if (alreadyApplied) throw new Error('You have already applied for this PH');
       if (phCount >= 10) throw new Error('You have reached the maximum limit of 10 Paid Holidays for the calendar year.');
 
-      // Directly update ph_balance in Firebase under masters/employees/{empCode}
+      // Directly update ph_balance in Firebase
       const empRef = dbRef.child(`masters/employees/${empCode}`);
       const empSnap = await empRef.once('value');
       if (empSnap.exists()) {
         const empData = empSnap.val();
         let currentPhBal = parseFloat(empData.ph_balance !== undefined ? empData.ph_balance : 10);
-        if (currentPhBal > 0) {
-          currentPhBal -= totalDays;
-          await empRef.update({ ph_balance: currentPhBal });
-          console.log(`-> Updated Firebase ph_balance for ${empCode} to: ${currentPhBal}`);
-        }
+        console.log(`-> [DIAGNOSTIC] Current Firebase ph_balance for ${empCode}:`, currentPhBal);
+        
+        currentPhBal -= totalDays;
+        await empRef.update({ ph_balance: currentPhBal });
+        console.log(`-> [DIAGNOSTIC] Updated Firebase ph_balance to:`, currentPhBal);
+      } else {
+        console.warn(`-> [DIAGNOSTIC WARNING] Employee node masters/employees/${empCode} not found in Firebase!`);
       }
     }
 
-    // Payload configuration: Status set to "Auto Approved", emails skipped
+    // Payload with explicitly forced Auto Approved status & skip email flags
     const payload = {
       emp_code: empCode,
       employeeId: empCode,
@@ -1369,11 +1367,11 @@ async function handleLeaveSubmit(e) {
       reason: reason,
       status: isPh ? 'Auto Approved' : 'Pending',
       isAutoApproved: isPh,
-      skipEmailNotification: isPh, // Prevents email trigger on backend
+      skipEmailNotification: isPh,
       appliedAt: new Date().toISOString()
     };
 
-    console.log("-> Submitting leave payload:", payload);
+    console.log("-> [DIAGNOSTIC] Submitting leave payload:", payload);
 
     let response;
     if (typeof callBackend === 'function') {
@@ -1387,6 +1385,8 @@ async function handleLeaveSubmit(e) {
       });
       response = await res.json();
     }
+
+    console.log("-> [DIAGNOSTIC] Backend response received:", response);
 
     if (statusDiv) {
       statusDiv.style.color = '#1e8e3e';
