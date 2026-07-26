@@ -1229,6 +1229,7 @@ function calculateRequestedDays() {
 }
 
 
+
 async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -1303,18 +1304,26 @@ async function handleLeaveSubmit(e) {
       const dbRef = firebase.database().ref();
       const currentYear = new Date(fromDate).getFullYear();
 
-      const snapshot = await dbRef.child('leave_requests').orderByChild('emp_code').equalTo(empCode).once('value');
+      // Fetch all requests and filter client-side to avoid strict index matching issues on emp_code/employeeId
+      const snapshot = await dbRef.child('leave_requests').once('value');
       let phCount = 0;
       let alreadyApplied = false;
 
       snapshot.forEach((childSnap) => {
         const req = childSnap.val();
-        if (req.leave_type && req.leave_type.toUpperCase().includes('PH') && req.status !== 'Rejected') {
-          const reqDate = req.leave_date || req.from_date || '';
-          if (reqDate && new Date(reqDate).getFullYear() === currentYear) {
-            phCount++;
-            if (reqDate === fromDate) {
-              alreadyApplied = true;
+        const reqEmpCode = req.emp_code || req.employeeId || req.employee_code || '';
+        
+        if (reqEmpCode === empCode) {
+          const reqLeaveType = req.leave_type || req.leaveType || '';
+          const reqStatus = req.status || '';
+          
+          if (reqLeaveType.toUpperCase().includes('PH') && reqStatus !== 'Rejected') {
+            const reqDate = req.leave_date || req.fromDate || req.from_date || '';
+            if (reqDate && new Date(reqDate).getFullYear() === currentYear) {
+              phCount++;
+              if (reqDate === fromDate) {
+                alreadyApplied = true;
+              }
             }
           }
         }
@@ -1331,6 +1340,7 @@ async function handleLeaveSubmit(e) {
 
     // 5. Construct Payload
     const payload = {
+      emp_code: empCode,
       employeeId: empCode,
       employeeName: empName,
       leaveType: leaveType,
@@ -1396,11 +1406,7 @@ async function handleLeaveSubmit(e) {
     if (submitBtn) submitBtn.disabled = false;
   }
 }
-
-
-
-
-
+    
 
     
     
