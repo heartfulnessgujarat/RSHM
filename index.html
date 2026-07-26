@@ -1213,7 +1213,6 @@ function calculateRequestedDays() {
   if (badge) badge.classList.remove('hidden');
 }
 
-
 async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -1228,13 +1227,12 @@ async function handleLeaveSubmit(e) {
   }
 
   try {
-    // 2. Resolve Logged-In User Object across common app state variables
+    // 2. Resolve Logged-In User Object
     const userObj = (typeof currentUser !== 'undefined' && currentUser) 
                  || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) 
                  || (typeof loggedInUser !== 'undefined' && loggedInUser) 
                  || JSON.parse(localStorage.getItem('currentUser') || localStorage.getItem('user') || '{}');
 
-    // Extract employee details matching your schema keys
     const empCode = document.getElementById('leaveEmpId')?.value?.trim() 
                  || userObj.emp_code 
                  || userObj.employee_uid 
@@ -1251,9 +1249,8 @@ async function handleLeaveSubmit(e) {
     let fromDate = document.getElementById('leaveFromDate')?.value;
     let toDate = document.getElementById('leaveToDate')?.value;
     
-    // If Paid Holiday (PH) is selected, grab date from the corrected dropdown ID
     const isPh = leaveType && leaveType.toUpperCase().includes('PH');
-    const phDateSelect = document.getElementById('paidHolidaySelect')?.value; // <-- Updated ID here
+    const phDateSelect = document.getElementById('paidHolidaySelect')?.value;
     
     if (isPh) {
       if (!phDateSelect) throw new Error('Please select a Paid Holiday.');
@@ -1274,6 +1271,8 @@ async function handleLeaveSubmit(e) {
       totalDays = parseFloat(effectiveDaysEl.innerText);
     } else if (calculatedDaysEl && calculatedDaysEl.innerText && !isNaN(calculatedDaysEl.innerText)) {
       totalDays = parseFloat(calculatedDaysEl.innerText);
+    } else if (isPh) {
+      totalDays = 1;
     }
 
     const reason = document.getElementById('leaveReason')?.value?.trim() || document.querySelector('textarea')?.value?.trim() || '';
@@ -1283,7 +1282,40 @@ async function handleLeaveSubmit(e) {
     if (!fromDate) throw new Error('Please select a From Date.');
     if (totalDays <= 0) throw new Error('Invalid date selection or leave duration is 0 days.');
 
-    // 4. Construct Payload
+    // 4. Firebase Direct Checks for Paid Holiday (PH) Constraints
+    if (isPh && typeof firebase !== 'undefined' && firebase.database) {
+      const dbRef = firebase.database().ref();
+      const currentYear = new Date(fromDate).getFullYear();
+
+      // Check existing leave requests in Firebase for this employee to enforce max limit (10) and duplicates
+      const snapshot = await dbRef.child('leave_requests').orderByChild('emp_code').equalTo(empCode).once('value');
+      let phCount = 0;
+      let alreadyApplied = false;
+
+      snapshot.forEach((childSnap) => {
+        const req = childSnap.val();
+        if (req.leave_type && req.leave_type.toUpperCase().includes('PH') && req.status !== 'Rejected') {
+          const reqDate = req.leave_date || req.from_date || '';
+          if (reqDate && new Date(reqDate).getFullYear() === currentYear) {
+            phCount++;
+            if (reqDate === fromDate) {
+              alreadyApplied = true;
+            }
+          }
+        }
+      });
+
+      if (alreadyApplied) {
+        throw new Error('You have already applied for this PH');
+      }
+
+      // Max Paid Holidays check (Limit = 10)
+      if (phCount >= 10) {
+        throw new Error('You have reached the maximum limit of 10 Paid Holidays for the calendar year.');
+      }
+    }
+
+    // 5. Construct Payload (Auto-approved for PH)
     const payload = {
       employeeId: empCode,
       employeeName: empName,
@@ -1292,12 +1324,13 @@ async function handleLeaveSubmit(e) {
       toDate: toDate,
       totalDays: totalDays,
       reason: reason,
+      isAutoApproved: isPh, // Flag for backend/Firebase direct auto-approval if needed
       appliedAt: new Date().toISOString()
     };
 
     console.log("-> Submitting leave payload:", payload);
 
-    // 5. Submit via BACKEND_API or callBackend Helper
+    // 6. Submit via backend/Firebase
     let response;
     if (typeof callBackend === 'function') {
       response = await callBackend("applyLeave", payload);
@@ -1321,42 +1354,20 @@ async function handleLeaveSubmit(e) {
     const leaveForm = document.getElementById('leaveForm') || document.querySelector('form');
     if (leaveForm) leaveForm.reset();
 
-    const badge = document.getElementById('leaveDaysBadge');
-    if (badge) badge.classList.add('hidden');
-
-    const weeklyOffRow = document.getElementById('weeklyOffRow');
-    if (weeklyOffRow) weeklyOffRow.classList.add('hidden');
-
-    const effectiveDaysRow = document.getElementById('effectiveDaysRow');
-    if (effectiveDaysRow) effectiveDaysRow.classList.add('hidden');
-
-    const phGroup = document.getElementById('phSelectGroup');
-    if (phGroup) phGroup.classList.add('hidden');
+    ['leaveDaysBadge', 'weeklyOffRow', 'effectiveDaysRow', 'phSelectGroup'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
 
     // Refresh balances in the background
     if (typeof loadLeaveBalances === 'function') {
       loadLeaveBalances(empCode);
     }
 
-    // --- 3-SECOND AUTO-NAVIGATION & BACKGROUND RESET TIMER ---
+    // --- 3-SECOND AUTO-NAVIGATION ---
     setTimeout(() => {
       if (statusDiv) statusDiv.innerText = '';
-      
-      const leaveFormElem = document.getElementById('leaveApplyForm') || leaveForm;
-      if (leaveFormElem) leaveFormElem.reset();
-
-      const badgeElem = document.getElementById('leaveDaysBadge');
-      if (badgeElem) badgeElem.classList.add('hidden');
-
-      const weeklyOffElem = document.getElementById('weeklyOffRow');
-      if (weeklyOffElem) weeklyOffElem.classList.add('hidden');
-
-      const effectiveDaysElem = document.getElementById('effectiveDaysRow');
-      if (effectiveDaysElem) effectiveDaysElem.classList.add('hidden');
-
-      const phGroupElem = document.getElementById('phSelectGroup');
-      if (phGroupElem) phGroupElem.classList.add('hidden');
-
+      if (leaveForm) leaveForm.reset();
       if (typeof switchView === 'function') {
         switchView('view-dashboard');
       }
@@ -1374,8 +1385,8 @@ async function handleLeaveSubmit(e) {
 }
 
 
-
-async function loadLeaveMasterOptions() {
+    
+  async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
   const selectElem = document.getElementById('leaveTypeSelect');
   if (!selectElem) {
@@ -1384,7 +1395,7 @@ async function loadLeaveMasterOptions() {
   }
 
   try {
-    // 1. Fetch standard leave types, paid holidays, and config from Apps Script backend
+    // 1. Fetch standard leave types, paid holidays, and config from Apps Script backend/Firebase
     console.log("-> Fetching leave master data from backend...");
     const result = await callBackend("getLeaveMasterData", {});
     console.log("-> Backend response received:", result);
@@ -1405,7 +1416,7 @@ async function loadLeaveMasterOptions() {
       }
     });
 
-    // 2. Populate Paid Holidays directly from the backend response array
+    // 2. Populate Paid Holidays with DD-MMM-YYYY formatting
     const phSelectElem = document.getElementById('paidHolidaySelect');
     console.log("-> paidHolidaySelect element found:", !!phSelectElem);
 
@@ -1416,15 +1427,28 @@ async function loadLeaveMasterOptions() {
       console.log("-> Processing paid holidays array:", holidaysArray);
 
       if (holidaysArray.length > 0) {
-        holidaysArray.forEach((ph, index) => {
+        holidaysArray.forEach((ph) => {
           const phDate = ph.date_ph || ph.date || ph.holiday_date || '';
           const phName = ph.name_ph || ph.name || ph.holiday_name || '';
           
           if (phDate) {
+            // Format date from YYYY-MM-DD to DD-MMM-YYYY (e.g., 2026-01-26 -> 26-Jan-2026)
+            const parts = phDate.split('-');
+            let formattedDate = phDate;
+            if (parts.length === 3) {
+              const year = parts[0];
+              const monthIndex = parseInt(parts[1], 10) - 1;
+              const day = parts[2];
+              const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+              if (months[monthIndex]) {
+                formattedDate = `${day}-${months[monthIndex]}-${year}`;
+              }
+            }
+
             const option = document.createElement('option');
+            // Store raw YYYY-MM-DD or formatted date as value based on your backend preference
             option.value = phDate; 
-            // Format: "2026-01-26 (Republic Day)" or similar based on your data properties
-            option.textContent = phName ? `${phDate} (${phName})` : phDate; 
+            option.textContent = phName ? `${formattedDate} (${phName})` : formattedDate; 
             phSelectElem.appendChild(option);
           }
         });
@@ -1434,7 +1458,7 @@ async function loadLeaveMasterOptions() {
       }
     }
 
-    // 3. Save edit window configuration globally if available
+    // 3. Save configuration globally if available
     if (result.editWindowDays && typeof CONFIG !== 'undefined') {
       CONFIG.edit_window_days = result.editWindowDays;
     }
@@ -1445,9 +1469,8 @@ async function loadLeaveMasterOptions() {
     console.error("-> Error in loadLeaveMasterOptions:", err);
     selectElem.innerHTML = '<option value="">-- Error Loading Options --</option>';
   }
-}
+}  
 
-    
 
 
     
