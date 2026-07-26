@@ -1389,17 +1389,19 @@ const leaveType = document.getElementById('leaveTypeSelect')?.value;
 }
 
 
+
+
 async function loadLeaveMasterOptions() {
   const selectElem = document.getElementById('leaveTypeSelect');
   if (!selectElem) return;
 
   try {
+    // 1. Fetch standard leave types and config from Apps Script backend
     const result = await callBackend("getLeaveMasterData", {});
     
-    // Reset dropdown
+    // Reset Leave Types dropdown
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
 
-    // 1. Populate Leave Types from backend
     const leaveTypesArray = result.leaveTypes || [];
     leaveTypesArray.forEach((item) => {
       const leaveName = item.type || item.type_of_leave || item.leaveType || item.name || '';
@@ -1413,21 +1415,34 @@ async function loadLeaveMasterOptions() {
       }
     });
 
-    // 2. Populate Paid Holidays Dropdown
+    // 2. Fetch Paid Holidays DIRECTLY from Firebase for maximum speed
     const phSelectElem = document.getElementById('phSelect');
-    if (phSelectElem && result.paidHolidays) {
+    if (phSelectElem) {
       phSelectElem.innerHTML = '<option value="">-- Select Holiday --</option>';
-      result.paidHolidays.forEach(ph => {
-        const phDate = ph.date || ph.date_ph || '';
-        const phName = ph.name || ph.name_ph || '';
-        
-        if (phDate) {
-          const option = document.createElement('option');
-          option.value = phDate; 
-          option.textContent = phName ? `${phDate} (${phName})` : phDate; 
-          phSelectElem.appendChild(option);
+      
+      if (typeof firebase !== 'undefined' && firebase.database) {
+        const holidaysRef = firebase.database().ref('masters/holidays');
+        const snapshot = await holidaysRef.once('value');
+        const holidaysData = snapshot.val();
+
+        if (holidaysData) {
+          // Loop through firebase holiday nodes (holiday_1, holiday_2, etc.)
+          Object.values(holidaysData).forEach(ph => {
+            const phDate = ph.date_ph || ph.date || '';
+            const phName = ph.name_ph || ph.name || '';
+            
+            if (phDate) {
+              const option = document.createElement('option');
+              option.value = phDate; 
+              // Format: "Monday, 26 January 2026 (Republic Day)"
+              option.textContent = phName ? `${phDate} (${phName})` : phDate; 
+              phSelectElem.appendChild(option);
+            }
+          });
         }
-      });
+      } else {
+        console.warn('Firebase SDK not detected for direct holiday fetch.');
+      }
     }
 
     // 3. Save edit window configuration globally if available
@@ -1436,11 +1451,18 @@ async function loadLeaveMasterOptions() {
     }
 
   } catch (err) {
-    console.error("Error loading leave master:", err);
+    console.error("Error loading leave master options:", err);
     selectElem.innerHTML = '<option value="">-- Error Loading Options --</option>';
   }
 }
 
+
+
+
+
+
+
+    
 
 async function executeLoginResetPassword() {
   const empCode = document.getElementById('login-emp-code').value.trim();
