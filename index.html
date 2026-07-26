@@ -1375,7 +1375,6 @@ async function handleLeaveSubmit(e) {
 
 
 
-
 async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
   const selectElem = document.getElementById('leaveTypeSelect');
@@ -1385,7 +1384,7 @@ async function loadLeaveMasterOptions() {
   }
 
   try {
-    // 1. Fetch standard leave types and config from Apps Script backend
+    // 1. Fetch standard leave types, paid holidays, and config from Apps Script backend
     console.log("-> Fetching leave master data from backend...");
     const result = await callBackend("getLeaveMasterData", {});
     console.log("-> Backend response received:", result);
@@ -1406,39 +1405,32 @@ async function loadLeaveMasterOptions() {
       }
     });
 
-    // 2. Fetch Paid Holidays DIRECTLY from Firebase using the correct element ID
+    // 2. Populate Paid Holidays directly from the backend response array
     const phSelectElem = document.getElementById('paidHolidaySelect');
     console.log("-> paidHolidaySelect element found:", !!phSelectElem);
 
     if (phSelectElem) {
       phSelectElem.innerHTML = '<option value="">-- Select Holiday --</option>';
       
-      if (typeof firebase !== 'undefined' && firebase.database) {
-        console.log("-> Querying Firebase at path: masters/holidays");
-        const holidaysRef = firebase.database().ref('masters/holidays');
-        const snapshot = await holidaysRef.once('value');
-        const holidaysData = snapshot.val();
-        console.log("-> Firebase holidays snapshot data:", holidaysData);
+      const holidaysArray = result.paidHolidays || [];
+      console.log("-> Processing paid holidays array:", holidaysArray);
 
-        if (holidaysData) {
-          Object.values(holidaysData).forEach((ph, index) => {
-            const phDate = ph.date_ph || ph.date || '';
-            const phName = ph.name_ph || ph.name || '';
-            
-            if (phDate) {
-              const option = document.createElement('option');
-              option.value = phDate; 
-              // Format: "Monday, 26 January 2026 (Republic Day)"
-              option.textContent = phName ? `${phDate} (${phName})` : phDate; 
-              phSelectElem.appendChild(option);
-            }
-          });
-          console.log("-> Paid holidays successfully loaded into dropdown!");
-        } else {
-          console.warn("-> No data found under masters/holidays in Firebase!");
-        }
+      if (holidaysArray.length > 0) {
+        holidaysArray.forEach((ph, index) => {
+          const phDate = ph.date_ph || ph.date || ph.holiday_date || '';
+          const phName = ph.name_ph || ph.name || ph.holiday_name || '';
+          
+          if (phDate) {
+            const option = document.createElement('option');
+            option.value = phDate; 
+            // Format: "2026-01-26 (Republic Day)" or similar based on your data properties
+            option.textContent = phName ? `${phDate} (${phName})` : phDate; 
+            phSelectElem.appendChild(option);
+          }
+        });
+        console.log("-> Paid holidays successfully loaded into dropdown!");
       } else {
-        console.error("-> Firebase SDK or database instance is undefined!");
+        console.warn("-> No paid holidays found in backend response!");
       }
     }
 
@@ -1454,6 +1446,7 @@ async function loadLeaveMasterOptions() {
     selectElem.innerHTML = '<option value="">-- Error Loading Options --</option>';
   }
 }
+
     
 
 
