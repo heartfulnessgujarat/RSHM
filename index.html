@@ -1230,7 +1230,7 @@ function calculateRequestedDays() {
 
 
 
-async function handleLeaveSubmit(e) {
+    async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
   const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.querySelector('button[type="submit"]');
@@ -1262,35 +1262,24 @@ async function handleLeaveSubmit(e) {
 
     const leaveTypeEl = document.getElementById('leaveTypeSelect');
     const leaveType = leaveTypeEl ? leaveTypeEl.value : '';
-    
-    // --- LIVE INSPECTION LOGS ---
-    console.log("----------------------------------------");
-    console.log("[DEBUG INSPECT] leaveTypeElement:", leaveTypeEl);
-    console.log("[DEBUG INSPECT] leaveType value:", JSON.stringify(leaveType));
-    
-    const phSelectEl = document.getElementById('paidHolidaySelect');
-    console.log("[DEBUG INSPECT] paidHolidaySelect element:", phSelectEl);
-    console.log("[DEBUG INSPECT] paidHolidaySelect value:", phSelectEl ? JSON.stringify(phSelectEl.value) : 'NOT FOUND');
-    
-    const fromDateEl = document.getElementById('leaveFromDate');
-    console.log("[DEBUG INSPECT] leaveFromDate element:", fromDateEl);
-    console.log("[DEBUG INSPECT] leaveFromDate value:", fromDateEl ? JSON.stringify(fromDateEl.value) : 'NOT FOUND');
-    console.log("----------------------------------------");
 
     if (!leaveType) throw new Error('Please select a leave type.');
 
-    const isPh = leaveType.toUpperCase().includes('PH');
+    // Robust check for Paid Holiday types
+    const isPh = leaveType.toUpperCase().includes('PH') || leaveType.toUpperCase().includes('PAID HOLIDAY');
     let fromDate = '';
     let toDate = '';
     let totalDays = 0;
 
     if (isPh) {
+      const phSelectEl = document.getElementById('paidHolidaySelect');
       const phDateSelect = phSelectEl ? phSelectEl.value : '';
       if (!phDateSelect) throw new Error('Please select a Paid Holiday.');
       fromDate = phDateSelect;
       toDate = phDateSelect;
       totalDays = 1;
     } else {
+      const fromDateEl = document.getElementById('leaveFromDate');
       fromDate = fromDateEl ? fromDateEl.value : '';
       toDate = document.getElementById('leaveToDate')?.value;
       
@@ -1327,7 +1316,7 @@ async function handleLeaveSubmit(e) {
           const reqLeaveType = req.leave_type || req.leaveType || '';
           const reqStatus = req.status || '';
           
-          if (reqLeaveType.toUpperCase().includes('PH') && reqStatus !== 'Rejected') {
+          if ((reqLeaveType.toUpperCase().includes('PH') || reqLeaveType.toUpperCase().includes('PAID HOLIDAY')) && reqStatus !== 'Rejected') {
             const reqDate = req.leave_date || req.fromDate || req.from_date || '';
             if (reqDate && new Date(reqDate).getFullYear() === currentYear) {
               phCount++;
@@ -1406,8 +1395,6 @@ async function handleLeaveSubmit(e) {
     if (submitBtn) submitBtn.disabled = false;
   }
 }
-
-
 
     
     
