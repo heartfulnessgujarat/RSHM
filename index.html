@@ -1390,14 +1390,19 @@ const leaveType = document.getElementById('leaveTypeSelect')?.value;
 
 
 
-
 async function loadLeaveMasterOptions() {
+  console.log("-> loadLeaveMasterOptions() started");
   const selectElem = document.getElementById('leaveTypeSelect');
-  if (!selectElem) return;
+  if (!selectElem) {
+    console.warn("-> leaveTypeSelect element not found!");
+    return;
+  }
 
   try {
     // 1. Fetch standard leave types and config from Apps Script backend
+    console.log("-> Fetching leave master data from backend...");
     const result = await callBackend("getLeaveMasterData", {});
+    console.log("-> Backend response received:", result);
     
     // Reset Leave Types dropdown
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
@@ -1415,33 +1420,38 @@ async function loadLeaveMasterOptions() {
       }
     });
 
-    // 2. Fetch Paid Holidays DIRECTLY from Firebase for maximum speed
+    // 2. Fetch Paid Holidays DIRECTLY from Firebase with logs
     const phSelectElem = document.getElementById('phSelect');
+    console.log("-> phSelect element found:", !!phSelectElem);
+
     if (phSelectElem) {
       phSelectElem.innerHTML = '<option value="">-- Select Holiday --</option>';
       
       if (typeof firebase !== 'undefined' && firebase.database) {
+        console.log("-> Querying Firebase at path: masters/holidays");
         const holidaysRef = firebase.database().ref('masters/holidays');
         const snapshot = await holidaysRef.once('value');
         const holidaysData = snapshot.val();
+        console.log("-> Firebase holidays snapshot data:", holidaysData);
 
         if (holidaysData) {
-          // Loop through firebase holiday nodes (holiday_1, holiday_2, etc.)
-          Object.values(holidaysData).forEach(ph => {
+          Object.values(holidaysData).forEach((ph, index) => {
             const phDate = ph.date_ph || ph.date || '';
             const phName = ph.name_ph || ph.name || '';
+            console.log(`-> Processing holiday [${index}]:`, { phDate, phName });
             
             if (phDate) {
               const option = document.createElement('option');
               option.value = phDate; 
-              // Format: "Monday, 26 January 2026 (Republic Day)"
               option.textContent = phName ? `${phDate} (${phName})` : phDate; 
               phSelectElem.appendChild(option);
             }
           });
+        } else {
+          console.warn("-> No data found under masters/holidays in Firebase!");
         }
       } else {
-        console.warn('Firebase SDK not detected for direct holiday fetch.');
+        console.error("-> Firebase SDK or database instance is undefined!");
       }
     }
 
@@ -1450,14 +1460,13 @@ async function loadLeaveMasterOptions() {
       CONFIG.edit_window_days = result.editWindowDays;
     }
 
+    console.log("-> loadLeaveMasterOptions() completed successfully.");
+
   } catch (err) {
-    console.error("Error loading leave master options:", err);
+    console.error("-> Error in loadLeaveMasterOptions:", err);
     selectElem.innerHTML = '<option value="">-- Error Loading Options --</option>';
   }
 }
-
-
-
 
 
 
