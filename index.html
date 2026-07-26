@@ -1230,6 +1230,7 @@ function calculateRequestedDays() {
 
 
 
+
 async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -1269,18 +1270,18 @@ async function handleLeaveSubmit(e) {
     let fromDate = '';
     let toDate = '';
     let totalDays = 0;
-    let finalLeaveType = leaveTypeVal; // Will store exact label for PH if applicable
+    let finalLeaveType = leaveTypeVal;
 
     if (isPh) {
       const phSelectEl = document.getElementById('paidHolidaySelect');
-      const phDateVal = phSelectEl ? phSelectEl.value : ''; // e.g., "2026-08-28"
+      const phDateVal = phSelectEl ? phSelectEl.value : '';
       if (!phDateVal) throw new Error('Please select a Paid Holiday.');
 
       fromDate = phDateVal;
       toDate = phDateVal;
       totalDays = 1;
 
-      // Capture exact dropdown text (date + Holiday Name) instead of generic "Paid Holiday"
+      // Capture exact dropdown text (Date + Holiday Name)
       if (phSelectEl && phSelectEl.selectedIndex !== -1) {
         const selectedOptionText = phSelectEl.options[phSelectEl.selectedIndex].text;
         if (selectedOptionText) {
@@ -1309,10 +1310,12 @@ async function handleLeaveSubmit(e) {
 
     const reason = document.getElementById('leaveReason')?.value?.trim() || (isPh ? finalLeaveType : 'Leave Application');
 
+    // Firebase Validation & Direct Balance Update for PH
     if (isPh && typeof firebase !== 'undefined' && firebase.database) {
       const dbRef = firebase.database().ref();
       const currentYear = new Date(fromDate).getFullYear();
 
+      // Check existing requests for limits / duplicates
       const snapshot = await dbRef.child('leave_requests').once('value');
       let phCount = 0;
       let alreadyApplied = false;
@@ -1339,9 +1342,22 @@ async function handleLeaveSubmit(e) {
 
       if (alreadyApplied) throw new Error('You have already applied for this PH');
       if (phCount >= 10) throw new Error('You have reached the maximum limit of 10 Paid Holidays for the calendar year.');
+
+      // Directly update ph_balance in Firebase under masters/employees/{empCode}
+      const empRef = dbRef.child(`masters/employees/${empCode}`);
+      const empSnap = await empRef.once('value');
+      if (empSnap.exists()) {
+        const empData = empSnap.val();
+        let currentPhBal = parseFloat(empData.ph_balance !== undefined ? empData.ph_balance : 10);
+        if (currentPhBal > 0) {
+          currentPhBal -= totalDays;
+          await empRef.update({ ph_balance: currentPhBal });
+          console.log(`-> Updated Firebase ph_balance for ${empCode} to: ${currentPhBal}`);
+        }
+      }
     }
 
-    // Payload configuration: For PH, status is set to 'Approved' automatically and email trigger flag set to false/skip
+    // Payload configuration: Status set to "Auto Approved", emails skipped
     const payload = {
       emp_code: empCode,
       employeeId: empCode,
@@ -1351,9 +1367,9 @@ async function handleLeaveSubmit(e) {
       toDate: toDate,
       totalDays: totalDays,
       reason: reason,
-      status: isPh ? 'Approved' : 'Pending',
+      status: isPh ? 'Auto Approved' : 'Pending',
       isAutoApproved: isPh,
-      skipEmailNotification: isPh, // Skips email trigger on backend for auto-approved PH
+      skipEmailNotification: isPh, // Prevents email trigger on backend
       appliedAt: new Date().toISOString()
     };
 
@@ -1374,7 +1390,7 @@ async function handleLeaveSubmit(e) {
 
     if (statusDiv) {
       statusDiv.style.color = '#1e8e3e';
-      statusDiv.innerText = (response && response.message) ? response.message : (isPh ? 'Paid Holiday auto-approved and submitted successfully!' : 'Leave application submitted successfully!');
+      statusDiv.innerText = (response && response.message) ? response.message : (isPh ? 'Paid Holiday auto-approved successfully!' : 'Leave application submitted successfully!');
     }
 
     const leaveForm = document.getElementById('leaveApplyForm') || document.getElementById('leaveForm') || document.querySelector('form');
@@ -1385,7 +1401,9 @@ async function handleLeaveSubmit(e) {
       if (el) el.classList.add('hidden');
     });
 
-    if (typeof loadLeaveBalances === 'function') {
+    if (typeof openLeaveModule === 'function') {
+      openLeaveModule();
+    } else if (typeof loadLeaveBalances === 'function') {
       loadLeaveBalances(empCode);
     }
 
@@ -1407,8 +1425,6 @@ async function handleLeaveSubmit(e) {
     if (submitBtn) submitBtn.disabled = false;
   }
 }
-
-
 
     
     
