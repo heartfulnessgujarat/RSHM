@@ -1307,7 +1307,7 @@ async function handleLeaveSubmit(e) {
 
     const reason = document.getElementById('leaveReason')?.value?.trim() || (isPh ? finalLeaveType : 'Leave Application');
 
-    // Clean payload sent directly to backend (where duplicate checks and balance updates will occur)
+    
     const payload = {
       emp_code: empCode,
       employeeId: empCode,
@@ -1317,12 +1317,13 @@ async function handleLeaveSubmit(e) {
       toDate: toDate,
       totalDays: totalDays,
       reason: reason,
-      status: isPh ? 'Auto Approved' : 'Pending',
-      isAutoApproved: isPh,
-      skipEmailNotification: isPh,
+      status: 'Pending', // PH now follows the standard Pending/Approval flow
+      isAutoApproved: false,
+      skipEmailNotification: false,
       appliedAt: new Date().toISOString()
     };
 
+    
     console.log("-> [DIAGNOSTIC] Submitting leave payload to backend:", payload);
 
     let response;
@@ -1345,12 +1346,17 @@ async function handleLeaveSubmit(e) {
       throw new Error(response?.error || response?.message || 'Failed to submit leave application.');
     }
 
-    // Success message rendering
+
+
+  // Success message rendering
     if (statusDiv) {
       statusDiv.style.color = '#1e8e3e';
-      statusDiv.innerText = response.message || (isPh ? 'PH applied successfully (Auto-Approved)!' : 'Leave application submitted successfully!');
+      statusDiv.innerText = response.message || (isPh ? 'PH leave request submitted successfully for approval.' : 'Leave application submitted successfully!');
     }
 
+
+
+    
     // Delay form reset and view refresh slightly so user can read the success message
     setTimeout(() => {
       const leaveForm = document.getElementById('leaveApplyForm') || document.getElementById('leaveForm') || document.querySelector('form');
