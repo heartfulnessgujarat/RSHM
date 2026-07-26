@@ -1307,56 +1307,7 @@ async function handleLeaveSubmit(e) {
 
     const reason = document.getElementById('leaveReason')?.value?.trim() || (isPh ? finalLeaveType : 'Leave Application');
 
-    // Firebase Check & Balance Update for PH
-    if (isPh && typeof firebase !== 'undefined' && firebase.database) {
-      const dbRef = firebase.database().ref();
-      const currentYear = new Date(fromDate).getFullYear();
-
-      const snapshot = await dbRef.child('leave_requests').once('value');
-      let phCount = 0;
-      let alreadyApplied = false;
-
-      snapshot.forEach((childSnap) => {
-        const req = childSnap.val();
-        const reqEmpCode = req.emp_code || req.employeeId || req.employee_code || '';
-        
-        if (reqEmpCode === empCode) {
-          const reqLeaveType = req.leave_type || req.leaveType || '';
-          const reqStatus = req.status || '';
-          
-          if ((reqLeaveType.toUpperCase().includes('PH') || reqLeaveType.toUpperCase().includes('PAID HOLIDAY') || reqLeaveType.includes('(')) && reqStatus !== 'Rejected') {
-            const reqDate = req.leave_date || req.fromDate || req.from_date || '';
-            if (reqDate && new Date(reqDate).getFullYear() === currentYear) {
-              phCount++;
-              if (reqDate === fromDate || reqDate.includes(fromDate)) {
-                alreadyApplied = true;
-              }
-            }
-          }
-        }
-      });
-
-      if (alreadyApplied) throw new Error('You have already applied for this Paid Holiday.');
-      if (phCount >= 10) throw new Error('You have reached the maximum limit of 10 Paid Holidays for the calendar year.');
-
-      // Directly update ph_balance at masters/employees/{empCode}/ph_balance
-      const empRef = dbRef.child(`masters/employees/${empCode}`);
-      const empSnap = await empRef.once('value');
-      
-      if (empSnap.exists()) {
-        const empData = empSnap.val();
-        let currentPhBal = parseFloat(empData.ph_balance !== undefined ? empData.ph_balance : 10);
-        console.log(`-> [DIAGNOSTIC] Current Firebase ph_balance for ${empCode}:`, currentPhBal);
-        
-        currentPhBal = Math.max(0, currentPhBal - totalDays);
-        await empRef.child('ph_balance').set(currentPhBal);
-        console.log(`-> [DIAGNOSTIC] Successfully updated Firebase ph_balance to:`, currentPhBal);
-      } else {
-        console.warn(`-> [DIAGNOSTIC WARNING] Employee node masters/employees/${empCode} not found in Firebase!`);
-      }
-    }
-
-    // Payload with explicitly forced Auto Approved status & skip email flags
+    // Clean payload sent directly to backend (where duplicate checks and balance updates will occur)
     const payload = {
       emp_code: empCode,
       employeeId: empCode,
@@ -1372,7 +1323,7 @@ async function handleLeaveSubmit(e) {
       appliedAt: new Date().toISOString()
     };
 
-    console.log("-> [DIAGNOSTIC] Submitting leave payload:", payload);
+    console.log("-> [DIAGNOSTIC] Submitting leave payload to backend:", payload);
 
     let response;
     if (typeof callBackend === 'function') {
@@ -1389,13 +1340,18 @@ async function handleLeaveSubmit(e) {
 
     console.log("-> [DIAGNOSTIC] Backend response received:", response);
 
-    // Ensure success message renders clearly and stays visible
-    if (statusDiv) {
-      statusDiv.style.color = '#1e8e3e';
-      statusDiv.innerText = (response && response.message) ? response.message : (isPh ? 'Paid Holiday auto-approved successfully!' : 'Leave application submitted successfully!');
+    // If backend returns an error (like duplicate PH or limit reached), throw it so it displays in red
+    if (!response || response.success === false) {
+      throw new Error(response?.error || response?.message || 'Failed to submit leave application.');
     }
 
-    // Delay form reset and view switching slightly so the user can read the success message
+    // Success message rendering
+    if (statusDiv) {
+      statusDiv.style.color = '#1e8e3e';
+      statusDiv.innerText = response.message || (isPh ? 'PH applied successfully (Auto-Approved)!' : 'Leave application submitted successfully!');
+    }
+
+    // Delay form reset and view refresh slightly so user can read the success message
     setTimeout(() => {
       const leaveForm = document.getElementById('leaveApplyForm') || document.getElementById('leaveForm') || document.querySelector('form');
       if (leaveForm) leaveForm.reset();
@@ -1423,6 +1379,7 @@ async function handleLeaveSubmit(e) {
   }
 }
 
+    
     
     
   async function loadLeaveMasterOptions() {
