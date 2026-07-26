@@ -1214,10 +1214,6 @@ function calculateRequestedDays() {
 }
 
 
-
-
-    
-    
 async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -1240,10 +1236,10 @@ async function handleLeaveSubmit(e) {
 
     // Extract employee details matching your schema keys
     const empCode = document.getElementById('leaveEmpId')?.value?.trim() 
-                  || userObj.emp_code 
-                  || userObj.employee_uid 
-                  || localStorage.getItem('emp_code') 
-                  || '';
+                 || userObj.emp_code 
+                 || userObj.employee_uid 
+                 || localStorage.getItem('emp_code') 
+                 || '';
 
     const empName = document.getElementById('leaveEmpName')?.value?.trim() 
                     || userObj.employee_name 
@@ -1251,15 +1247,13 @@ async function handleLeaveSubmit(e) {
                     || localStorage.getItem('employee_name') 
                     || '';
 
-
-
-const leaveType = document.getElementById('leaveTypeSelect')?.value;
+    const leaveType = document.getElementById('leaveTypeSelect')?.value;
     let fromDate = document.getElementById('leaveFromDate')?.value;
     let toDate = document.getElementById('leaveToDate')?.value;
     
-    // If Paid Holiday (PH) is selected, grab date from the PH dropdown
+    // If Paid Holiday (PH) is selected, grab date from the corrected dropdown ID
     const isPh = leaveType && leaveType.toUpperCase().includes('PH');
-    const phDateSelect = document.getElementById('phSelect')?.value;
+    const phDateSelect = document.getElementById('paidHolidaySelect')?.value; // <-- Updated ID here
     
     if (isPh) {
       if (!phDateSelect) throw new Error('Please select a Paid Holiday.');
@@ -1270,10 +1264,6 @@ const leaveType = document.getElementById('leaveTypeSelect')?.value;
     if (!toDate || toDate === '') {
       toDate = fromDate;
     }
-
-
-
-    
 
     // Read calculated days from UI badge
     const effectiveDaysEl = document.getElementById('effectiveDaysCount');
@@ -1304,6 +1294,8 @@ const leaveType = document.getElementById('leaveTypeSelect')?.value;
       reason: reason,
       appliedAt: new Date().toISOString()
     };
+
+    console.log("-> Submitting leave payload:", payload);
 
     // 5. Submit via BACKEND_API or callBackend Helper
     let response;
@@ -1346,36 +1338,29 @@ const leaveType = document.getElementById('leaveTypeSelect')?.value;
       loadLeaveBalances(empCode);
     }
 
-
-
-// --- 3-SECOND AUTO-NAVIGATION & BACKGROUND RESET TIMER ---
+    // --- 3-SECOND AUTO-NAVIGATION & BACKGROUND RESET TIMER ---
     setTimeout(() => {
       if (statusDiv) statusDiv.innerText = '';
       
-      const leaveForm = document.getElementById('leaveApplyForm');
-      if (leaveForm) leaveForm.reset();
+      const leaveFormElem = document.getElementById('leaveApplyForm') || leaveForm;
+      if (leaveFormElem) leaveFormElem.reset();
 
-      const badge = document.getElementById('leaveDaysBadge');
-      if (badge) badge.classList.add('hidden');
+      const badgeElem = document.getElementById('leaveDaysBadge');
+      if (badgeElem) badgeElem.classList.add('hidden');
 
-      const weeklyOffRow = document.getElementById('weeklyOffRow');
-      if (weeklyOffRow) weeklyOffRow.classList.add('hidden');
+      const weeklyOffElem = document.getElementById('weeklyOffRow');
+      if (weeklyOffElem) weeklyOffElem.classList.add('hidden');
 
-      const effectiveDaysRow = document.getElementById('effectiveDaysRow');
-      if (effectiveDaysRow) effectiveDaysRow.classList.add('hidden');
+      const effectiveDaysElem = document.getElementById('effectiveDaysRow');
+      if (effectiveDaysElem) effectiveDaysElem.classList.add('hidden');
 
-      const phGroup = document.getElementById('phSelectGroup');
-      if (phGroup) phGroup.classList.add('hidden');
+      const phGroupElem = document.getElementById('phSelectGroup');
+      if (phGroupElem) phGroupElem.classList.add('hidden');
 
       if (typeof switchView === 'function') {
         switchView('view-dashboard');
       }
     }, 3000);
-
-   
-
-
-    
 
   } catch (err) {
     console.error('Leave submission error:', err);
@@ -1387,6 +1372,7 @@ const leaveType = document.getElementById('leaveTypeSelect')?.value;
     if (submitBtn) submitBtn.disabled = false;
   }
 }
+
 
 
 
@@ -1420,9 +1406,9 @@ async function loadLeaveMasterOptions() {
       }
     });
 
-    // 2. Fetch Paid Holidays DIRECTLY from Firebase with logs
-    const phSelectElem = document.getElementById('phSelect');
-    console.log("-> phSelect element found:", !!phSelectElem);
+    // 2. Fetch Paid Holidays DIRECTLY from Firebase using the correct element ID
+    const phSelectElem = document.getElementById('paidHolidaySelect');
+    console.log("-> paidHolidaySelect element found:", !!phSelectElem);
 
     if (phSelectElem) {
       phSelectElem.innerHTML = '<option value="">-- Select Holiday --</option>';
@@ -1438,15 +1424,16 @@ async function loadLeaveMasterOptions() {
           Object.values(holidaysData).forEach((ph, index) => {
             const phDate = ph.date_ph || ph.date || '';
             const phName = ph.name_ph || ph.name || '';
-            console.log(`-> Processing holiday [${index}]:`, { phDate, phName });
             
             if (phDate) {
               const option = document.createElement('option');
               option.value = phDate; 
+              // Format: "Monday, 26 January 2026 (Republic Day)"
               option.textContent = phName ? `${phDate} (${phName})` : phDate; 
               phSelectElem.appendChild(option);
             }
           });
+          console.log("-> Paid holidays successfully loaded into dropdown!");
         } else {
           console.warn("-> No data found under masters/holidays in Firebase!");
         }
@@ -1467,8 +1454,7 @@ async function loadLeaveMasterOptions() {
     selectElem.innerHTML = '<option value="">-- Error Loading Options --</option>';
   }
 }
-
-
+    
 
 
     
