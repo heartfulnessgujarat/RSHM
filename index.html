@@ -1389,7 +1389,6 @@ const leaveType = document.getElementById('leaveTypeSelect')?.value;
 }
 
 
-
 async function loadLeaveMasterOptions() {
   const selectElem = document.getElementById('leaveTypeSelect');
   if (!selectElem) return;
@@ -1400,7 +1399,7 @@ async function loadLeaveMasterOptions() {
     // Reset dropdown
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
 
-    // Populate Leave Types from backend
+    // 1. Populate Leave Types from backend
     const leaveTypesArray = result.leaveTypes || [];
     leaveTypesArray.forEach((item) => {
       const leaveName = item.type || item.type_of_leave || item.leaveType || item.name || '';
@@ -1414,7 +1413,24 @@ async function loadLeaveMasterOptions() {
       }
     });
 
-    // Save edit window configuration globally if available
+    // 2. Populate Paid Holidays Dropdown
+    const phSelectElem = document.getElementById('phSelect');
+    if (phSelectElem && result.paidHolidays) {
+      phSelectElem.innerHTML = '<option value="">-- Select Holiday --</option>';
+      result.paidHolidays.forEach(ph => {
+        const phDate = ph.date || ph.date_ph || '';
+        const phName = ph.name || ph.name_ph || '';
+        
+        if (phDate) {
+          const option = document.createElement('option');
+          option.value = phDate; 
+          option.textContent = phName ? `${phDate} (${phName})` : phDate; 
+          phSelectElem.appendChild(option);
+        }
+      });
+    }
+
+    // 3. Save edit window configuration globally if available
     if (result.editWindowDays && typeof CONFIG !== 'undefined') {
       CONFIG.edit_window_days = result.editWindowDays;
     }
@@ -1424,9 +1440,6 @@ async function loadLeaveMasterOptions() {
     selectElem.innerHTML = '<option value="">-- Error Loading Options --</option>';
   }
 }
-
-
-
 
 
 async function executeLoginResetPassword() {
