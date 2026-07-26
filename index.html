@@ -1228,6 +1228,7 @@ function calculateRequestedDays() {
   if (badge) badge.classList.remove('hidden');
 }
 
+
 async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -1261,48 +1262,47 @@ async function handleLeaveSubmit(e) {
                     || '';
 
     const leaveType = document.getElementById('leaveTypeSelect')?.value;
-    let fromDate = document.getElementById('leaveFromDate')?.value;
-    let toDate = document.getElementById('leaveToDate')?.value;
-    
-    const isPh = leaveType && leaveType.toUpperCase().includes('PH');
-    const phDateSelect = document.getElementById('paidHolidaySelect')?.value;
-    
+    if (!leaveType) throw new Error('Please select a leave type.');
+
+    const isPh = leaveType.toUpperCase().includes('PH');
+    let fromDate = '';
+    let toDate = '';
+    let totalDays = 0;
+
+    // 3. Resolve Dates & Duration based on Leave Type
     if (isPh) {
+      const phDateSelect = document.getElementById('paidHolidaySelect')?.value;
       if (!phDateSelect) throw new Error('Please select a Paid Holiday.');
       fromDate = phDateSelect;
       toDate = phDateSelect;
-    }
-
-    if (!toDate || toDate === '') {
-      toDate = fromDate;
-    }
-
-    // Read calculated days from UI badge
-    const effectiveDaysEl = document.getElementById('effectiveDaysCount');
-    const calculatedDaysEl = document.getElementById('calculatedDaysCount');
-    
-    let totalDays = 0;
-    if (effectiveDaysEl && effectiveDaysEl.innerText && !isNaN(effectiveDaysEl.innerText)) {
-      totalDays = parseFloat(effectiveDaysEl.innerText);
-    } else if (calculatedDaysEl && calculatedDaysEl.innerText && !isNaN(calculatedDaysEl.innerText)) {
-      totalDays = parseFloat(calculatedDaysEl.innerText);
-    } else if (isPh) {
       totalDays = 1;
+    } else {
+      fromDate = document.getElementById('leaveFromDate')?.value;
+      toDate = document.getElementById('leaveToDate')?.value;
+      
+      if (!fromDate) throw new Error('Please select a From Date.');
+      if (!toDate || toDate === '') toDate = fromDate;
+
+      // Read calculated days from UI badge for standard leaves
+      const effectiveDaysEl = document.getElementById('effectiveDaysCount');
+      const calculatedDaysEl = document.getElementById('calculatedDaysCount');
+      
+      if (effectiveDaysEl && effectiveDaysEl.innerText && !isNaN(effectiveDaysEl.innerText)) {
+        totalDays = parseFloat(effectiveDaysEl.innerText);
+      } else if (calculatedDaysEl && calculatedDaysEl.innerText && !isNaN(calculatedDaysEl.innerText)) {
+        totalDays = parseFloat(calculatedDaysEl.innerText);
+      }
     }
 
-    const reason = document.getElementById('leaveReason')?.value?.trim() || document.querySelector('textarea')?.value?.trim() || '';
-
-    // 3. Client Validation
-    if (!leaveType) throw new Error('Please select a leave type.');
-    if (!fromDate) throw new Error('Please select a From Date.');
     if (totalDays <= 0) throw new Error('Invalid date selection or leave duration is 0 days.');
+
+    const reason = document.getElementById('leaveReason')?.value?.trim() || 'Paid Holiday Application';
 
     // 4. Firebase Direct Checks for Paid Holiday (PH) Constraints
     if (isPh && typeof firebase !== 'undefined' && firebase.database) {
       const dbRef = firebase.database().ref();
       const currentYear = new Date(fromDate).getFullYear();
 
-      // Check existing leave requests in Firebase for this employee to enforce max limit (10) and duplicates
       const snapshot = await dbRef.child('leave_requests').orderByChild('emp_code').equalTo(empCode).once('value');
       let phCount = 0;
       let alreadyApplied = false;
@@ -1324,13 +1324,12 @@ async function handleLeaveSubmit(e) {
         throw new Error('You have already applied for this PH');
       }
 
-      // Max Paid Holidays check (Limit = 10)
       if (phCount >= 10) {
         throw new Error('You have reached the maximum limit of 10 Paid Holidays for the calendar year.');
       }
     }
 
-    // 5. Construct Payload (Auto-approved for PH)
+    // 5. Construct Payload
     const payload = {
       employeeId: empCode,
       employeeName: empName,
@@ -1339,7 +1338,7 @@ async function handleLeaveSubmit(e) {
       toDate: toDate,
       totalDays: totalDays,
       reason: reason,
-      isAutoApproved: isPh, // Flag for backend/Firebase direct auto-approval if needed
+      isAutoApproved: isPh,
       appliedAt: new Date().toISOString()
     };
 
@@ -1366,7 +1365,7 @@ async function handleLeaveSubmit(e) {
     }
 
     // --- FORM RESET & CLEANUP ---
-    const leaveForm = document.getElementById('leaveForm') || document.querySelector('form');
+    const leaveForm = document.getElementById('leaveApplyForm') || document.getElementById('leaveForm') || document.querySelector('form');
     if (leaveForm) leaveForm.reset();
 
     ['leaveDaysBadge', 'weeklyOffRow', 'effectiveDaysRow', 'phSelectGroup'].forEach(id => {
@@ -1374,7 +1373,6 @@ async function handleLeaveSubmit(e) {
       if (el) el.classList.add('hidden');
     });
 
-    // Refresh balances in the background
     if (typeof loadLeaveBalances === 'function') {
       loadLeaveBalances(empCode);
     }
@@ -1400,6 +1398,11 @@ async function handleLeaveSubmit(e) {
 }
 
 
+
+
+
+
+    
     
   async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
