@@ -765,8 +765,6 @@ async function openDashboard() {
     }
 
 
-
-
 async function executeWorkSubmit(e) {
   e.preventDefault();
   const editingId = document.getElementById('editing-worklog-id').value;
@@ -778,6 +776,24 @@ async function executeWorkSubmit(e) {
   const project_name = projectSelect.options[projectSelect.selectedIndex].text;
   const work_description = document.getElementById('work-desc').value.trim();
 
+  // ==========================================
+  // SUNDAY WORK ENTRY CONFIRMATION CHECK
+  // ==========================================
+  let sundayConfirmed = false;
+  if (work_date) {
+    const selectedDate = new Date(work_date);
+    const isSunday = (selectedDate.getDay() === 0);
+    
+    if (isSunday) {
+      sundayConfirmed = confirm("⚠️ Today is a Sunday. Are you sure you want to log work hours for this Sunday?");
+      if (!sundayConfirmed) {
+        // Exit early if the user cancels the confirmation prompt
+        return; 
+      }
+    }
+  }
+  // ==========================================
+
   const btn = document.getElementById('btn-save-log');
   btn.disabled = true;
   btn.innerText = "Saving Work Log...";
@@ -787,7 +803,13 @@ async function executeWorkSubmit(e) {
   try {
     const payload = {
       employee_uid: activeUid,
-      work_date, from_time, to_time, project_id, project_name, work_description
+      work_date, 
+      from_time, 
+      to_time, 
+      project_id, 
+      project_name, 
+      work_description,
+      sunday_confirmed: sundayConfirmed // Pass confirmation status to backend
     };
 
     let res;
@@ -797,24 +819,18 @@ async function executeWorkSubmit(e) {
       showToast("Work log updated successfully!", false);
     } else {
       res = await callBackend("submitWorkLog", payload);
-      // If backend throws an error due to overlap, it will be caught in the catch block below
       showToast(`Work log saved (${res.duration} hrs)!`, false);
     }
     
     document.getElementById('work-form').reset();
     switchView('view-dashboard');
   } catch(err) {
-    // This will now catch any error thrown by your Apps Script backend (including overlap rejections)
     showToast(err.message || err);
   } finally {
     btn.disabled = false;
     btn.innerText = "Submit Work Log";
   }
 }
-
-    
-    
-
     
 
     async function loadTimesheetHistory() {
