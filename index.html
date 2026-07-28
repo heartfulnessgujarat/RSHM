@@ -262,7 +262,9 @@
   <!-- VIEW 3: DAILY WORK ENTRY FORM -->
   <div id="view-work-entry" class="hidden card">
     <h2 id="work-entry-title">Daily Work Entry</h2>
-    <form id="work-form" onsubmit="(event)">
+
+    <form id="work-form" onsubmit="executeWorkSubmit(event)">
+   
       <input type="hidden" id="editing-worklog-id" value="">
       <div class="form-group">
         <label>Work Date</label>
