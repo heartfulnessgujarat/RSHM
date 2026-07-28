@@ -765,7 +765,11 @@ async function openDashboard() {
     }
 
 
-async function executeWorkSubmit(e) {
+
+
+
+
+    async function executeWorkSubmit(e) {
   e.preventDefault();
   const editingId = document.getElementById('editing-worklog-id').value;
   const work_date = document.getElementById('work-date').value;
@@ -777,7 +781,7 @@ async function executeWorkSubmit(e) {
   const work_description = document.getElementById('work-desc').value.trim();
 
   // ==========================================
-  // SUNDAY WORK ENTRY CONFIRMATION CHECK
+  // CUSTOM SUNDAY CONFIRMATION MODAL CHECK
   // ==========================================
   let sundayConfirmed = false;
   if (work_date) {
@@ -785,11 +789,14 @@ async function executeWorkSubmit(e) {
     const isSunday = (selectedDate.getDay() === 0);
     
     if (isSunday) {
-      sundayConfirmed = confirm("⚠️ Today is a Sunday. Are you sure you want to log work hours for this Sunday?");
-      if (!sundayConfirmed) {
-        // Exit early if the user cancels the confirmation prompt
+      const userWantsToProceed = await showCustomConfirm("Today is a Sunday. Are you sure you want to log work hours for this Sunday?");
+      if (!userWantsToProceed) {
+        // If user clicks "No", reset form and navigate back to main dashboard
+        document.getElementById('work-form').reset();
+        switchView('view-dashboard');
         return; 
       }
+      sundayConfirmed = true;
     }
   }
   // ==========================================
@@ -809,7 +816,7 @@ async function executeWorkSubmit(e) {
       project_id, 
       project_name, 
       work_description,
-      sunday_confirmed: sundayConfirmed // Pass confirmation status to backend
+      sunday_confirmed: sundayConfirmed
     };
 
     let res;
@@ -831,6 +838,13 @@ async function executeWorkSubmit(e) {
     btn.innerText = "Submit Work Log";
   }
 }
+
+
+
+
+
+
+
     
 
     async function loadTimesheetHistory() {
