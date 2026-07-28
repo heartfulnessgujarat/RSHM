@@ -262,7 +262,7 @@
   <!-- VIEW 3: DAILY WORK ENTRY FORM -->
   <div id="view-work-entry" class="hidden card">
     <h2 id="work-entry-title">Daily Work Entry</h2>
-    <form id="work-form" onsubmit="executeWorkSubmit(event)">
+    <form id="work-form" onsubmit="(event)">
       <input type="hidden" id="editing-worklog-id" value="">
       <div class="form-group">
         <label>Work Date</label>
@@ -532,38 +532,39 @@ function switchView(viewId) {
       return re.test(email);
     }
 
-    
-    function showCustomConfirm(message) {
-      return new Promise((resolve) => {
-        const modal = document.getElementById('custom-confirm-modal');
-        const textElement = document.getElementById('confirm-modal-text');
-        const btnYes = document.getElementById('btn-confirm-yes');
-        const btnNo = document.getElementById('btn-confirm-no');
 
-        textElement.innerText = message;
-        modal.classList.remove('hidden');
 
-        const onYes = () => {
-          cleanup();
-          resolve(true);
-        };
 
-        const onNo = () => {
-          cleanup();
-          resolve(false);
-        };
+function showCustomConfirm(message) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('custom-confirm-modal');
+    const textElement = document.getElementById('custom-confirm-text'); // Fixed ID
+    const btnYes = document.getElementById('modal-btn-yes');             // Fixed ID
+    const btnNo = document.getElementById('modal-btn-no');               // Fixed ID
 
-        const cleanup = () => {
-          modal.classList.add('hidden');
-          btnYes.removeEventListener('click', onYes);
-          btnNo.removeEventListener('click', onNo);
-        };
-
-        btnYes.addEventListener('click', onYes);
-        btnNo.addEventListener('click', onNo);
-      });
+    if (!modal || !textElement || !btnYes || !btnNo) {
+      console.error("Custom confirmation elements missing from DOM");
+      resolve(confirm(message)); // Safe fallback
+      return;
     }
 
+    textElement.innerText = message;
+    modal.style.display = 'flex'; // Uses direct style display to match the modal's inline style
+
+    const cleanup = (result) => {
+      modal.style.display = 'none';
+      btnYes.onclick = null;
+      btnNo.onclick = null;
+      resolve(result);
+    };
+
+    btnYes.onclick = () => cleanup(true);
+    btnNo.onclick = () => cleanup(false);
+  });
+}
+
+
+    
     async function updateRegisteredEmailHint() {
       const empCode = document.getElementById('change-emp-code').value.trim();
       const emailDisplay = document.getElementById('display-user-email');
