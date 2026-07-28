@@ -539,32 +539,44 @@ function switchView(viewId) {
 
 function showCustomConfirm(message) {
   return new Promise((resolve) => {
+    console.log("Modal: showCustomConfirm called");
     const modal = document.getElementById('custom-confirm-modal');
-    const textElement = document.getElementById('custom-confirm-text'); // Fixed ID
-    const btnYes = document.getElementById('modal-btn-yes');             // Fixed ID
-    const btnNo = document.getElementById('modal-btn-no');               // Fixed ID
+    const textElement = document.getElementById('custom-confirm-text');
+    const btnYes = document.getElementById('modal-btn-yes');
+    const btnNo = document.getElementById('modal-btn-no');
 
     if (!modal || !textElement || !btnYes || !btnNo) {
-      console.error("Custom confirmation elements missing from DOM");
-      resolve(confirm(message)); // Safe fallback
+      console.error("Modal elements missing! Falling back to standard confirm.");
+      resolve(confirm(message));
       return;
     }
 
     textElement.innerText = message;
-    modal.style.display = 'flex'; // Uses direct style display to match the modal's inline style
+    modal.style.display = 'flex';
 
-    const cleanup = (result) => {
+    // Clear any previous stray listeners
+    btnYes.onclick = null;
+    btnNo.onclick = null;
+
+    btnYes.onclick = () => {
+      console.log("Modal: Yes clicked");
       modal.style.display = 'none';
-      btnYes.onclick = null;
-      btnNo.onclick = null;
-      resolve(result);
+      resolve(true);
     };
 
-    btnYes.onclick = () => cleanup(true);
-    btnNo.onclick = () => cleanup(false);
+    btnNo.onclick = () => {
+      console.log("Modal: No clicked");
+      modal.style.display = 'none';
+      resolve(false);
+    };
   });
 }
+    
 
+
+
+
+    
 
     
     async function updateRegisteredEmailHint() {
