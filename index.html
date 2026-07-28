@@ -793,6 +793,8 @@ async function openDashboard() {
 
 async function executeWorkSubmit(e) {
   e.preventDefault();
+  console.log("1. Submit triggered");
+
   const editingId = document.getElementById('editing-worklog-id').value;
   const work_date = document.getElementById('work-date').value;
   const from_time = document.getElementById('work-from').value;
@@ -802,8 +804,9 @@ async function executeWorkSubmit(e) {
   const project_name = projectSelect.options[projectSelect.selectedIndex].text;
   const work_description = document.getElementById('work-desc').value.trim();
 
+  console.log("2. Date read:", work_date);
 
-// ==========================================
+  // ==========================================
   // CUSTOM SUNDAY CONFIRMATION MODAL CHECK
   // ==========================================
   let sundayConfirmed = false;
@@ -813,16 +816,21 @@ async function executeWorkSubmit(e) {
     const selectedDate = new Date(year, month - 1, day);
     const isSunday = (selectedDate.getDay() === 0);
     
+    console.log("3. Is Sunday?:", isSunday);
+
     if (isSunday) {
+      console.log("4. Entering Sunday modal trigger");
       let userWantsToProceed = false;
       try {
         userWantsToProceed = await showCustomConfirm("Today is a Sunday. Are you sure you want to log work hours for this Sunday?");
+        console.log("5. Modal resolved with:", userWantsToProceed);
       } catch (err) {
         console.error("Custom confirm modal error:", err);
         userWantsToProceed = confirm("Today is a Sunday. Are you sure you want to log work hours for this Sunday?");
       }
 
       if (!userWantsToProceed) {
+        console.log("6. User cancelled Sunday entry");
         // If user clicks "No", reset form and navigate back to main dashboard
         document.getElementById('work-form').reset();
         switchView('view-dashboard');
@@ -833,12 +841,7 @@ async function executeWorkSubmit(e) {
   }
   // ==========================================
 
-
-
-
-
-
-  
+  console.log("7. Proceeding to save work log...");
 
   const btn = document.getElementById('btn-save-log');
   btn.disabled = true;
@@ -871,15 +874,15 @@ async function executeWorkSubmit(e) {
     document.getElementById('work-form').reset();
     switchView('view-dashboard');
   } catch(err) {
+    console.error("Save error caught:", err);
     showToast(err.message || err);
   } finally {
     btn.disabled = false;
     btn.innerText = "Submit Work Log";
   }
 }
-
-
     
+
 
 
 
