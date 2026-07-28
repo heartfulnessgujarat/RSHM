@@ -802,16 +802,26 @@ async function executeWorkSubmit(e) {
   const project_name = projectSelect.options[projectSelect.selectedIndex].text;
   const work_description = document.getElementById('work-desc').value.trim();
 
-  // ==========================================
+
+// ==========================================
   // CUSTOM SUNDAY CONFIRMATION MODAL CHECK
   // ==========================================
   let sundayConfirmed = false;
   if (work_date) {
-    const selectedDate = new Date(work_date);
+    // Safely parse YYYY-MM-DD to avoid timezone offset shifts
+    const [year, month, day] = work_date.split('-').map(Number);
+    const selectedDate = new Date(year, month - 1, day);
     const isSunday = (selectedDate.getDay() === 0);
     
     if (isSunday) {
-      const userWantsToProceed = await showCustomConfirm("Today is a Sunday. Are you sure you want to log work hours for this Sunday?");
+      let userWantsToProceed = false;
+      try {
+        userWantsToProceed = await showCustomConfirm("Today is a Sunday. Are you sure you want to log work hours for this Sunday?");
+      } catch (err) {
+        console.error("Custom confirm modal error:", err);
+        userWantsToProceed = confirm("Today is a Sunday. Are you sure you want to log work hours for this Sunday?");
+      }
+
       if (!userWantsToProceed) {
         // If user clicks "No", reset form and navigate back to main dashboard
         document.getElementById('work-form').reset();
@@ -822,6 +832,13 @@ async function executeWorkSubmit(e) {
     }
   }
   // ==========================================
+
+
+
+
+
+
+  
 
   const btn = document.getElementById('btn-save-log');
   btn.disabled = true;
