@@ -1497,6 +1497,45 @@ async function executeLoginResetPassword() {
 }
 
 
+    // Example Frontend Handler for Work Entry submission
+function submitWorkEntryForm() {
+  const dateVal = document.getElementById("workDateInput").value; // e.g. "2026-07-26"
+  const hoursVal = document.getElementById("hoursWorkedInput").value;
+
+  const selectedDate = new Date(dateVal);
+  const isSunday = (selectedDate.getDay() === 0);
+
+  let confirmed = true;
+  if (isSunday) {
+    // Better message suggestion:
+    confirmed = confirm("⚠️ Selected date is a Sunday. Are you sure you want to log work hours for a Sunday?");
+    if (!confirmed) return; // Stop submission if user clicks Cancel
+  }
+
+  const payload = {
+    employee_uid: currentEmployeeUid,
+    date: dateVal,
+    hours: parseFloat(hoursVal),
+    sunday_confirmed: confirmed // Pass this confirmation flag to backend
+  };
+
+  google.script.run
+    .withSuccessHandler(response => {
+      if (response.requiresSundayConfirmation) {
+        // Fallback if backend caught it first
+        let backendConfirm = confirm(response.message);
+        if (backendConfirm) {
+          payload.sunday_confirmed = true;
+          // Re-submit with confirmation
+          google.script.run.handleWorkEntry(payload);
+        }
+      } else {
+        alert(response.message);
+      }
+    })
+    .handleWorkEntry(payload);
+}
+
        
 
 
