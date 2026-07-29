@@ -537,6 +537,12 @@ function switchView(viewId) {
 
 
 
+
+
+
+
+    
+    
     function showCustomConfirm(message) {
   console.log("🔍 [MODAL 1] showCustomConfirm called with message:", message);
   
@@ -546,13 +552,6 @@ function switchView(viewId) {
     const btnYes = document.getElementById('modal-btn-yes');
     const btnNo = document.getElementById('modal-btn-no');
 
-    console.log("🔍 [MODAL 2] DOM element lookup results:", {
-      modal: !!modal,
-      textEl: !!textEl,
-      btnYes: !!btnYes,
-      btnNo: !!btnNo
-    });
-
     if (!modal || !textEl || !btnYes || !btnNo) {
       console.error("❌ [MODAL ERROR] One or more custom modal elements were not found in the DOM!");
       resolve(confirm(message));
@@ -560,11 +559,16 @@ function switchView(viewId) {
     }
 
     textEl.innerText = message;
+    
+    // Force visibility and styling explicitly via JS
     modal.style.display = 'flex';
-    modal.style.zIndex = '99999'; // Ensure modal sits on top of everything
+    modal.style.visibility = 'visible';
+    modal.style.opacity = '1';
+    modal.style.zIndex = '999999';
+    modal.classList.remove('hidden'); // Just in case a utility class is hiding it
+
     console.log("🔍 [MODAL 3] Modal displayed successfully. Waiting for user interaction...");
 
-    // Remove old listeners by cloning elements to prevent duplicate bindings
     const newBtnYes = btnYes.cloneNode(true);
     const newBtnNo = btnNo.cloneNode(true);
     btnYes.parentNode.replaceChild(newBtnYes, btnYes);
@@ -588,7 +592,7 @@ function switchView(viewId) {
   });
 }
 
-
+    
     
 
 
