@@ -537,20 +537,21 @@ function switchView(viewId) {
 
 
 
-
-
-
-
-    
-    
-    function showCustomConfirm(message) {
+function showCustomConfirm(message) {
   console.log("🔍 [MODAL 1] showCustomConfirm called with message:", message);
   
   return new Promise((resolve) => {
     const modal = document.getElementById('custom-confirm-modal');
-    const textEl = document.getElementById('custom-confirm-text');
-    const btnYes = document.getElementById('modal-btn-yes');
-    const btnNo = document.getElementById('modal-btn-no');
+    const textEl = document.getElementById('confirm-modal-text'); // Matches your HTML ID
+    const btnYes = document.getElementById('btn-confirm-yes');     // Matches your HTML ID
+    const btnNo = document.getElementById('btn-confirm-no');       // Matches your HTML ID
+
+    console.log("🔍 [MODAL 2] DOM element lookup results:", {
+      modal: !!modal,
+      textEl: !!textEl,
+      btnYes: !!btnYes,
+      btnNo: !!btnNo
+    });
 
     if (!modal || !textEl || !btnYes || !btnNo) {
       console.error("❌ [MODAL ERROR] One or more custom modal elements were not found in the DOM!");
@@ -560,12 +561,12 @@ function switchView(viewId) {
 
     textEl.innerText = message;
     
-    // Force visibility and styling explicitly via JS
+    // Force visibility explicitly
     modal.style.display = 'flex';
     modal.style.visibility = 'visible';
     modal.style.opacity = '1';
     modal.style.zIndex = '999999';
-    modal.classList.remove('hidden'); // Just in case a utility class is hiding it
+    modal.classList.remove('hidden');
 
     console.log("🔍 [MODAL 3] Modal displayed successfully. Waiting for user interaction...");
 
@@ -592,7 +593,8 @@ function switchView(viewId) {
   });
 }
 
-    
+
+
     
 
 
