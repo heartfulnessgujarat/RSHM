@@ -536,39 +536,57 @@ function switchView(viewId) {
 
 
 
-// Replace your showCustomConfirm function with this globally scoped version:
-function showCustomConfirm(message) {
-  console.log("🔍 [DEBUG] showCustomConfirm executing synchronously");
-  const modal = document.getElementById('custom-confirm-modal');
-  const textElement = document.getElementById('custom-confirm-text');
-  const btnYes = document.getElementById('modal-btn-yes');
-  const btnNo = document.getElementById('modal-btn-no');
 
-  if (!modal || !textElement || !btnYes || !btnNo) {
-    console.error("❌ [DEBUG] Modal elements not found in DOM!");
-    return Promise.resolve(confirm(message));
-  }
-
-  textElement.innerText = message;
-  modal.style.display = 'flex';
-
+    function showCustomConfirm(message) {
+  console.log("🔍 [MODAL 1] showCustomConfirm called with message:", message);
+  
   return new Promise((resolve) => {
-    btnYes.onclick = () => {
+    const modal = document.getElementById('custom-confirm-modal');
+    const textEl = document.getElementById('custom-confirm-text');
+    const btnYes = document.getElementById('modal-btn-yes');
+    const btnNo = document.getElementById('modal-btn-no');
+
+    console.log("🔍 [MODAL 2] DOM element lookup results:", {
+      modal: !!modal,
+      textEl: !!textEl,
+      btnYes: !!btnYes,
+      btnNo: !!btnNo
+    });
+
+    if (!modal || !textEl || !btnYes || !btnNo) {
+      console.error("❌ [MODAL ERROR] One or more custom modal elements were not found in the DOM!");
+      resolve(confirm(message));
+      return;
+    }
+
+    textEl.innerText = message;
+    modal.style.display = 'flex';
+    modal.style.zIndex = '99999'; // Ensure modal sits on top of everything
+    console.log("🔍 [MODAL 3] Modal displayed successfully. Waiting for user interaction...");
+
+    // Remove old listeners by cloning elements to prevent duplicate bindings
+    const newBtnYes = btnYes.cloneNode(true);
+    const newBtnNo = btnNo.cloneNode(true);
+    btnYes.parentNode.replaceChild(newBtnYes, btnYes);
+    btnNo.parentNode.replaceChild(newBtnNo, btnNo);
+
+    const cleanup = (result) => {
+      console.log("🔍 [MODAL 4] Cleanup triggered with choice:", result);
       modal.style.display = 'none';
-      btnYes.onclick = null;
-      btnNo.onclick = null;
-      resolve(true);
+      resolve(result);
     };
-    btnNo.onclick = () => {
-      modal.style.display = 'none';
-      btnYes.onclick = null;
-      btnNo.onclick = null;
-      resolve(false);
-    };
+
+    newBtnYes.addEventListener('click', () => {
+      console.log("🖱️ [MODAL 5] Yes button clicked");
+      cleanup(true);
+    });
+
+    newBtnNo.addEventListener('click', () => {
+      console.log("🖱️ [MODAL 6] No button clicked");
+      cleanup(false);
+    });
   });
 }
-
-
 
 
     
