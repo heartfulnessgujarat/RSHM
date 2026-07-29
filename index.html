@@ -546,42 +546,27 @@ function showCustomConfirm(message) {
     const btnYes = document.getElementById('modal-btn-yes');
     const btnNo = document.getElementById('modal-btn-no');
 
-    console.log("🔍 [DEBUG] Modal elements check:", {
-      modal: !!modal,
-      textElement: !!textElement,
-      btnYes: !!btnYes,
-      btnNo: !!btnNo
-    });
-
     if (!modal || !textElement || !btnYes || !btnNo) {
-      console.error("❌ [DEBUG] Missing elements in DOM! Falling back to native confirm.");
+      console.error("❌ [DEBUG] Missing modal elements in DOM! Falling back to native confirm.");
       resolve(confirm(message));
       return;
     }
 
     textElement.innerText = message;
     modal.style.display = 'flex';
-    console.log("🔍 [DEBUG] Modal displayed successfully. Waiting for user click...");
 
     const cleanup = (result) => {
-      console.log("🔍 [DEBUG] cleanup triggered with result:", result);
       modal.style.display = 'none';
       btnYes.onclick = null;
       btnNo.onclick = null;
       resolve(result);
     };
 
-    btnYes.onclick = () => {
-      console.log("🔍 [DEBUG] 'Yes' button clicked");
-      cleanup(true);
-    };
-
-    btnNo.onclick = () => {
-      console.log("🔍 [DEBUG] 'No' button clicked");
-      cleanup(false);
-    };
+    btnYes.onclick = () => cleanup(true);
+    btnNo.onclick = () => cleanup(false);
   });
 }
+
 
 
     
