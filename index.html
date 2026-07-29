@@ -539,38 +539,51 @@ function switchView(viewId) {
 
 function showCustomConfirm(message) {
   return new Promise((resolve) => {
-    console.log("Modal: showCustomConfirm called");
+    console.log("🔍 [DEBUG] showCustomConfirm started with message:", message);
+    
     const modal = document.getElementById('custom-confirm-modal');
     const textElement = document.getElementById('custom-confirm-text');
     const btnYes = document.getElementById('modal-btn-yes');
     const btnNo = document.getElementById('modal-btn-no');
 
+    console.log("🔍 [DEBUG] Modal elements check:", {
+      modal: !!modal,
+      textElement: !!textElement,
+      btnYes: !!btnYes,
+      btnNo: !!btnNo
+    });
+
     if (!modal || !textElement || !btnYes || !btnNo) {
-      console.error("Modal elements missing! Falling back to standard confirm.");
+      console.error("❌ [DEBUG] Missing elements in DOM! Falling back to native confirm.");
       resolve(confirm(message));
       return;
     }
 
     textElement.innerText = message;
     modal.style.display = 'flex';
+    console.log("🔍 [DEBUG] Modal displayed successfully. Waiting for user click...");
 
-    // Clear any previous stray listeners
-    btnYes.onclick = null;
-    btnNo.onclick = null;
+    const cleanup = (result) => {
+      console.log("🔍 [DEBUG] cleanup triggered with result:", result);
+      modal.style.display = 'none';
+      btnYes.onclick = null;
+      btnNo.onclick = null;
+      resolve(result);
+    };
 
     btnYes.onclick = () => {
-      console.log("Modal: Yes clicked");
-      modal.style.display = 'none';
-      resolve(true);
+      console.log("🔍 [DEBUG] 'Yes' button clicked");
+      cleanup(true);
     };
 
     btnNo.onclick = () => {
-      console.log("Modal: No clicked");
-      modal.style.display = 'none';
-      resolve(false);
+      console.log("🔍 [DEBUG] 'No' button clicked");
+      cleanup(false);
     };
   });
 }
+
+
     
 
 
