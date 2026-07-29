@@ -1637,51 +1637,7 @@ function submitWorkEntryForm() {
 }
 
 
-    function showCustomConfirm(message) {
-  console.log("🔍 [MODAL 1] showCustomConfirm called with message:", message);
-  
-  return new Promise((resolve) => {
-    const modal = document.getElementById('custom-confirm-modal');
-    const textEl = document.getElementById('custom-confirm-text');
-    const btnYes = document.getElementById('modal-btn-yes');
-    const btnNo = document.getElementById('modal-btn-no');
 
-    console.log("🔍 [MODAL 2] DOM element lookup results:", {
-      modal: !!modal,
-      textEl: !!textEl,
-      btnYes: !!btnYes,
-      btnNo: !!btnNo
-    });
-
-    if (!modal || !textEl || !btnYes || !btnNo) {
-      console.error("❌ [MODAL ERROR] One or more custom modal elements were not found in the DOM!");
-      resolve(confirm(message)); // Fallback so it doesn't hang
-      return;
-    }
-
-    textEl.innerText = message;
-    modal.style.display = 'flex';
-    console.log("🔍 [MODAL 3] Modal displayed successfully. Waiting for user interaction...");
-
-    const cleanup = (result) => {
-      console.log("🔍 [MODAL 4] Cleanup triggered with choice:", result);
-      modal.style.display = 'none';
-      btnYes.onclick = null;
-      btnNo.onclick = null;
-      resolve(result);
-    };
-
-    btnYes.onclick = () => {
-      console.log("🖱️ [MODAL 5] Yes button clicked");
-      cleanup(true);
-    };
-
-    btnNo.onclick = () => {
-      console.log("🖱️ [MODAL 6] No button clicked");
-      cleanup(false);
-    };
-  });
-}
        
   </script>
 </body>
