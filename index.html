@@ -825,6 +825,8 @@ async function openDashboard() {
     }
 
 
+    
+
 async function executeWorkSubmit(e) {
   e.preventDefault();
   console.log("1. Submit triggered");
@@ -895,15 +897,27 @@ async function executeWorkSubmit(e) {
       sunday_confirmed: sundayConfirmed
     };
 
+
+    
     let res;
-    if (editingId) {
+
+
+
+if (editingId) {
       payload.worklog_id = editingId;
       res = await callBackend("updateWorkLog", payload);
       showToast("Work log updated successfully!", false);
     } else {
       res = await callBackend("submitWorkLog", payload);
-      showToast(`Work log saved (${res.duration} hrs)!`, false);
+      showToast("Work log saved successfully!", false); // Safe fallback message
     }
+    
+    document.getElementById('work-form').reset();
+    switchView('view-dashboard');
+
+
+
+
     
     document.getElementById('work-form').reset();
     switchView('view-dashboard');
