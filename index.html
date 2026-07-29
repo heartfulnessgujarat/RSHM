@@ -536,36 +536,38 @@ function switchView(viewId) {
 
 
 
-
+// Replace your showCustomConfirm function with this globally scoped version:
 function showCustomConfirm(message) {
+  console.log("🔍 [DEBUG] showCustomConfirm executing synchronously");
+  const modal = document.getElementById('custom-confirm-modal');
+  const textElement = document.getElementById('custom-confirm-text');
+  const btnYes = document.getElementById('modal-btn-yes');
+  const btnNo = document.getElementById('modal-btn-no');
+
+  if (!modal || !textElement || !btnYes || !btnNo) {
+    console.error("❌ [DEBUG] Modal elements not found in DOM!");
+    return Promise.resolve(confirm(message));
+  }
+
+  textElement.innerText = message;
+  modal.style.display = 'flex';
+
   return new Promise((resolve) => {
-    console.log("🔍 [DEBUG] showCustomConfirm started with message:", message);
-    
-    const modal = document.getElementById('custom-confirm-modal');
-    const textElement = document.getElementById('custom-confirm-text');
-    const btnYes = document.getElementById('modal-btn-yes');
-    const btnNo = document.getElementById('modal-btn-no');
-
-    if (!modal || !textElement || !btnYes || !btnNo) {
-      console.error("❌ [DEBUG] Missing modal elements in DOM! Falling back to native confirm.");
-      resolve(confirm(message));
-      return;
-    }
-
-    textElement.innerText = message;
-    modal.style.display = 'flex';
-
-    const cleanup = (result) => {
+    btnYes.onclick = () => {
       modal.style.display = 'none';
       btnYes.onclick = null;
       btnNo.onclick = null;
-      resolve(result);
+      resolve(true);
     };
-
-    btnYes.onclick = () => cleanup(true);
-    btnNo.onclick = () => cleanup(false);
+    btnNo.onclick = () => {
+      modal.style.display = 'none';
+      btnYes.onclick = null;
+      btnNo.onclick = null;
+      resolve(false);
+    };
   });
 }
+
 
 
 
