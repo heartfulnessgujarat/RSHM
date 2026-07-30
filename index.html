@@ -282,7 +282,9 @@
   <div id="view-work-entry" class="hidden card">
     <h2 id="work-entry-title">Daily Work Entry</h2>
 
-     <form id="work-form" onsubmit="executeWorkSubmit(event)">
+
+
+       <form id="work-form" onsubmit="confirmAndUpdateWorkLog(event)">
 
       
    
@@ -1702,15 +1704,14 @@ function showCustomConfirmModal(message) {
 
 
 
-
-/**
+    /**
  * Intelligent Frontend Interceptor for Updating Work Log with Real-Time CO Balance Check
  */
 async function confirmAndUpdateWorkLog(event, workDate, worklogId, originalDuration) {
   if (event && event.preventDefault) event.preventDefault();
 
   try {
-    const configData = await callBackend("getConfig"); // Or your config fetcher
+    const configData = await callBackend("getConfig");
     const fullCreditHours = parseFloat(configData?.co_full_credit_hours || 8);
     const maxCreditPerDay = parseFloat(configData?.co_max_credit_per_day || 1);
     const configuredWeeklyOff = String(configData?.weeklyoff || "").trim().toLowerCase();
@@ -1722,9 +1723,9 @@ async function confirmAndUpdateWorkLog(event, workDate, worklogId, originalDurat
     const workDateDayName = dayNames[dateObj.getDay()];
 
     if (configuredWeeklyOff && workDateDayName === configuredWeeklyOff) {
-      // Get new hours from form input
-      const fromTime = document.getElementById('work_from_time')?.value || "00:00";
-      const toTime = document.getElementById('work_to_time')?.value || "00:00";
+      // Get new hours from form input (fixed IDs to match your HTML: work-from / work-to)
+      const fromTime = document.getElementById('work-from')?.value || "00:00";
+      const toTime = document.getElementById('work-to')?.value || "00:00";
       const start = new Date(`${workDate}T${fromTime}`);
       const end = new Date(`${workDate}T${toTime}`);
       const newDuration = (end - start) / (1000 * 60 * 60);
@@ -1764,8 +1765,6 @@ async function confirmAndUpdateWorkLog(event, workDate, worklogId, originalDurat
 
   executeWorkSubmit(event);
 }
-
-
 
 
 
