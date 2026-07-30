@@ -1010,7 +1010,8 @@ if (editingId) {
       listDiv.innerHTML = html;
     }
 
-    function editWorkLog(worklogId) {
+
+function editWorkLog(worklogId) {
       const log = cachedTimesheet.find(l => l.worklog_id === worklogId);
       if (!log) return;
 
@@ -1023,9 +1024,17 @@ if (editingId) {
       document.getElementById('work-project').value = log.project_id;
       document.getElementById('work-desc').value = log.work_description;
 
+      // ==> ADD THIS LINE HERE: Dynamically bind the interceptor with this log's specific data <==
+      document.getElementById('work-form').onsubmit = function(event) {
+        confirmAndUpdateWorkLog(event, log.work_date, log.worklog_id, log.duration);
+      };
+
       switchView('view-work-entry');
     }
 
+
+
+    
     async function deleteWorkLog(worklogId) {
       const confirmed = await showCustomConfirm("Do you really want to delete this work log?");
       if (!confirmed) return;
