@@ -1668,7 +1668,37 @@ function submitWorkEntryForm() {
     .handleWorkEntry(payload);
 }
 
+function showCustomConfirmModal(message) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('custom-confirm-modal');
+    const textEl = document.getElementById('custom-confirm-text');
+    const yesBtn = document.getElementById('custom-confirm-yes');
+    const noBtn = document.getElementById('custom-confirm-no');
 
+    textEl.innerText = message;
+    modal.style.display = 'flex';
+
+    function cleanup() {
+      modal.style.display = 'none';
+      yesBtn.onclick = null;
+      noBtn.onclick = null;
+    }
+
+    yesBtn.onclick = () => {
+      cleanup();
+      resolve(true);
+    };
+
+    noBtn.onclick = () => {
+      cleanup();
+      resolve(false);
+    };
+  });
+}
+
+
+
+    
 
        
   </script>
