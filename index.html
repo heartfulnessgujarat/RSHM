@@ -282,7 +282,10 @@
   <div id="view-work-entry" class="hidden card">
     <h2 id="work-entry-title">Daily Work Entry</h2>
 
-    <form id="work-form" onsubmit="executeWorkSubmit(event)">
+ //    <form id="work-form" onsubmit="executeWorkSubmit(event)">
+
+<form id="work-form" onsubmit="confirmAndUpdateWorkLog(event, document.getElementById('work-date').value)">
+      
    
       <input type="hidden" id="editing-worklog-id" value="">
       <div class="form-group">
@@ -1727,9 +1730,6 @@ async function confirmAndDeleteWorkLog(logId, workDate) {
 }
 
 
-/**
- * Frontend Interceptor for Updating Work Log with Weekly-Off CO Warning Modal
- */
 async function confirmAndUpdateWorkLog(event, workDate) {
   if (event && event.preventDefault) event.preventDefault();
 
@@ -1741,9 +1741,7 @@ async function confirmAndUpdateWorkLog(event, workDate) {
   const [year, month, day] = workDate.split('-').map(Number);
   const dateObj = new Date(year, month - 1, day);
   const dayOfWeek = dateObj.getDay();
-  
-  // Check if day is Sunday (0) or check against your config if stored globally
-  const isWeeklyOff = (dayOfWeek === 0);
+  const isWeeklyOff = (dayOfWeek === 0); // Sunday
 
   if (isWeeklyOff) {
     const userWantsToProceed = await showCustomConfirmModal(
@@ -1752,10 +1750,11 @@ async function confirmAndUpdateWorkLog(event, workDate) {
     if (!userWantsToProceed) return; // User clicked No, abort
   }
 
-  // Proceed with standard submission/update logic
   executeWorkSubmit(event);
 }
 
+
+    
 /**
  * Custom Modal Promise Helper
  */
