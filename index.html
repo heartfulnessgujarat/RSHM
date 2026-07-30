@@ -1703,82 +1703,71 @@ function showCustomConfirmModal(message) {
 
 
 
-
-
-
-
-
-
-
 /**
  * Intelligent Frontend Interceptor for Updating Work Log with Real-Time CO Balance Check
  */
-async function confirmAndUpdateWorkLog(event, workDate, currentWorklogId) {
+async function confirmAndUpdateWorkLog(event, workDate, worklogId, originalDuration) {
   if (event && event.preventDefault) event.preventDefault();
 
   try {
-    // 1. Fetch current employee data (including live co_balance) to verify pre-action state
-    const empCode = document.getElementById('emp_code_display')?.innerText || currentUserEmpCode;
-    const empMasters = await callBackend("getEmployeesMaster"); // Or your existing method to read employee balance
-    let currentBalance = 0;
-    
-    if (empMasters) {
-      for (const key in empMasters) {
-        if (empMasters[key].emp_code === empCode || key === empCode) {
-          currentBalance = parseFloat(empMasters[key].co_balance || 0);
-          break;
+    const configData = await callBackend("getConfig"); // Or your config fetcher
+    const fullCreditHours = parseFloat(configData?.co_full_credit_hours || 8);
+    const maxCreditPerDay = parseFloat(configData?.co_max_credit_per_day || 1);
+    const configuredWeeklyOff = String(configData?.weeklyoff || "").trim().toLowerCase();
+
+    // Check if workDate falls on the weekly off
+    const [year, month, day] = workDate.split('-').map(Number);
+    const dateObj = new Date(year, month - 1, day);
+    const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    const workDateDayName = dayNames[dateObj.getDay()];
+
+    if (configuredWeeklyOff && workDateDayName === configuredWeeklyOff) {
+      // Get new hours from form input
+      const fromTime = document.getElementById('work_from_time')?.value || "00:00";
+      const toTime = document.getElementById('work_to_time')?.value || "00:00";
+      const start = new Date(`${workDate}T${fromTime}`);
+      const end = new Date(`${workDate}T${toTime}`);
+      const newDuration = (end - start) / (1000 * 60 * 60);
+
+      let oldEarned = (originalDuration || 0) / fullCreditHours;
+      if (oldEarned > maxCreditPerDay) oldEarned = maxCreditPerDay;
+
+      let newEarned = newDuration / fullCreditHours;
+      if (newEarned > maxCreditPerDay) newEarned = maxCreditPerDay;
+
+      const delta = newEarned - oldEarned;
+
+      if (delta < 0) {
+        // Fetch current employee balance
+        const empCode = document.getElementById('emp_code_display')?.innerText || currentUserEmpCode;
+        const empMasters = await callBackend("getEmployeesMaster");
+        let currentBalance = 0;
+        for (const key in empMasters) {
+          if (empMasters[key].emp_code === empCode || key === empCode) {
+            currentBalance = parseFloat(empMasters[key].co_balance || 0);
+            break;
+          }
+        }
+
+        const projectedBalance = currentBalance + delta;
+        if (projectedBalance < 0) {
+          const userWantsToProceed = await showCustomConfirmModal(
+            `Modifying this entry will reduce your CO balance to ${projectedBalance.toFixed(2)}, resulting in a negative balance. Are you sure you wish to proceed?`
+          );
+          if (!userWantsToProceed) return; // Abort update
         }
       }
     }
-
-    // 2. Calculate projected CO delta for this specific edit/reduction
-    // (If you are reducing hours on a weekly off, calculate how much CO is being subtracted)
-    // For safety and precision, we can check if projected balance drops below 0:
-    const projectedNewBalance = calculateProjectedCoBalance(currentBalance, workDate, event); // Helper or estimated delta
-
-    if (projectedNewBalance < 0) {
-      const userWantsToProceed = await showCustomConfirmModal(
-        `Modifying this entry will reduce your CO balance to ${projectedNewBalance.toFixed(2)}, resulting in a negative balance. Are you sure you wish to proceed?`
-      );
-      if (!userWantsToProceed) return; // User clicked No, abort update
-    }
   } catch (err) {
-    console.warn("Non-critical: Balance pre-check skipped, proceeding with submit:", err);
+    console.warn("Non-critical modal pre-check skipped:", err);
   }
 
   executeWorkSubmit(event);
 }
 
-/**
- * Intelligent Frontend Interceptor for Deleting Work Log with Real-Time CO Balance Check
- */
-async function confirmAndDeleteWorkLog(logId, workDate) {
-  if (!workDate) {
-    if (confirm("Are you sure you want to delete this work log?")) {
-      deleteWorkLog(logId);
-    }
-    return;
-  }
 
-  try {
-    // Fetch employee balance and check if deleting this weekly-off entry drops balance below 0
-    // Similar check to ensure warning ONLY triggers on actual negative outcomes
-    const willResultInNegative = checkIfDeletionCausesNegativeBalance(workDate, logId); // Evaluates against current balance
 
-    if (willResultInNegative) {
-      const userWantsToProceed = await showCustomConfirmModal(
-        "Deleting this weekly-off entry will result in a negative CO balance because these hours have already been consumed. Are you sure you wish to proceed?"
-      );
-      if (!userWantsToProceed) return;
-    } else {
-      if (!confirm("Are you sure you want to delete this work log?")) return;
-    }
-  } catch (e) {
-    if (!confirm("Are you sure you want to delete this work log?")) return;
-  }
 
-  deleteWorkLog(logId);
-}
 
 
 
