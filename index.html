@@ -836,10 +836,16 @@ async function openDashboard() {
       });
     }
 
-    function openNewWorkLogForm() {
+
+function openNewWorkLogForm() {
       document.getElementById('work-entry-title').innerText = "Daily Work Entry";
       document.getElementById('editing-worklog-id').value = "";
       document.getElementById('work-form').reset();
+      
+      // ==> ADD THIS LINE HERE: Reset the submit handler back to standard submission for new entries <==
+      document.getElementById('work-form').onsubmit = function(event) {
+        executeWorkSubmit(event);
+      };
       
       const today = new Date().toISOString().split('T')[0];
       document.getElementById('work-date').value = today;
@@ -848,8 +854,9 @@ async function openDashboard() {
     }
 
 
-    
 
+
+    
 async function executeWorkSubmit(e) {
   e.preventDefault();
   console.log("1. Submit triggered");
