@@ -1726,8 +1726,9 @@ async function confirmAndDeleteWorkLog(logId, workDate) {
   deleteWorkLog(logId);
 }
 
+
 /**
- * Frontend Interceptor for Updating Work Log with Weekly-Off CO Warning
+ * Frontend Interceptor for Updating Work Log with Weekly-Off CO Warning Modal
  */
 async function confirmAndUpdateWorkLog(event, workDate) {
   if (event && event.preventDefault) event.preventDefault();
@@ -1740,17 +1741,59 @@ async function confirmAndUpdateWorkLog(event, workDate) {
   const [year, month, day] = workDate.split('-').map(Number);
   const dateObj = new Date(year, month - 1, day);
   const dayOfWeek = dateObj.getDay();
+  
+  // Check if day is Sunday (0) or check against your config if stored globally
   const isWeeklyOff = (dayOfWeek === 0);
 
   if (isWeeklyOff) {
     const userWantsToProceed = await showCustomConfirmModal(
       "Modifying or deleting this entry will result in a negative CO balance because these hours have already been consumed. Are you sure, you wish to proceed?"
     );
-    if (!userWantsToProceed) return;
+    if (!userWantsToProceed) return; // User clicked No, abort
   }
 
+  // Proceed with standard submission/update logic
   executeWorkSubmit(event);
 }
+
+/**
+ * Custom Modal Promise Helper
+ */
+function showCustomConfirmModal(message) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('custom-confirm-modal');
+    const textEl = document.getElementById('confirm-modal-text');
+    const yesBtn = document.getElementById('btn-confirm-yes');
+    const noBtn = document.getElementById('btn-confirm-no');
+
+    if (!modal) {
+      resolve(confirm(message));
+      return;
+    }
+
+    textEl.innerText = message;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+
+    function cleanup() {
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
+      yesBtn.onclick = null;
+      noBtn.onclick = null;
+    }
+
+    yesBtn.onclick = () => {
+      cleanup();
+      resolve(true);
+    };
+
+    noBtn.onclick = () => {
+      cleanup();
+      resolve(false);
+    };
+  });
+}
+
 
 /**
  * Promise wrapper for your custom modal
