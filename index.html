@@ -1719,97 +1719,186 @@ function showCustomConfirmModal(message) {
 }
 
 
-    
 /**
+
  * Intelligent Frontend Interceptor for Updating Work Log with Real-Time CO Balance Check
+
  */
+
 async function confirmAndUpdateWorkLog(event, workDate, worklogId, originalDuration) {
+
   if (event && event.preventDefault) event.preventDefault();
+
+
 
   console.log("=== INTERCEPTOR STARTED ===", { workDate, worklogId, originalDuration });
 
+
+
   try {
-    // 1. Fetch config using your actual backend handler (handleGetAppMeta)
-    const appMeta = await callBackend("handleGetAppMeta");
-    const configData = appMeta?.config || {};
+
+    const configData = await callBackend("getConfig");
+
     console.log("1. Config fetched successfully:", configData);
 
+
+
     const fullCreditHours = parseFloat(configData?.co_full_credit_hours || 8);
+
     const maxCreditPerDay = parseFloat(configData?.co_max_credit_per_day || 1);
+
     const configuredWeeklyOff = String(configData?.weeklyoff || "").trim().toLowerCase();
+
     console.log("2. Settings parsed -> Weekly Off configured:", configuredWeeklyOff);
 
+
+
     // Check if workDate falls on the weekly off
+
     const [year, month, day] = workDate.split('-').map(Number);
+
     const dateObj = new Date(year, month - 1, day);
+
     const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
     const workDateDayName = dayNames[dateObj.getDay()];
+
     console.log("3. Date analysis -> Work Date:", workDate, "Day Name:", workDateDayName);
 
+
+
     if (configuredWeeklyOff && workDateDayName === configuredWeeklyOff) {
+
       console.log("4. MATCH! Work date matches configured weekly off.");
 
+
+
       // Get new hours from form input
+
       const fromTime = document.getElementById('work-from')?.value || "00:00";
+
       const toTime = document.getElementById('work-to')?.value || "00:00";
+
       const start = new Date(`${workDate}T${fromTime}`);
+
       const end = new Date(`${workDate}T${toTime}`);
+
       const newDuration = (end - start) / (1000 * 60 * 60);
 
+
+
       let oldEarned = (originalDuration || 0) / fullCreditHours;
+
       if (oldEarned > maxCreditPerDay) oldEarned = maxCreditPerDay;
 
+
+
       let newEarned = newDuration / fullCreditHours;
+
       if (newEarned > maxCreditPerDay) newEarned = maxCreditPerDay;
 
+
+
       const delta = newEarned - oldEarned;
+
       console.log("5. Duration metrics -> Old Duration:", originalDuration, "New Duration:", newDuration, "Delta (Change):", delta);
 
+
+
       if (delta < 0) {
+
         console.log("6. Hours decreased (delta < 0). Checking employee balance...");
 
-        // Fetch current employee balance (using your app's employee retrieval route)
-        const empCode = document.getElementById('emp_code_display')?.innerText || currentUser?.emp_code || currentUser?.empCode;
-        const empMasters = await callBackend("getEmployeesMaster"); // Make sure this matches your backend function name, or change to your active employee fetcher
-        
+
+
+        // Fetch current employee balance
+
+        const empCode = document.getElementById('emp_code_display')?.innerText || currentUserEmpCode;
+
+        const empMasters = await callBackend("getEmployeesMaster");
+
         let currentBalance = 0;
+
         for (const key in empMasters) {
+
           if (empMasters[key].emp_code === empCode || key === empCode) {
+
             currentBalance = parseFloat(empMasters[key].co_balance || 0);
+
             break;
+
           }
+
         }
+
+
 
         const projectedBalance = currentBalance + delta;
+
         console.log("7. Balance check -> Current Balance:", currentBalance, "Projected Balance:", projectedBalance);
 
+
+
         if (projectedBalance < 0) {
+
           console.log("8. NEGATIVE BALANCE DETECTED! Triggering warning modal...");
+
           const userWantsToProceed = await showCustomConfirmModal(
+
             `Modifying this entry will reduce your CO balance to ${projectedBalance.toFixed(2)}, resulting in a negative balance. Are you sure you wish to proceed?`
+
           );
+
           console.log("9. User modal choice:", userWantsToProceed);
 
+
+
           if (!userWantsToProceed) {
+
             console.log("10. User aborted update.");
+
             return; // Abort update
+
           }
+
         } else {
+
           console.log("8b. Projected balance is still positive or zero. No modal needed.");
+
         }
+
       } else {
+
         console.log("6b. Delta is zero or positive (hours increased or stayed same). Skipping balance deduction check.");
+
       }
+
     } else {
+
       console.log("4b. Skipped: Work date is not a weekly off (Configured:", configuredWeeklyOff, "vs Date Day:", workDateDayName, ")");
+
     }
+
   } catch (err) {
+
     console.warn("Non-critical modal pre-check skipped due to error:", err);
+
   }
 
+
+
   console.log("=== PROCEEDING WITH SUBMIT ===");
+
   executeWorkSubmit(event);
-}
+
+} 
+
+
+
+
+
+
+    
 
 
 
