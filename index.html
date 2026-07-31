@@ -1895,16 +1895,7 @@ async function confirmAndUpdateWorkLog(event, workDate, worklogId, originalDurat
 
 } 
 
-
-
-
-
-
-    
-
-
-
-    
+  
     
 /**
  * Custom Modal Promise Helper
@@ -1945,45 +1936,6 @@ function showCustomConfirmModal(message) {
 }
 
 
-/**
- * Promise wrapper for your custom modal
- */
-function showCustomConfirmModal(message) {
-  return new Promise((resolve) => {
-    const modal = document.getElementById('custom-confirm-modal');
-    const textEl = document.getElementById('confirm-modal-text');
-    const yesBtn = document.getElementById('btn-confirm-yes');
-    const noBtn = document.getElementById('btn-confirm-no');
-
-    if (!modal) {
-      resolve(confirm(message));
-      return;
-    }
-
-    textEl.innerText = message;
-    modal.classList.remove('hidden');
-    modal.style.display = 'flex';
-
-    function cleanup() {
-      modal.classList.add('hidden');
-      modal.style.display = 'none';
-      yesBtn.onclick = null;
-      noBtn.onclick = null;
-    }
-
-    yesBtn.onclick = () => {
-      cleanup();
-      resolve(true);
-    };
-
-    noBtn.onclick = () => {
-      cleanup();
-      resolve(false);
-    };
-  });
-}
-
-    
 
        
   </script>
