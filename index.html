@@ -463,13 +463,24 @@ const BACKEND_API = "https://script.google.com/macros/s/AKfycbxGlXrXS8XgFxKQOk7W
     let cachedLeaveMaster = { leaveTypes: [], paidHolidays: [] };
     let resendTimer = null;
 
-    async function callBackend(action, payload) {
+  async function callBackend(action, payload, useCache = false) {
+      // If cache is requested and available for read operations, use it instantly
+      if (useCache && action === "getLeaveMasterData" && window.APP_MASTER_CACHE) {
+          return window.APP_MASTER_CACHE;
+      }
+
       const response = await fetch(BACKEND_API, {
         method: "POST",
         body: JSON.stringify({ action, payload })
       });
       const result = await response.json();
       if (!result.success) throw new Error(result.error);
+
+      // Auto-cache leave master data upon successful fetch
+      if (action === "getLeaveMasterData") {
+          window.APP_MASTER_CACHE = result.data;
+      }
+
       return result.data;
     }
 
@@ -650,24 +661,39 @@ function showCustomConfirm(message) {
 
 
 
+
+async function executeLogin() {
+    const empCode = document.getElementById('login-emp-code').value.trim();
+    const password = document.getElementById('login-password').value;
+    if(!empCode || !password) return showToast("Please input credentials explicitly.");
     
-    async function executeLogin() {
-      const empCode = document.getElementById('login-emp-code').value.trim();
-      const password = document.getElementById('login-password').value;
-      if(!empCode || !password) return showToast("Please input credentials explicitly.");
-      try {
+    try {
         currentUser = await callBackend("login", { empCode, password });
         if (currentUser.requires_email_registration) {
-          switchView('view-register-email');
-          showToast("Please register your email address to proceed.", false);
-          return;
+            switchView('view-register-email');
+            showToast("Please register your email address to proceed.", false);
+            return;
         }
-        await openDashboard();
-      } catch(e) {
-        showToast(e.message);
-      }
-    }
+        
+        // --- PERFORMANCE ENHANCEMENT: Prefetch master data right upon login ---
+        try {
+            window.APP_MASTER_CACHE = await callBackend("getLeaveMasterData", {});
+            if (window.APP_MASTER_CACHE && window.APP_MASTER_CACHE.editWindowDays && typeof CONFIG !== 'undefined') {
+                CONFIG.edit_window_days = window.APP_MASTER_CACHE.editWindowDays;
+            }
+        } catch (cacheErr) {
+            console.warn("Background master cache prefetch failed, will fallback dynamically:", cacheErr);
+        }
+        // ---------------------------------------------------------------------
 
+        await openDashboard();
+    } catch(e) {
+        showToast(e.message);
+    }
+}
+
+
+    
 async function executeChangePassword() {
       const empCodeInput = document.getElementById('change-emp-code');
       const empCode = empCodeInput ? empCodeInput.value.trim() : "";
@@ -1542,9 +1568,7 @@ async function handleLeaveSubmit(e) {
 }
 
     
-    
-    
-  async function loadLeaveMasterOptions() {
+    async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
   const selectElem = document.getElementById('leaveTypeSelect');
   if (!selectElem) {
@@ -1553,10 +1577,10 @@ async function handleLeaveSubmit(e) {
   }
 
   try {
-    // 1. Fetch standard leave types, paid holidays, and config from Apps Script backend/Firebase
-    console.log("-> Fetching leave master data from backend...");
-    const result = await callBackend("getLeaveMasterData", {});
-    console.log("-> Backend response received:", result);
+    // 1. Fetch from local cache instantly (with true flag)
+    console.log("-> Loading leave master data from local session cache...");
+    const result = await callBackend("getLeaveMasterData", {}, true);
+    console.log("-> Cache data loaded:", result);
     
     // Reset Leave Types dropdown
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
@@ -1576,21 +1600,16 @@ async function handleLeaveSubmit(e) {
 
     // 2. Populate Paid Holidays with DD-MMM-YYYY formatting
     const phSelectElem = document.getElementById('paidHolidaySelect');
-    console.log("-> paidHolidaySelect element found:", !!phSelectElem);
-
     if (phSelectElem) {
       phSelectElem.innerHTML = '<option value="">-- Select Holiday --</option>';
       
       const holidaysArray = result.paidHolidays || [];
-      console.log("-> Processing paid holidays array:", holidaysArray);
-
       if (holidaysArray.length > 0) {
         holidaysArray.forEach((ph) => {
           const phDate = ph.date_ph || ph.date || ph.holiday_date || '';
           const phName = ph.name_ph || ph.name || ph.holiday_name || '';
           
           if (phDate) {
-            // Format date from YYYY-MM-DD to DD-MMM-YYYY (e.g., 2026-01-26 -> 26-Jan-2026)
             const parts = phDate.split('-');
             let formattedDate = phDate;
             if (parts.length === 3) {
@@ -1604,15 +1623,11 @@ async function handleLeaveSubmit(e) {
             }
 
             const option = document.createElement('option');
-            // Store raw YYYY-MM-DD or formatted date as value based on your backend preference
             option.value = phDate; 
             option.textContent = phName ? `${formattedDate} (${phName})` : formattedDate; 
             phSelectElem.appendChild(option);
           }
         });
-        console.log("-> Paid holidays successfully loaded into dropdown!");
-      } else {
-        console.warn("-> No paid holidays found in backend response!");
       }
     }
 
@@ -1621,15 +1636,13 @@ async function handleLeaveSubmit(e) {
       CONFIG.edit_window_days = result.editWindowDays;
     }
 
-    console.log("-> loadLeaveMasterOptions() completed successfully.");
+    console.log("-> loadLeaveMasterOptions() completed successfully from cache.");
 
   } catch (err) {
     console.error("-> Error in loadLeaveMasterOptions:", err);
     selectElem.innerHTML = '<option value="">-- Error Loading Options --</option>';
   }
-}  
-
-
+}
 
     
 
