@@ -661,7 +661,6 @@ function showCustomConfirm(message) {
 
 
 
-
 async function executeLogin() {
     const empCode = document.getElementById('login-emp-code').value.trim();
     const password = document.getElementById('login-password').value;
@@ -691,8 +690,6 @@ async function executeLogin() {
         showToast(e.message);
     }
 }
-
-
     
 async function executeChangePassword() {
       const empCodeInput = document.getElementById('change-emp-code');
@@ -1567,7 +1564,6 @@ async function handleLeaveSubmit(e) {
   }
 }
 
-    
     async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
   const selectElem = document.getElementById('leaveTypeSelect');
@@ -1643,8 +1639,6 @@ async function handleLeaveSubmit(e) {
     selectElem.innerHTML = '<option value="">-- Error Loading Options --</option>';
   }
 }
-
-    
 
 async function executeLoginResetPassword() {
   const empCode = document.getElementById('login-emp-code').value.trim();
