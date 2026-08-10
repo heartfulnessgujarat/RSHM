@@ -683,20 +683,19 @@ function showCustomConfirm(message) {
       }
     }
 
-
 async function executeLogin() {
     const empCode = document.getElementById('login-emp-code').value.trim();
     const password = document.getElementById('login-password').value;
     if(!empCode || !password) return showToast("Please input credentials explicitly.");
     
     try {
-        // Reference your users/employees node in Firebase directly
+        // Reference the root database node
         const dbRef = firebase.database().ref();
         
-        // Run login check and master data fetch in parallel using direct Firebase SDK queries
+        // Fetch using the correct path: masters/employees/{empCode} and masters data
         const [userSnapshot, masterSnapshot] = await Promise.all([
-            dbRef.child(`users/${empCode}`).once('value'),
-            dbRef.child('master_data').once('value').catch(cacheErr => {
+            dbRef.child(`masters/employees/${empCode}`).once('value'),
+            dbRef.child('masters').once('value').catch(cacheErr => {
                 console.warn("Background master cache prefetch failed, will fallback dynamically:", cacheErr);
                 return null;
             })
@@ -704,7 +703,7 @@ async function executeLogin() {
 
         const userData = userSnapshot.val();
 
-        // Validate user existence and password (Note: ensure hashing/security matches your setup)
+        // Validate user existence and password
         if (!userData || userData.password !== password) {
             throw new Error("Invalid employee code or password.");
         }
@@ -717,7 +716,7 @@ async function executeLogin() {
             return;
         }
         
-        // --- PERFORMANCE ENHANCEMENT: Assign cached data from Firebase ---
+        // --- Assign cached data from Firebase ---
         if (masterSnapshot && masterSnapshot.exists()) {
             const masterCacheResult = masterSnapshot.val();
             window.APP_MASTER_CACHE = masterCacheResult;
@@ -725,7 +724,7 @@ async function executeLogin() {
                 CONFIG.edit_window_days = masterCacheResult.editWindowDays;
             }
         }
-        // -----------------------------------------------------
+        // -------------------------------------
 
         await openDashboard();
     } catch(e) {
@@ -734,6 +733,7 @@ async function executeLogin() {
 }
 
 
+    
     
 async function executeChangePassword() {
       const empCodeInput = document.getElementById('change-emp-code');
