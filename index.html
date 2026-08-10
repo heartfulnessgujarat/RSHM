@@ -441,13 +441,6 @@
   </div>
 </div>
 
-
-
-
-
-
-
-
   
   <script>
 
@@ -659,38 +652,43 @@ function showCustomConfirm(message) {
       }
     }
 
-
-
 async function executeLogin() {
     const empCode = document.getElementById('login-emp-code').value.trim();
     const password = document.getElementById('login-password').value;
     if(!empCode || !password) return showToast("Please input credentials explicitly.");
     
     try {
-        currentUser = await callBackend("login", { empCode, password });
+        // Run login and master data prefetch in parallel to cut loading time in half
+        const [loginResult, masterCacheResult] = await Promise.all([
+            callBackend("login", { empCode, password }),
+            callBackend("getLeaveMasterData", {}).catch(cacheErr => {
+                console.warn("Background master cache prefetch failed, will fallback dynamically:", cacheErr);
+                return null;
+            })
+        ]);
+
+        currentUser = loginResult;
         if (currentUser.requires_email_registration) {
             switchView('view-register-email');
             showToast("Please register your email address to proceed.", false);
             return;
         }
         
-        // --- PERFORMANCE ENHANCEMENT: Prefetch master data right upon login ---
-        try {
-            window.APP_MASTER_CACHE = await callBackend("getLeaveMasterData", {});
-            if (window.APP_MASTER_CACHE && window.APP_MASTER_CACHE.editWindowDays && typeof CONFIG !== 'undefined') {
-                CONFIG.edit_window_days = window.APP_MASTER_CACHE.editWindowDays;
+        // --- PERFORMANCE ENHANCEMENT: Assign cached data ---
+        if (masterCacheResult) {
+            window.APP_MASTER_CACHE = masterCacheResult;
+            if (masterCacheResult.editWindowDays && typeof CONFIG !== 'undefined') {
+                CONFIG.edit_window_days = masterCacheResult.editWindowDays;
             }
-        } catch (cacheErr) {
-            console.warn("Background master cache prefetch failed, will fallback dynamically:", cacheErr);
         }
-        // ---------------------------------------------------------------------
+        // -----------------------------------------------------
 
         await openDashboard();
     } catch(e) {
         showToast(e.message);
     }
 }
-    
+
 async function executeChangePassword() {
       const empCodeInput = document.getElementById('change-emp-code');
       const empCode = empCodeInput ? empCodeInput.value.trim() : "";
@@ -1943,7 +1941,26 @@ function showCustomConfirmModal(message) {
 }
 
 
+function handleFormSubmit(formData) {
+  // 1. Instantly transition UI or show success state to the user
+  showLoadingIndicator(false); // Hide heavy blocking loaders
+  switchToSuccessView();       // Change screen immediately
+  
+  // 2. Send data to backend asynchronously in the background
+  google.script.run
+    .withSuccessHandler(function(response) {
+      console.log("Background sync successful:", response);
+    })
+    .withFailureHandler(function(error) {
+      console.error("Sync failed, rolling back UI:", error);
+      alert("Submission encountered an issue syncing. Please check your network.");
+      switchToPreviousView(); // Rollback if necessary
+    })
+    .processServerAction(formData);
+}
 
+
+    
        
   </script>
 </body>
