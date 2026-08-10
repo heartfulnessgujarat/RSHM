@@ -652,30 +652,43 @@ function showCustomConfirm(message) {
       }
     }
 
+
 async function executeLogin() {
     const empCode = document.getElementById('login-emp-code').value.trim();
     const password = document.getElementById('login-password').value;
     if(!empCode || !password) return showToast("Please input credentials explicitly.");
     
     try {
-        // Run login and master data prefetch in parallel to cut loading time in half
-        const [loginResult, masterCacheResult] = await Promise.all([
-            callBackend("login", { empCode, password }),
-            callBackend("getLeaveMasterData", {}).catch(cacheErr => {
+        // Reference your users/employees node in Firebase directly
+        const dbRef = firebase.database().ref();
+        
+        // Run login check and master data fetch in parallel using direct Firebase SDK queries
+        const [userSnapshot, masterSnapshot] = await Promise.all([
+            dbRef.child(`users/${empCode}`).once('value'),
+            dbRef.child('master_data').once('value').catch(cacheErr => {
                 console.warn("Background master cache prefetch failed, will fallback dynamically:", cacheErr);
                 return null;
             })
         ]);
 
-        currentUser = loginResult;
+        const userData = userSnapshot.val();
+
+        // Validate user existence and password (Note: ensure hashing/security matches your setup)
+        if (!userData || userData.password !== password) {
+            throw new Error("Invalid employee code or password.");
+        }
+
+        currentUser = { empCode, ...userData };
+
         if (currentUser.requires_email_registration) {
             switchView('view-register-email');
             showToast("Please register your email address to proceed.", false);
             return;
         }
         
-        // --- PERFORMANCE ENHANCEMENT: Assign cached data ---
-        if (masterCacheResult) {
+        // --- PERFORMANCE ENHANCEMENT: Assign cached data from Firebase ---
+        if (masterSnapshot && masterSnapshot.exists()) {
+            const masterCacheResult = masterSnapshot.val();
             window.APP_MASTER_CACHE = masterCacheResult;
             if (masterCacheResult.editWindowDays && typeof CONFIG !== 'undefined') {
                 CONFIG.edit_window_days = masterCacheResult.editWindowDays;
@@ -689,6 +702,8 @@ async function executeLogin() {
     }
 }
 
+
+    
 async function executeChangePassword() {
       const empCodeInput = document.getElementById('change-emp-code');
       const empCode = empCodeInput ? empCodeInput.value.trim() : "";
