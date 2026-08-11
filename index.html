@@ -1097,23 +1097,16 @@ function editWorkLog(worklogId) {
 }
 
     
-
-
-    
-
 async function loadTimesheetHistory() {
   switchView('view-timesheet');
   const listDiv = document.getElementById('timesheet-list');
   listDiv.innerHTML = "<p style='text-align:center; padding:15px;'>Loading records...</p>";
   
-  const activeUid = currentUser.employee_uid || currentUser.employeeUid || currentUser.emp_code || currentUser.empCode;
+  const activeEmpCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
 
   try {
-    // Query worklogs directly from Firebase filtered by employee_uid
-    const snapshot = await firebase.database().ref('worklogs')
-      .orderByChild('employee_uid')
-      .equalTo(activeUid)
-      .once('value');
+    // UPDATED: Now points to the correct location: daily_work/{activeEmpCode}
+    const snapshot = await firebase.database().ref(`daily_work/${activeEmpCode}`).once('value');
 
     cachedTimesheet = [];
     if (snapshot.exists()) {
@@ -1126,9 +1119,12 @@ async function loadTimesheetHistory() {
 
     renderTimesheetList();
   } catch(e) {
-    showToast(e.message);
+    console.error("Error loading history:", e);
+    showToast("Error loading history: " + e.message);
   }
 }
+
+    
     
 // Helper function to convert decimal hours to "hh:mm" format
 function formatHoursToHM(decimalHours) {
