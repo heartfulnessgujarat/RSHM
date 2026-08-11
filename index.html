@@ -566,7 +566,15 @@ function switchView(viewId) {
   if (viewId === 'view-leave-module') {
     loadLeaveMasterOptions();
   }
+
+  // ADDED HERE: Automatically trigger date limits enforcement when entering work entry view
+  if (viewId === 'view-work-entry') {
+    setWorkDateLimits();
+  }
 }
+
+
+
     
 
     
@@ -1977,7 +1985,33 @@ function openNewWorkLogForm() {
   switchView('view-work-entry');
 }
 
+async function setWorkDateLimits() {
+  const dateInput = document.getElementById('work-date');
+  if (!dateInput) return;
 
+  try {
+    let editWindowDays = 7;
+    if (typeof window.APP_CONFIG !== 'undefined' && window.APP_CONFIG.edit_window_days) {
+      editWindowDays = parseInt(window.APP_CONFIG.edit_window_days, 10);
+    } else {
+      const configSnapshot = await firebase.database().ref('config').once('value');
+      const configData = configSnapshot.val() || {};
+      editWindowDays = parseInt(configData.edit_window_days || 7, 10);
+      window.APP_CONFIG = configData;
+    }
+
+    const today = new Date();
+    const minDate = new Date();
+    minDate.setDate(today.getDate() - editWindowDays);
+
+    const formatDate = (d) => d.toISOString().split('T')[0];
+
+    dateInput.max = formatDate(today);
+    dateInput.min = formatDate(minDate);
+  } catch (err) {
+    console.error("Failed to set date limits:", err);
+  }
+}
     
        
   </script>
