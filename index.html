@@ -315,7 +315,10 @@
 
 
 
-       <form id="work-form" onsubmit="confirmAndUpdateWorkLog(event)">
+   <!--      <form id="work-form" onsubmit="confirmAndUpdateWorkLog(event)"> -->
+
+
+         <form id="work-form" onsubmit="executeWorkSubmit(event)">
 
       
    
@@ -1829,6 +1832,7 @@ function showCustomConfirmModal(message) {
 }
 
 
+    
 /**
 
  * Intelligent Frontend Interceptor for Updating Work Log with Real-Time CO Balance Check
