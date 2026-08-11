@@ -953,7 +953,6 @@ async function setupWorkFormDropdowns() {
 }
 
 
-
 async function executeWorkSubmit(e) {
   if (e) {
     if (typeof e.preventDefault === 'function') e.preventDefault();
@@ -970,11 +969,7 @@ async function executeWorkSubmit(e) {
   const project_name = projectSelect.options[projectSelect.selectedIndex].text;
   const work_description = document.getElementById('work-desc').value.trim();
 
-
-
-
-
-// ==========================================
+  // ==========================================
   // 1. EDIT WINDOW INTERLOCK VALIDATION CHECK
   // ==========================================
   if (work_date) {
@@ -987,14 +982,12 @@ async function executeWorkSubmit(e) {
         const configSnapshot = await firebase.database().ref('config').once('value');
         const configData = configSnapshot.val() || {};
         
-        // Check all common possible naming variations for the config property and force integer parsing
         const rawWindow = configData.worklog_edit_window_days || configData.edit_window_days || configData.window_days || 7;
         editWindowDays = parseInt(rawWindow, 10);
         
         window.APP_CONFIG = configData;
       }
 
-      // Safeguard if parseInt somehow returns NaN
       if (isNaN(editWindowDays)) editWindowDays = 7;
 
       const [year, month, day] = work_date.split('-').map(Number);
@@ -1006,12 +999,6 @@ async function executeWorkSubmit(e) {
 
       const diffTime = today.getTime() - selectedDate.getTime();
       const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-      console.log("--- STRICT EDIT WINDOW CHECK ---");
-      console.log("Selected Date:", selectedDate.toDateString());
-      console.log("Today:", today.toDateString());
-      console.log("Calculated diffDays:", diffDays);
-      console.log("Parsed numeric editWindowDays limit:", editWindowDays);
 
       if (selectedDate > today) {
         throw new Error("You cannot log work hours for future dates.");
@@ -1032,26 +1019,62 @@ async function executeWorkSubmit(e) {
         btn.disabled = false;
         btn.innerText = "Submit Work Log";
       }
-      return; // Stops submission immediately
+      return; 
     }
   }  
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
   // ==========================================
-  // 2. CUSTOM SUNDAY CONFIRMATION MODAL CHECK
+  // 2. TIME OVERLAP INTERLOCK VALIDATION CHECK
+  // ==========================================
+  if (work_date && from_time && to_time) {
+    try {
+      const activeEmpCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
+      const existingLogsSnapshot = await firebase.database().ref(`daily_work/${activeEmpCode}`).once('value');
+      
+      if (existingLogsSnapshot.exists()) {
+        const newFromMins = timeToMins(from_time);
+        const newToMins = timeToMins(to_time);
+
+        if (newFromMins >= newToMins) {
+          throw new Error("The 'To Time' must be later than the 'From Time'.");
+        }
+
+        existingLogsSnapshot.forEach(childSnap => {
+          const log = childSnap.val();
+          
+          if (editingId && log.worklog_id === editingId) return;
+
+          if (log.work_date === work_date) {
+            const existingFromMins = timeToMins(log.from_time);
+            const existingToMins = timeToMins(log.to_time);
+
+            const isOverlapping = (newFromMins < existingToMins) && (newToMins > existingFromMins);
+
+            if (isOverlapping) {
+              throw new Error(`Time overlap detected! This conflicts with an existing log on ${work_date} (${log.from_time} - ${log.to_time}).`);
+            }
+          }
+        });
+      }
+    } catch (overlapErr) {
+      console.warn("Time overlap validation blocked submission:", overlapErr.message);
+      if (typeof showToast === 'function') {
+        showToast(overlapErr.message);
+      } else {
+        alert(overlapErr.message);
+      }
+      
+      const btn = document.getElementById('btn-save-log');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = "Submit Work Log";
+      }
+      return; 
+    }
+  }
+
+  // ==========================================
+  // 3. CUSTOM SUNDAY CONFIRMATION MODAL CHECK
   // ==========================================
   let sundayConfirmed = false;
   if (work_date) {
@@ -1145,6 +1168,13 @@ async function executeWorkSubmit(e) {
       btn.innerText = "Submit Work Log";
     }
   }
+}
+
+// Ensure you also have this helper function included in your script:
+function timeToMins(timeStr) {
+  if (!timeStr) return 0;
+  const [hours, mins] = timeStr.split(':').map(Number);
+  return (hours * 60) + mins;
 }
 
 
