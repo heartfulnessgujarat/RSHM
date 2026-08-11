@@ -920,40 +920,33 @@ async function executeResetPassword() {
       }
     }
 
+async function setupWorkFormDropdowns() {
+  try {
+    const projectSelect = document.getElementById('work-project');
+    if (!projectSelect) return;
 
-function setupWorkFormDropdowns() {
-      const dateInput = document.getElementById('work-date');
-      const today = new Date();
-      dateInput.max = today.toISOString().split('T')[0];
-      
-      const minPast = new Date();
-      const fallbackDays = parseInt(currentConfig.edit_window_days) || 3;
-      minPast.setDate(today.getDate() - fallbackDays);
-      dateInput.min = minPast.toISOString().split('T')[0];
+    // Reset dropdown to default option
+    projectSelect.innerHTML = '<option value="">-- Choose Project --</option>';
 
-      const dropdown = document.getElementById('work-project');
-      dropdown.innerHTML = '<option value="">-- Choose Project --</option>';
-      cachedProjects.forEach(p => {
-        dropdown.innerHTML += `<option value="${p.project_id}">${p.project_name}</option>`;
-      });
+    // Fetch projects from the correct nested path: masters/projects
+    const snapshot = await firebase.database().ref('masters/projects').once('value');
+    const projectsData = snapshot.val();
+
+    if (projectsData) {
+      for (const projKey in projectsData) {
+        const proj = projectsData[projKey];
+        if (proj) {
+          const option = document.createElement('option');
+          option.value = proj.project_id || projKey;
+          option.textContent = proj.project_name || projKey;
+          projectSelect.appendChild(option);
+        }
+      }
     }
-
-    function openNewWorkLogForm() {
-      document.getElementById('work-entry-title').innerText = "Daily Work Entry";
-      document.getElementById('editing-worklog-id').value = "";
-      document.getElementById('work-form').reset();
-      
-      // Reset the submit handler back to standard submission for new entries
-      document.getElementById('work-form').onsubmit = function(event) {
-        executeWorkSubmit(event);
-      };
-      
-      const today = new Date().toISOString().split('T')[0];
-      document.getElementById('work-date').value = today;
-      setupWorkFormDropdowns();
-      switchView('view-work-entry');
-    }
-
+  } catch (err) {
+    console.error("Error loading projects:", err);
+  }
+}
 
 async function executeWorkSubmit(e) {
   e.preventDefault();
