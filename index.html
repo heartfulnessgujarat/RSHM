@@ -941,11 +941,14 @@ async function setupWorkFormDropdowns() {
   }
 }
 
+
+
 async function executeWorkSubmit(e) {
-  if (e && typeof e.preventDefault === 'function') {
-    e.preventDefault();
+  if (e) {
+    if (typeof e.preventDefault === 'function') e.preventDefault();
+    if (typeof e.stopPropagation === 'function') e.stopPropagation();
   }
-  console.log("1. Submit triggered");
+  console.log("1. Submit safely triggered");
 
   const editingId = document.getElementById('editing-worklog-id').value;
   const work_date = document.getElementById('work-date').value;
@@ -956,9 +959,6 @@ async function executeWorkSubmit(e) {
   const project_name = projectSelect.options[projectSelect.selectedIndex].text;
   const work_description = document.getElementById('work-desc').value.trim();
 
-  // ==========================================
-  // CUSTOM SUNDAY CONFIRMATION MODAL CHECK
-  // ==========================================
   let sundayConfirmed = false;
   if (work_date) {
     const [year, month, day] = work_date.split('-').map(Number);
@@ -1017,9 +1017,7 @@ async function executeWorkSubmit(e) {
         sunday_confirmed: sundayConfirmed,
         updated_on: nowIso
       });
-      if (typeof showToast === 'function') {
-        showToast("Work log updated successfully!", false);
-      }
+      if (typeof showToast === 'function') showToast("Work log updated successfully!", false);
     } else {
       await logRef.set({
         worklog_id,
@@ -1036,9 +1034,7 @@ async function executeWorkSubmit(e) {
         created_on: nowIso,
         updated_on: nowIso
       });
-      if (typeof showToast === 'function') {
-        showToast("Work log saved successfully!", false);
-      }
+      if (typeof showToast === 'function') showToast("Work log saved successfully!", false);
     }
     
     document.getElementById('work-form').reset();
@@ -1048,16 +1044,16 @@ async function executeWorkSubmit(e) {
     switchView('view-dashboard');
   } catch(err) {
     console.error("Save error caught:", err);
-    if (typeof showToast === 'function') {
-      showToast(err.message || String(err));
-    }
+    if (typeof showToast === 'function') showToast(err.message || String(err));
   } finally {
     if (btn) {
       btn.disabled = false;
       btn.innerText = "Submit Work Log";
     }
   }
-}    
+}
+
+
 
 
 async function deleteWorkLog(worklogId) {
