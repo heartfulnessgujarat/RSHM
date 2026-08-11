@@ -1111,6 +1111,13 @@ async function loadTimesheetHistory() {
   }
 }
     
+// Helper function to convert decimal hours to "hh:mm" format
+function formatHoursToHM(decimalHours) {
+    const totalMinutes = Math.round(decimalHours * 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
 
 function renderTimesheetList() {
     const listDiv = document.getElementById('timesheet-list');
@@ -1136,10 +1143,13 @@ function renderTimesheetList() {
         const diffDays = Math.floor((today - logDate) / (1000 * 60 * 60 * 24));
         const isEditable = diffDays <= windowDays;
 
+        // Format the decimal duration to hh:mm
+        const formattedDuration = formatHoursToHM(log.duration || 0);
+
         html += `
             <div class="item-row">
                 <div class="flex-space">
-                    <strong>${log.work_date} (${log.duration} hrs)</strong>
+                    <strong>${log.work_date} (${formattedDuration} hrs)</strong>
                     ${isEditable ? `
                         <div class="action-group">
                             <button type="button" class="btn-sm" onclick="editWorkLog('${log.worklog_id}')">Edit</button>
@@ -1156,9 +1166,6 @@ function renderTimesheetList() {
     });
     listDiv.innerHTML = html;
 }
-
-
-
     
 
 function editWorkLog(worklogId) {
