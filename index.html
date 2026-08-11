@@ -1226,6 +1226,7 @@ function formatHoursToHM(decimalHours) {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
+
 function renderTimesheetList() {
     const listDiv = document.getElementById('timesheet-list');
     if (!cachedTimesheet || cachedTimesheet.length === 0) {
@@ -1236,18 +1237,24 @@ function renderTimesheetList() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Safely resolve edit window days from CONFIG, window.APP_MASTER_CACHE, or fall back to 3
+    // Safely resolve edit window days matching your exact config structure (fallback to 7)
     const windowDays = parseInt(
+        (typeof window.APP_CONFIG !== 'undefined' ? window.APP_CONFIG.edit_window_days : null) ||
         (typeof CONFIG !== 'undefined' ? CONFIG.edit_window_days : null) || 
         (window.APP_MASTER_CACHE ? window.APP_MASTER_CACHE.editWindowDays : null) || 
-        3
+        7,
+        10
     );
 
     let html = "";
     cachedTimesheet.forEach(log => {
-        const logDate = new Date(log.work_date);
+        const [year, month, day] = log.work_date.split('-').map(Number);
+        const logDate = new Date(year, month - 1, day);
         logDate.setHours(0, 0, 0, 0);
-        const diffDays = Math.floor((today - logDate) / (1000 * 60 * 60 * 24));
+        
+        // Exact timestamp calculation matching submit window validation
+        const diffTime = today.getTime() - logDate.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
         const isEditable = diffDays <= windowDays;
 
         // Format the decimal duration to hh:mm
@@ -1273,6 +1280,10 @@ function renderTimesheetList() {
     });
     listDiv.innerHTML = html;
 }
+
+
+
+    
     
     
     async function loadDashboardLeaveStatus() {
