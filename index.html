@@ -1677,23 +1677,27 @@ async function loadLeaveMasterOptions() {
       dbRef.child('config').once('value')
     ]);
 
-    const leaveTypesArray = [];
-    if (leaveTypesSnap.exists()) {
-      leaveTypesSnap.forEach(child => { leaveTypesArray.push(child.val()); });
-    }
+    const leaveTypesRaw = leaveTypesSnap.val() || {};
+    console.log("-> Raw Leave Types from Firebase:", leaveTypesRaw);
 
-    const holidaysArray = [];
-    if (holidaysSnap.exists()) {
-      holidaysSnap.forEach(child => { holidaysArray.push(child.val()); });
-    }
-
+    const holidaysRaw = holidaysSnap.val() || {};
     const configData = configSnap.exists() ? configSnap.val() : {};
+
+    // Convert to array safely whether it's stored as an Array or an Object/Map dictionary
+    const leaveTypesArray = Array.isArray(leaveTypesRaw) 
+      ? leaveTypesRaw.filter(Boolean) 
+      : Object.values(leaveTypesRaw);
+
+    const holidaysArray = Array.isArray(holidaysRaw) 
+      ? holidaysRaw.filter(Boolean) 
+      : Object.values(holidaysRaw);
 
     // Reset Leave Types dropdown
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
 
     leaveTypesArray.forEach((item) => {
-      const leaveName = item.type || item.type_of_leave || item.leaveType || item.name || '';
+      if (!item) return;
+      const leaveName = item.type || item.type_of_leave || item.leaveType || item.name || item.leave_name || '';
       const unapprovedCode = item.unapproved || item.leave_code_unapproved || item.code || '';
       
       if (leaveName) {
@@ -1711,6 +1715,7 @@ async function loadLeaveMasterOptions() {
       
       if (holidaysArray.length > 0) {
         holidaysArray.forEach((ph) => {
+          if (!ph) return;
           const phDate = ph.date_ph || ph.date || ph.holiday_date || '';
           const phName = ph.name_ph || ph.name || ph.holiday_name || '';
           
@@ -1742,13 +1747,16 @@ async function loadLeaveMasterOptions() {
       CONFIG.edit_window_days = editWindowDays;
     }
 
-    console.log("-> loadLeaveMasterOptions() completed successfully from Firebase.");
+    console.log("-> loadLeaveMasterOptions() completed successfully. Loaded leave types count:", leaveTypesArray.length);
 
   } catch (err) {
     console.error("-> Error in loadLeaveMasterOptions:", err);
     selectElem.innerHTML = '<option value="">-- Error Loading Options --</option>';
   }
 }
+
+
+
 
     
 async function executeLoginResetPassword() {
