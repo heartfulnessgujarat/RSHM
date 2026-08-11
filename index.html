@@ -955,7 +955,6 @@ function setupWorkFormDropdowns() {
     }
 
 
-
 async function executeWorkSubmit(e) {
   e.preventDefault();
   console.log("1. Submit triggered");
@@ -983,18 +982,14 @@ async function executeWorkSubmit(e) {
     console.log("3. Is Sunday?:", isSunday);
 
     if (isSunday) {
-      console.log("4. Entering Sunday modal trigger - about to await showCustomConfirm");
       let userWantsToProceed = false;
       try {
         userWantsToProceed = await showCustomConfirm("Today is a Sunday. Are you sure you want to log work hours for this Sunday?");
-        console.log("5. Modal resolved with:", userWantsToProceed);
       } catch (err) {
-        console.error("Custom confirm modal error:", err);
         userWantsToProceed = confirm("Today is a Sunday. Are you sure you want to log work hours for this Sunday?");
       }
 
       if (!userWantsToProceed) {
-        console.log("6. User cancelled Sunday entry");
         document.getElementById('work-form').reset();
         switchView('view-dashboard');
         return; 
@@ -1004,38 +999,59 @@ async function executeWorkSubmit(e) {
   }
   // ==========================================
 
-  console.log("7. Proceeding to save work log via backend...");
+  console.log("7. Proceeding to save work log via Firebase...");
 
   const btn = document.getElementById('btn-save-log');
   btn.disabled = true;
   btn.innerText = "Saving Work Log...";
 
-  const activeUid = currentUser.employee_uid || currentUser.employeeUid || currentUser.emp_code || currentUser.empCode;
   const activeEmpCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
+  const activeUid = currentUser.employee_uid || currentUser.employeeUid || activeEmpCode;
 
   try {
-    const payload = {
-      worklog_id: editingId || undefined,
-      employee_uid: activeUid,
-      emp_code: activeEmpCode,
-      work_date,
-      from_time,
-      to_time,
-      project_id,
-      project_name,
-      work_description,
-      sunday_confirmed: sundayConfirmed
-    };
+    const [fromHours, fromMins] = from_time.split(':').map(Number);
+    const [toHours, toMins] = to_time.split(':').map(Number);
+    let duration = ((toHours * 60 + toMins) - (fromHours * 60 + fromMins)) / 60;
+    if (duration < 0) duration = 0;
 
-    // Route through Google Apps Script backend to handle daily_work path, overlap check, CO earn, and sync
-    await new Promise((resolve, reject) => {
-      google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(reject)
-        .handleSubmitWorkLog(payload);
-    });
+    const dbRef = firebase.database().ref();
 
-    showToast(editingId ? "Work log updated successfully!" : "Work log saved successfully!", false);
+    if (editingId) {
+      // Update under daily_work/{activeEmpCode}/{editingId}
+      await dbRef.child(`daily_work/${activeEmpCode}/${editingId}`).update({
+        employee_uid: activeUid,
+        emp_code: activeEmpCode,
+        work_date,
+        from_time,
+        to_time,
+        project_id,
+        project_name,
+        work_description,
+        duration,
+        sunday_confirmed: sundayConfirmed,
+        updated_at: new Date().toISOString()
+      });
+      showToast("Work log updated successfully!", false);
+    } else {
+      // Push new under daily_work/{activeEmpCode}/
+      const newLogRef = dbRef.child(`daily_work/${activeEmpCode}`).push();
+      const worklog_id = newLogRef.key;
+      await newLogRef.set({
+        worklog_id,
+        employee_uid: activeUid,
+        emp_code: activeEmpCode,
+        work_date,
+        from_time,
+        to_time,
+        project_id,
+        project_name,
+        work_description,
+        duration,
+        sunday_confirmed: sundayConfirmed,
+        created_at: new Date().toISOString()
+      });
+      showToast("Work log saved successfully!", false);
+    }
     
     document.getElementById('work-form').reset();
     const editingField = document.getElementById('editing-worklog-id');
@@ -1050,6 +1066,27 @@ async function executeWorkSubmit(e) {
     btn.innerText = "Submit Work Log";
   }
 }
+
+async function deleteWorkLog(worklogId) {
+  const confirmed = await showCustomConfirm("Do you really want to delete this work log?");
+  if (!confirmed) return;
+
+  const activeEmpCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
+
+  try {
+    await firebase.database().ref(`daily_work/${activeEmpCode}/${worklogId}`).remove();
+    showToast("Work log deleted successfully.", false);
+    await loadTimesheetHistory();
+  } catch(e) {
+    showToast(e.message);
+  }
+}
+
+
+
+
+
+    
 
 function editWorkLog(worklogId) {
     const log = cachedTimesheet.find(l => l.worklog_id === worklogId);
@@ -1066,35 +1103,6 @@ function editWorkLog(worklogId) {
 
     switchView('view-work-entry');
 }
-
-async function deleteWorkLog(worklogId) {
-  const confirmed = await showCustomConfirm("Do you really want to delete this work log?");
-  if (!confirmed) return;
-
-  const activeEmpCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
-
-  try {
-    const payload = {
-      worklog_id: worklogId,
-      emp_code: activeEmpCode,
-      employee_uid: currentUser.employee_uid
-    };
-
-    // Route deletion through backend to clean up daily_work path and recalculate CO/Attendance balances
-    await new Promise((resolve, reject) => {
-      google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(reject)
-        .handleDeleteWorkLog(payload);
-    });
-
-    showToast("Work log deleted successfully.", false);
-    await loadTimesheetHistory();
-  } catch(e) {
-    showToast(e.message);
-  }
-}
-
 
     
 
