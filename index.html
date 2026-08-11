@@ -962,26 +962,41 @@ async function executeWorkSubmit(e) {
   const project_name = projectSelect.options[projectSelect.selectedIndex].text;
   const work_description = document.getElementById('work-desc').value.trim();
 
-  // ==========================================
+
+
+
+
+
+// ==========================================
   // 1. EDIT WINDOW INTERLOCK VALIDATION CHECK
   // ==========================================
   if (work_date) {
     try {
-      // Fetch config dynamically to respect the configured edit window days (e.g., 7 days)
       const configSnapshot = await firebase.database().ref('config').once('value');
       const configData = configSnapshot.val() || {};
-      const editWindowDays = parseInt(configData.worklog_edit_window_days || configData.edit_window_days || 7, 10);
+      
+      // Explicitly check your config keys and enforce a strict fallback of 7 if missing
+      const editWindowDays = parseInt(configData.worklog_edit_window_days ?? configData.edit_window_days ?? 7, 10);
 
+      // Parse work_date (YYYY-MM-DD)
       const [year, month, day] = work_date.split('-').map(Number);
       const selectedDate = new Date(year, month - 1, day);
-      
+      selectedDate.setHours(0, 0, 0, 0);
+
+      // Get current date stripped of time
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const diffTime = today - selectedDate;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      // Calculate exact calendar day difference cleanly
+      const diffTime = today.getTime() - selectedDate.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
-      // Check if trying to log/edit a future date or a date older than the allowed window
+      console.log("--- EDIT WINDOW CHECK ---");
+      console.log("Selected Date:", selectedDate.toDateString());
+      console.log("Today:", today.toDateString());
+      console.log("Calculated diffDays:", diffDays);
+      console.log("Configured editWindowDays limit:", editWindowDays);
+
       if (selectedDate > today) {
         throw new Error("You cannot log work hours for future dates.");
       }
@@ -995,10 +1010,33 @@ async function executeWorkSubmit(e) {
       } else {
         alert(windowErr.message);
       }
+      
+      // Reset button state before returning
+      const btn = document.getElementById('btn-save-log');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = "Submit Work Log";
+      }
       return; // Stop execution and block submission
     }
   }
 
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
   // ==========================================
   // 2. CUSTOM SUNDAY CONFIRMATION MODAL CHECK
   // ==========================================
