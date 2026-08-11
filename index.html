@@ -733,61 +733,103 @@ async function executeLogin() {
 }
 
 
-    
-    
+
+
 async function executeChangePassword() {
-      const empCodeInput = document.getElementById('change-emp-code');
-      const empCode = empCodeInput ? empCodeInput.value.trim() : "";
-      const currentPassword = document.getElementById('change-curr-pass').value;
-      const newPassword = document.getElementById('change-new-pass').value;
-      const confPassword = document.getElementById('change-conf-pass').value;
+    const empCodeInput = document.getElementById('change-emp-code');
+    const empCode = empCodeInput ? empCodeInput.value.trim() : "";
+    const currentPassword = document.getElementById('change-curr-pass').value;
+    const newPassword = document.getElementById('change-new-pass').value;
+    const confPassword = document.getElementById('change-conf-pass').value;
 
-      if (!empCode || !currentPassword || !newPassword || !confPassword) {
+    if (!empCode || !currentPassword || !newPassword || !confPassword) {
         return showToast("All fields are required.");
-      }
-      if (newPassword !== confPassword) {
+    }
+    if (newPassword !== confPassword) {
         return showToast("New Password and Confirm Password do not match.");
-      }
+    }
 
-      try {
-        const msg = await callBackend("changePassword", { empCode, currentPassword, newPassword });
-        showToast(msg, false);
+    try {
+        const userRef = firebase.database().ref(`masters/employees/${empCode}`);
+        const snapshot = await userRef.once('value');
         
-        // --- ENHANCEMENT: Clear password fields but KEEP empCode intact, then switch to login ---
+        if (!snapshot.exists()) {
+            throw new Error("Employee code not found.");
+        }
+
+        const userData = snapshot.val();
+
+        // Verify current password matches database record
+        if (userData.password !== currentPassword) {
+            throw new Error("Current password is incorrect.");
+        }
+
+        // Update password and track last changed timestamp directly in Firebase
+        const timestamp = new Date().toLocaleString();
+        await userRef.update({
+            password: newPassword,
+            password_last_changed_on: timestamp
+        });
+
+        showToast("Password successfully updated!", false);
+        
+        // Clear password fields but keep empCode intact, then switch to login
         document.getElementById('change-curr-pass').value = "";
         document.getElementById('change-new-pass').value = "";
         document.getElementById('change-conf-pass').value = "";
         
-        // If your login screen has its own emp code input, pre-fill it here so it's ready for login
-        const loginEmpInput = document.getElementById('login-emp-code'); // Adjust ID if different
+        const loginEmpInput = document.getElementById('login-emp-code');
         if (loginEmpInput) loginEmpInput.value = empCode;
 
         switchView('view-login');
-      } catch(e) {
+    } catch(e) {
         showToast(e.message);
-      }
     }
+}
+
+async function executeResetPassword() {
+    const empCodeInput = document.getElementById('change-emp-code');
+    const empCode = empCodeInput ? empCodeInput.value.trim() : "";
+    
+    if (!empCode) return showToast("Please enter Employee Code to reset password.");
+    
+    try {
+        const userRef = firebase.database().ref(`masters/employees/${empCode}`);
+        const snapshot = await userRef.once('value');
+
+        if (!snapshot.exists()) {
+            throw new Error("Employee code not found.");
+        }
+
+        // Generate a random 6-character temporary password or standard default
+        const tempPassword = Math.random().toString(36).slice(-6);
+        const timestamp = new Date().toLocaleString();
+
+        await userRef.update({
+            password: tempPassword,
+            password_last_changed_on: timestamp
+        });
+
+        showToast(`Password reset successfully. Temporary Password: ${tempPassword}`, false);
+
+        // Switch to login view with empCode ready
+        const loginEmpInput = document.getElementById('login-emp-code');
+        if (loginEmpInput) loginEmpInput.value = empCode;
+
+        switchView('view-login');
+    } catch(e) {
+        showToast(e.message);
+    }
+}
+
 
     
-    async function executeResetPassword() {
-      const empCodeInput = document.getElementById('change-emp-code');
-      const empCode = empCodeInput ? empCodeInput.value.trim() : "";
-      
-      if (!empCode) return showToast("Please enter Employee Code to reset password.");
-      try {
-        const msg = await callBackend("resetPassword", { empCode });
-        showToast(msg, false);
 
-        // --- ENHANCEMENT: Switch to login view with empCode ready for the temporary password ---
-        const loginEmpInput = document.getElementById('login-emp-code'); // Adjust ID if different
-        if (loginEmpInput) loginEmpInput.value = empCode;
 
-        switchView('view-login');
-      } catch(e) {
-        showToast(e.message);
-      }
-    }
 
+
+
+    
     async function executeSendVerificationCode() {
       const email = document.getElementById('reg-user-email').value.trim();
       if (!email) return showToast("Please enter an email address.");
