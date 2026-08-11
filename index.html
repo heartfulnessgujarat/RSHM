@@ -525,8 +525,6 @@ function showToast(msg, isError = true) {
     }
 
     
-
-
 function switchView(viewId) {
       if (viewId === 'view-change-password') {
         const loginCode = document.getElementById('login-emp-code').value.trim();
@@ -542,12 +540,7 @@ function switchView(viewId) {
         }
       }
 
-
-
-  
-
-  
-    ['view-login', 'view-change-password', 'view-register-email', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module'].forEach(id => {
+      ['view-login', 'view-change-password', 'view-register-email', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module'].forEach(id => {
         document.getElementById(id).classList.add('hidden');
       });
       document.getElementById(viewId).classList.remove('hidden');
@@ -562,23 +555,20 @@ function switchView(viewId) {
       const leaveStatusMsg = document.getElementById('leaveStatusMessage');
       if (leaveStatusMsg) leaveStatusMsg.innerText = '';
 
-
-
-
-
-  
-
       if (viewId === 'view-dashboard') {
         loadDashboardLeaveStatus();
       }
       
+      if (viewId === 'view-work-entry') {
+        if (typeof setupWorkFormDropdowns === 'function') {
+          setupWorkFormDropdowns();
+        }
+      }
+
       if (viewId === 'view-leave-module') {
         loadLeaveMasterOptions();
       }
     }
-    
-
-
 
     
 
