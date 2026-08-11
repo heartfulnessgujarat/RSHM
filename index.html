@@ -1521,9 +1521,6 @@ function calculateRequestedDays() {
 }
 
 
-
-
-    
 async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -1545,6 +1542,7 @@ async function handleLeaveSubmit(e) {
     const empCode = document.getElementById('leaveEmpId')?.value?.trim() 
                  || userObj.emp_code 
                  || userObj.employee_uid 
+                 || userObj.employeeUid 
                  || localStorage.getItem('emp_code') 
                  || '';
 
@@ -1602,8 +1600,13 @@ async function handleLeaveSubmit(e) {
 
     const reason = document.getElementById('leaveReason')?.value?.trim() || (isPh ? finalLeaveType : 'Leave Application');
 
-    
+    const dbRef = firebase.database().ref();
+    const leavesRef = dbRef.child('leaves');
+    const newLeaveRef = leavesRef.push();
+    const leave_id = newLeaveRef.key;
+
     const payload = {
+      leave_id: leave_id,
       emp_code: empCode,
       employeeId: empCode,
       employeeName: empName,
@@ -1612,47 +1615,22 @@ async function handleLeaveSubmit(e) {
       toDate: toDate,
       totalDays: totalDays,
       reason: reason,
-      status: 'Pending', // PH now follows the standard Pending/Approval flow
+      status: 'Pending',
       isAutoApproved: false,
       skipEmailNotification: false,
       appliedAt: new Date().toISOString()
     };
 
-    
-    console.log("-> [DIAGNOSTIC] Submitting leave payload to backend:", payload);
+    console.log("-> [DIAGNOSTIC] Saving leave payload directly to Firebase:", payload);
 
-    let response;
-    if (typeof callBackend === 'function') {
-      response = await callBackend("applyLeave", payload);
-    } else {
-      const targetUrl = typeof BACKEND_API !== 'undefined' ? BACKEND_API : SCRIPT_URL;
-      const res = await fetch(targetUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'applyLeave', ...payload })
-      });
-      response = await res.json();
-    }
+    // Save directly using Firebase SDK push/set
+    await newLeaveRef.set(payload);
 
-    console.log("-> [DIAGNOSTIC] Backend response received:", response);
-
-    // If backend returns an error (like duplicate PH or limit reached), throw it so it displays in red
-    if (!response || response.success === false) {
-      throw new Error(response?.error || response?.message || 'Failed to submit leave application.');
-    }
-
-
-
-  // Success message rendering
     if (statusDiv) {
       statusDiv.style.color = '#1e8e3e';
-      statusDiv.innerText = response.message || (isPh ? 'PH leave request submitted successfully for approval.' : 'Leave application submitted successfully!');
+      statusDiv.innerText = isPh ? 'PH leave request submitted successfully for approval.' : 'Leave application submitted successfully!';
     }
 
-
-
-    
-    // Delay form reset and view refresh slightly so user can read the success message
     setTimeout(() => {
       const leaveForm = document.getElementById('leaveApplyForm') || document.getElementById('leaveForm') || document.querySelector('form');
       if (leaveForm) leaveForm.reset();
@@ -1680,7 +1658,7 @@ async function handleLeaveSubmit(e) {
   }
 }
 
-    async function loadLeaveMasterOptions() {
+async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
   const selectElem = document.getElementById('leaveTypeSelect');
   if (!selectElem) {
@@ -1689,15 +1667,31 @@ async function handleLeaveSubmit(e) {
   }
 
   try {
-    // 1. Fetch from local cache instantly (with true flag)
-    console.log("-> Loading leave master data from local session cache...");
-    const result = await callBackend("getLeaveMasterData", {}, true);
-    console.log("-> Cache data loaded:", result);
+    console.log("-> Loading leave master data directly from Firebase...");
     
+    // Fetch leave types and paid holidays directly from Firebase nodes
+    const dbRef = firebase.database().ref();
+    const [leaveTypesSnap, holidaysSnap, configSnap] = await Promise.all([
+      dbRef.child('leave_types').once('value'),
+      dbRef.child('paid_holidays').once('value'),
+      dbRef.child('config').once('value')
+    ]);
+
+    const leaveTypesArray = [];
+    if (leaveTypesSnap.exists()) {
+      leaveTypesSnap.forEach(child => { leaveTypesArray.push(child.val()); });
+    }
+
+    const holidaysArray = [];
+    if (holidaysSnap.exists()) {
+      holidaysSnap.forEach(child => { holidaysArray.push(child.val()); });
+    }
+
+    const configData = configSnap.exists() ? configSnap.val() : {};
+
     // Reset Leave Types dropdown
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
 
-    const leaveTypesArray = result.leaveTypes || [];
     leaveTypesArray.forEach((item) => {
       const leaveName = item.type || item.type_of_leave || item.leaveType || item.name || '';
       const unapprovedCode = item.unapproved || item.leave_code_unapproved || item.code || '';
@@ -1710,12 +1704,11 @@ async function handleLeaveSubmit(e) {
       }
     });
 
-    // 2. Populate Paid Holidays with DD-MMM-YYYY formatting
+    // Populate Paid Holidays with DD-MMM-YYYY formatting
     const phSelectElem = document.getElementById('paidHolidaySelect');
     if (phSelectElem) {
       phSelectElem.innerHTML = '<option value="">-- Select Holiday --</option>';
       
-      const holidaysArray = result.paidHolidays || [];
       if (holidaysArray.length > 0) {
         holidaysArray.forEach((ph) => {
           const phDate = ph.date_ph || ph.date || ph.holiday_date || '';
@@ -1743,12 +1736,13 @@ async function handleLeaveSubmit(e) {
       }
     }
 
-    // 3. Save configuration globally if available
-    if (result.editWindowDays && typeof CONFIG !== 'undefined') {
-      CONFIG.edit_window_days = result.editWindowDays;
+    // Save configuration globally if available
+    const editWindowDays = configData.edit_window_days || configData.editWindowDays;
+    if (editWindowDays && typeof CONFIG !== 'undefined') {
+      CONFIG.edit_window_days = editWindowDays;
     }
 
-    console.log("-> loadLeaveMasterOptions() completed successfully from cache.");
+    console.log("-> loadLeaveMasterOptions() completed successfully from Firebase.");
 
   } catch (err) {
     console.error("-> Error in loadLeaveMasterOptions:", err);
@@ -1756,6 +1750,7 @@ async function handleLeaveSubmit(e) {
   }
 }
 
+    
 async function executeLoginResetPassword() {
   const empCode = document.getElementById('login-emp-code').value.trim();
   if (!empCode) {
