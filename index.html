@@ -941,9 +941,10 @@ async function setupWorkFormDropdowns() {
   }
 }
 
-
 async function executeWorkSubmit(e) {
-  e.preventDefault();
+  if (e && typeof e.preventDefault === 'function') {
+    e.preventDefault();
+  }
   console.log("1. Submit triggered");
 
   const editingId = document.getElementById('editing-worklog-id').value;
@@ -982,8 +983,10 @@ async function executeWorkSubmit(e) {
   }
 
   const btn = document.getElementById('btn-save-log');
-  btn.disabled = true;
-  btn.innerText = "Saving Work Log...";
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "Saving Work Log...";
+  }
 
   const activeEmpCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
   const activeUid = currentUser.employee_uid || currentUser.employeeUid || activeEmpCode;
@@ -994,15 +997,10 @@ async function executeWorkSubmit(e) {
     let duration = ((toHours * 60 + toMins) - (fromHours * 60 + fromMins)) / 60;
     if (duration < 0) duration = 0;
 
-    // Use existing editingId if updating, otherwise generate WL timestamp ID matching backend code
     const worklog_id = editingId ? editingId : ("WL" + new Date().getTime());
-    
-    // Format timestamp string
     const nowIso = new Date().toISOString();
 
     const dbRef = firebase.database().ref();
-    
-    // Direct path write matching backend: daily_work/{activeEmpCode}/{worklog_id}
     const logRef = dbRef.child(`daily_work/${activeEmpCode}/${worklog_id}`);
 
     if (editingId) {
@@ -1019,7 +1017,9 @@ async function executeWorkSubmit(e) {
         sunday_confirmed: sundayConfirmed,
         updated_on: nowIso
       });
-      showToast("Work log updated successfully!", false);
+      if (typeof showToast === 'function') {
+        showToast("Work log updated successfully!", false);
+      }
     } else {
       await logRef.set({
         worklog_id,
@@ -1036,7 +1036,9 @@ async function executeWorkSubmit(e) {
         created_on: nowIso,
         updated_on: nowIso
       });
-      showToast("Work log saved successfully!", false);
+      if (typeof showToast === 'function') {
+        showToast("Work log saved successfully!", false);
+      }
     }
     
     document.getElementById('work-form').reset();
@@ -1046,15 +1048,16 @@ async function executeWorkSubmit(e) {
     switchView('view-dashboard');
   } catch(err) {
     console.error("Save error caught:", err);
-    showToast(err.message || err);
+    if (typeof showToast === 'function') {
+      showToast(err.message || String(err));
+    }
   } finally {
-    btn.disabled = false;
-    btn.innerText = "Submit Work Log";
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = "Submit Work Log";
+    }
   }
-}
-
-
-    
+}    
 
 
 async function deleteWorkLog(worklogId) {
