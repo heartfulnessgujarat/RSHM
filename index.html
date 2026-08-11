@@ -524,7 +524,8 @@ function showToast(msg, isError = true) {
       setTimeout(() => container.classList.add('hidden'), 4000);
     }
 
-    
+
+
 function switchView(viewId) {
       if (viewId === 'view-change-password') {
         const loginCode = document.getElementById('login-emp-code').value.trim();
@@ -570,8 +571,8 @@ function switchView(viewId) {
       }
     }
 
-    
 
+    
 
     
     function togglePasswordVisibility(inputId) {
@@ -920,15 +921,15 @@ async function executeResetPassword() {
       }
     }
 
+
+
 async function setupWorkFormDropdowns() {
   try {
     const projectSelect = document.getElementById('work-project');
     if (!projectSelect) return;
 
-    // Reset dropdown to default option
     projectSelect.innerHTML = '<option value="">-- Choose Project --</option>';
 
-    // Fetch projects from the correct nested path: masters/projects
     const snapshot = await firebase.database().ref('masters/projects').once('value');
     const projectsData = snapshot.val();
 
@@ -947,6 +948,9 @@ async function setupWorkFormDropdowns() {
     console.error("Error loading projects:", err);
   }
 }
+    
+
+
 
 async function executeWorkSubmit(e) {
   e.preventDefault();
