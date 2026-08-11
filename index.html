@@ -1626,9 +1626,28 @@ async function handleLeaveSubmit(e) {
     // Save directly using Firebase SDK push/set
     await newLeaveRef.set(payload);
 
+    // Trigger email notification to report in-charge if functions are available
+    if (typeof sendEmailNotification === 'function') {
+      try {
+        await sendEmailNotification('leave_applied', payload);
+        console.log("-> [DIAGNOSTIC] sendEmailNotification triggered successfully.");
+      } catch (emailErr) {
+        console.warn("-> Email notification warning:", emailErr);
+      }
+    } else if (typeof triggerEmailAlert === 'function') {
+      try {
+        await triggerEmailAlert(payload);
+        console.log("-> [DIAGNOSTIC] triggerEmailAlert triggered successfully.");
+      } catch (emailErr) {
+        console.warn("-> Email alert warning:", emailErr);
+      }
+    } else {
+      console.log("-> [DIAGNOSTIC] No direct email notification function detected in scope.");
+    }
+
     if (statusDiv) {
       statusDiv.style.color = '#1e8e3e';
-      statusDiv.innerText = isPh ? 'PH leave request submitted successfully for approval.' : 'Leave application submitted successfully!';
+      statusDiv.innerText = 'Leave request submitted successfully and sent for approval!';
     }
 
     setTimeout(() => {
@@ -1659,6 +1678,9 @@ async function handleLeaveSubmit(e) {
 }
 
 
+
+
+    
 async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
   const selectElem = document.getElementById('leaveTypeSelect');
