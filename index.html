@@ -1658,6 +1658,7 @@ async function handleLeaveSubmit(e) {
   }
 }
 
+
 async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
   const selectElem = document.getElementById('leaveTypeSelect');
@@ -1669,36 +1670,32 @@ async function loadLeaveMasterOptions() {
   try {
     console.log("-> Loading leave master data directly from Firebase...");
     
-    // Fetch leave types and paid holidays directly from Firebase nodes
+    // Updated to point to your exact database schema paths: masters/leave_master and masters/holidays
     const dbRef = firebase.database().ref();
-    const [leaveTypesSnap, holidaysSnap, configSnap] = await Promise.all([
-      dbRef.child('leave_types').once('value'),
-      dbRef.child('paid_holidays').once('value'),
+    const [leaveMasterSnap, holidaysSnap, configSnap] = await Promise.all([
+      dbRef.child('masters/leave_master').once('value'),
+      dbRef.child('masters/holidays').once('value'),
       dbRef.child('config').once('value')
     ]);
 
-    const leaveTypesRaw = leaveTypesSnap.val() || {};
-    console.log("-> Raw Leave Types from Firebase:", leaveTypesRaw);
+    const leaveMasterRaw = leaveMasterSnap.val() || {};
+    console.log("-> Raw Leave Master from Firebase:", leaveMasterRaw);
 
     const holidaysRaw = holidaysSnap.val() || {};
     const configData = configSnap.exists() ? configSnap.val() : {};
 
-    // Convert to array safely whether it's stored as an Array or an Object/Map dictionary
-    const leaveTypesArray = Array.isArray(leaveTypesRaw) 
-      ? leaveTypesRaw.filter(Boolean) 
-      : Object.values(leaveTypesRaw);
-
-    const holidaysArray = Array.isArray(holidaysRaw) 
-      ? holidaysRaw.filter(Boolean) 
-      : Object.values(holidaysRaw);
+    // Convert object maps to arrays for iteration
+    const leaveTypesArray = Object.values(leaveMasterRaw).filter(Boolean);
+    const holidaysArray = Array.isArray(holidaysRaw) ? holidaysRaw.filter(Boolean) : Object.values(holidaysRaw);
 
     // Reset Leave Types dropdown
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
 
     leaveTypesArray.forEach((item) => {
       if (!item) return;
-      const leaveName = item.type || item.type_of_leave || item.leaveType || item.name || item.leave_name || '';
-      const unapprovedCode = item.unapproved || item.leave_code_unapproved || item.code || '';
+      // Matches your database keys like type_of_leave and leave_code_unapproved
+      const leaveName = item.type_of_leave || item.type || item.leaveType || item.name || '';
+      const unapprovedCode = item.leave_code_unapproved || item.unapproved || item.code || '';
       
       if (leaveName) {
         const option = document.createElement('option');
@@ -1754,8 +1751,6 @@ async function loadLeaveMasterOptions() {
     selectElem.innerHTML = '<option value="">-- Error Loading Options --</option>';
   }
 }
-
-
 
 
     
