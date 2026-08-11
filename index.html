@@ -525,53 +525,45 @@ function showToast(msg, isError = true) {
     }
 
 
-
+// 1. Rolled-back switchView function (without the added view-work-entry dropdown hooks)
 function switchView(viewId) {
-      if (viewId === 'view-change-password') {
-        const loginCode = document.getElementById('login-emp-code').value.trim();
-        if (loginCode) {
-          document.getElementById('change-emp-code').value = loginCode;
-          updateRegisteredEmailHint();
-        }
-      }
-      if (viewId === 'view-login') {
-        const changeCode = document.getElementById('change-emp-code').value.trim();
-        if (changeCode) {
-          document.getElementById('login-emp-code').value = changeCode;
-        }
-      }
-
-      ['view-login', 'view-change-password', 'view-register-email', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module'].forEach(id => {
-        document.getElementById(id).classList.add('hidden');
-      });
-      document.getElementById(viewId).classList.remove('hidden');
-
-      // Control Global Header visibility (visible everywhere except auth screens)
-      const isAuthView = ['view-login', 'view-change-password', 'view-register-email'].includes(viewId);
-      document.getElementById('global-header').classList.toggle('hidden', isAuthView);
-
-      // Clear any lingering toast messages or local form status notices when changing views
-      const toastContainer = document.getElementById('toast-container');
-      if (toastContainer) toastContainer.classList.add('hidden');
-      const leaveStatusMsg = document.getElementById('leaveStatusMessage');
-      if (leaveStatusMsg) leaveStatusMsg.innerText = '';
-
-      if (viewId === 'view-dashboard') {
-        loadDashboardLeaveStatus();
-      }
-      
-      if (viewId === 'view-work-entry') {
-        if (typeof setupWorkFormDropdowns === 'function') {
-          setupWorkFormDropdowns();
-        }
-      }
-
-      if (viewId === 'view-leave-module') {
-        loadLeaveMasterOptions();
-      }
+  if (viewId === 'view-change-password') {
+    const loginCode = document.getElementById('login-emp-code').value.trim();
+    if (loginCode) {
+      document.getElementById('change-emp-code').value = loginCode;
+      updateRegisteredEmailHint();
     }
+  }
+  if (viewId === 'view-login') {
+    const changeCode = document.getElementById('change-emp-code').value.trim();
+    if (changeCode) {
+      document.getElementById('login-emp-code').value = changeCode;
+    }
+  }
 
+  ['view-login', 'view-change-password', 'view-register-email', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module'].forEach(id => {
+    document.getElementById(id).classList.add('hidden');
+  });
+  document.getElementById(viewId).classList.remove('hidden');
 
+  // Control Global Header visibility (visible everywhere except auth screens)
+  const isAuthView = ['view-login', 'view-change-password', 'view-register-email'].includes(viewId);
+  document.getElementById('global-header').classList.toggle('hidden', isAuthView);
+
+  // Clear any lingering toast messages or local form status notices when changing views
+  const toastContainer = document.getElementById('toast-container');
+  if (toastContainer) toastContainer.classList.add('hidden');
+  const leaveStatusMsg = document.getElementById('leaveStatusMessage');
+  if (leaveStatusMsg) leaveStatusMsg.innerText = '';
+
+  if (viewId === 'view-dashboard') {
+    loadDashboardLeaveStatus();
+  }
+  
+  if (viewId === 'view-leave-module') {
+    loadLeaveMasterOptions();
+  }
+}
     
 
     
@@ -921,14 +913,16 @@ async function executeResetPassword() {
       }
     }
 
-async function setupWorkFormDropdowns() {
+
+    async function setupWorkFormDropdowns() {
   try {
     const projectSelect = document.getElementById('work-project');
     if (!projectSelect) return;
 
     projectSelect.innerHTML = '<option value="">-- Choose Project --</option>';
 
-    const snapshot = await firebase.database().ref('masters/projects').once('value');
+    // Original project fetch path
+    const snapshot = await firebase.database().ref('projects').once('value');
     const projectsData = snapshot.val();
 
     if (projectsData) {
@@ -946,8 +940,6 @@ async function setupWorkFormDropdowns() {
     console.error("Error loading projects:", err);
   }
 }
-
-
     
 
 
