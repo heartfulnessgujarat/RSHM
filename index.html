@@ -914,15 +914,15 @@ async function executeResetPassword() {
     }
 
 
-    async function setupWorkFormDropdowns() {
+async function setupWorkFormDropdowns() {
   try {
     const projectSelect = document.getElementById('work-project');
     if (!projectSelect) return;
 
     projectSelect.innerHTML = '<option value="">-- Choose Project --</option>';
 
-    // Original project fetch path
-    const snapshot = await firebase.database().ref('projects').once('value');
+    // Fetch projects from the correct nested path: masters/projects
+    const snapshot = await firebase.database().ref('masters/projects').once('value');
     const projectsData = snapshot.val();
 
     if (projectsData) {
@@ -940,8 +940,10 @@ async function executeResetPassword() {
     console.error("Error loading projects:", err);
   }
 }
-    
 
+
+
+    
 
 async function executeWorkSubmit(e) {
   e.preventDefault();
@@ -2062,8 +2064,11 @@ function handleFormSubmit(formData) {
 }
 
 function openNewWorkLogForm() {
+  setupWorkFormDropdowns();
   switchView('view-work-entry');
 }
+
+
     
        
   </script>
