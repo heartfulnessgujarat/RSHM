@@ -1520,7 +1520,6 @@ function calculateRequestedDays() {
   if (badge) badge.classList.remove('hidden');
 }
 
-
 async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -1600,54 +1599,42 @@ async function handleLeaveSubmit(e) {
 
     const reason = document.getElementById('leaveReason')?.value?.trim() || (isPh ? finalLeaveType : 'Leave Application');
 
-    const dbRef = firebase.database().ref();
-    const leavesRef = dbRef.child('leaves');
-    const newLeaveRef = leavesRef.push();
-    const leave_id = newLeaveRef.key;
-
+    // Constructing the payload expected by handleApplyForLeave in code.gs
     const payload = {
-      leave_id: leave_id,
       emp_code: empCode,
       employeeId: empCode,
-      employeeName: empName,
+      employee_name: empName,
       leaveType: finalLeaveType,
       fromDate: fromDate,
       toDate: toDate,
       totalDays: totalDays,
       reason: reason,
-      status: 'Pending',
-      isAutoApproved: false,
-      skipEmailNotification: false,
-      appliedAt: new Date().toISOString()
+      skipEmailNotification: false
     };
 
-    console.log("-> [DIAGNOSTIC] Saving leave payload directly to Firebase:", payload);
+    console.log("-> [DIAGNOSTIC] Sending leave application to backend script:", payload);
 
-    // Save directly using Firebase SDK push/set
-    await newLeaveRef.set(payload);
-
-    // Trigger email notification to report in-charge if functions are available
-    if (typeof sendEmailNotification === 'function') {
-      try {
-        await sendEmailNotification('leave_applied', payload);
-        console.log("-> [DIAGNOSTIC] sendEmailNotification triggered successfully.");
-      } catch (emailErr) {
-        console.warn("-> Email notification warning:", emailErr);
-      }
-    } else if (typeof triggerEmailAlert === 'function') {
-      try {
-        await triggerEmailAlert(payload);
-        console.log("-> [DIAGNOSTIC] triggerEmailAlert triggered successfully.");
-      } catch (emailErr) {
-        console.warn("-> Email alert warning:", emailErr);
-      }
+    let response;
+    if (typeof callBackend === 'function') {
+      response = await callBackend("applyLeave", payload);
     } else {
-      console.log("-> [DIAGNOSTIC] No direct email notification function detected in scope.");
+      const targetUrl = typeof BACKEND_API !== 'undefined' ? BACKEND_API : SCRIPT_URL;
+      const res = await fetch(targetUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'applyLeave', payload: payload })
+      });
+      const jsonRes = await res.json();
+      response = jsonRes.data || jsonRes;
+    }
+
+    if (!response || response.success === false) {
+      throw new Error(response?.error || response?.message || 'Failed to submit leave application.');
     }
 
     if (statusDiv) {
       statusDiv.style.color = '#1e8e3e';
-      statusDiv.innerText = 'Leave request submitted successfully and sent for approval!';
+      statusDiv.innerText = response.message || 'Leave request submitted successfully and sent for approval!';
     }
 
     setTimeout(() => {
@@ -1676,9 +1663,6 @@ async function handleLeaveSubmit(e) {
     if (submitBtn) submitBtn.disabled = false;
   }
 }
-
-
-
 
     
 async function loadLeaveMasterOptions() {
