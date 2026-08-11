@@ -965,9 +965,6 @@ function setupWorkFormDropdowns() {
     }
 
 
-
-
-    
 async function executeWorkSubmit(e) {
   e.preventDefault();
   console.log("1. Submit triggered");
@@ -988,7 +985,6 @@ async function executeWorkSubmit(e) {
   // ==========================================
   let sundayConfirmed = false;
   if (work_date) {
-    // Safely parse YYYY-MM-DD to avoid timezone offset shifts
     const [year, month, day] = work_date.split('-').map(Number);
     const selectedDate = new Date(year, month - 1, day);
     const isSunday = (selectedDate.getDay() === 0);
@@ -1008,7 +1004,6 @@ async function executeWorkSubmit(e) {
 
       if (!userWantsToProceed) {
         console.log("6. User cancelled Sunday entry");
-        // If user clicks "No", reset form and navigate back to main dashboard
         document.getElementById('work-form').reset();
         switchView('view-dashboard');
         return; 
@@ -1027,40 +1022,55 @@ async function executeWorkSubmit(e) {
   const activeUid = currentUser.employee_uid || currentUser.employeeUid || currentUser.emp_code || currentUser.empCode;
 
   try {
-    const payload = {
-      employee_uid: activeUid,
-      work_date, 
-      from_time, 
-      to_time, 
-      project_id, 
-      project_name, 
-      work_description,
-      sunday_confirmed: sundayConfirmed
-    };
+    // Calculate work duration in hours dynamically for record storage
+    const [fromHours, fromMins] = from_time.split(':').map(Number);
+    const [toHours, toMins] = to_time.split(':').map(Number);
+    let duration = ((toHours * 60 + toMins) - (fromHours * 60 + fromMins)) / 60;
+    if (duration < 0) duration = 0;
 
+    const dbRef = firebase.database().ref();
+    const worklogsRef = dbRef.child('worklogs');
 
-    
-    let res;
-
-
-
-if (editingId) {
-      payload.worklog_id = editingId;
-      res = await callBackend("updateWorkLog", payload);
+    if (editingId) {
+      // Update existing work log directly in Firebase
+      await worklogsRef.child(editingId).update({
+        employee_uid: activeUid,
+        work_date,
+        from_time,
+        to_time,
+        project_id,
+        project_name,
+        work_description,
+        duration,
+        sunday_confirmed: sundayConfirmed,
+        updated_at: new Date().toISOString()
+      });
       showToast("Work log updated successfully!", false);
     } else {
-      res = await callBackend("submitWorkLog", payload);
-      showToast("Work log saved successfully!", false); // Safe fallback message
+      // Push a new unique key entry into Firebase
+      const newLogRef = worklogsRef.push();
+      const worklog_id = newLogRef.key;
+      await newLogRef.set({
+        worklog_id,
+        employee_uid: activeUid,
+        work_date,
+        from_time,
+        to_time,
+        project_id,
+        project_name,
+        work_description,
+        duration,
+        sunday_confirmed: sundayConfirmed,
+        created_at: new Date().toISOString()
+      });
+      showToast("Work log saved successfully!", false);
     }
     
     document.getElementById('work-form').reset();
-    switchView('view-dashboard');
+    // Clear out editing state ID tracker if present
+    const editingField = document.getElementById('editing-worklog-id');
+    if (editingField) editingField.value = "";
 
-
-
-
-    
-    document.getElementById('work-form').reset();
     switchView('view-dashboard');
   } catch(err) {
     console.error("Save error caught:", err);
@@ -1072,105 +1082,118 @@ if (editingId) {
 }
 
 
-    
+async function loadTimesheetHistory() {
+  switchView('view-timesheet');
+  const listDiv = document.getElementById('timesheet-list');
+  listDiv.innerHTML = "<p style='text-align:center; padding:15px;'>Loading records...</p>";
+  
+  const activeUid = currentUser.employee_uid || currentUser.employeeUid || currentUser.emp_code || currentUser.empCode;
 
-    async function loadTimesheetHistory() {
-      switchView('view-timesheet');
-      const listDiv = document.getElementById('timesheet-list');
-      listDiv.innerHTML = "<p style='text-align:center; padding:15px;'>Loading records...</p>";
-      
-      try {
-        cachedTimesheet = await callBackend("getTimesheet", { 
-          employee_uid: currentUser.employee_uid || currentUser.employeeUid || currentUser.emp_code || currentUser.empCode 
-        });
-        renderTimesheetList();
-      } catch(e) {
-        showToast(e.message);
-      }
+  try {
+    // Query worklogs directly from Firebase filtered by employee_uid
+    const snapshot = await firebase.database().ref('worklogs')
+      .orderByChild('employee_uid')
+      .equalTo(activeUid)
+      .once('value');
+
+    cachedTimesheet = [];
+    if (snapshot.exists()) {
+      snapshot.forEach(childSnap => {
+        cachedTimesheet.push(childSnap.val());
+      });
+      // Sort newest dates first
+      cachedTimesheet.sort((a, b) => new Date(b.work_date) - new Date(a.work_date));
     }
 
-    function renderTimesheetList() {
-      const listDiv = document.getElementById('timesheet-list');
-      if (!cachedTimesheet || cachedTimesheet.length === 0) {
+    renderTimesheetList();
+  } catch(e) {
+    showToast(e.message);
+  }
+}
+    
+
+function renderTimesheetList() {
+    const listDiv = document.getElementById('timesheet-list');
+    if (!cachedTimesheet || cachedTimesheet.length === 0) {
         listDiv.innerHTML = "<p style='text-align:center; padding:15px;'>No work logs recorded yet.</p>";
         return;
-      }
+    }
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const windowDays = parseInt(currentConfig.edit_window_days) || 3;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Safely resolve edit window days from CONFIG, window.APP_MASTER_CACHE, or fall back to 3
+    const windowDays = parseInt(
+        (typeof CONFIG !== 'undefined' ? CONFIG.edit_window_days : null) || 
+        (window.APP_MASTER_CACHE ? window.APP_MASTER_CACHE.editWindowDays : null) || 
+        3
+    );
 
-      let html = "";
-      cachedTimesheet.forEach(log => {
+    let html = "";
+    cachedTimesheet.forEach(log => {
         const logDate = new Date(log.work_date);
         logDate.setHours(0, 0, 0, 0);
         const diffDays = Math.floor((today - logDate) / (1000 * 60 * 60 * 24));
         const isEditable = diffDays <= windowDays;
 
         html += `
-          <div class="item-row">
-            <div class="flex-space">
-              <strong>${log.work_date} (${log.duration} hrs)</strong>
-              ${isEditable ? `
-                <div class="action-group">
-                  <button type="button" class="btn-sm" onclick="editWorkLog('${log.worklog_id}')">Edit</button>
-                  <button type="button" class="btn-sm btn-danger" onclick="deleteWorkLog('${log.worklog_id}')">Delete</button>
+            <div class="item-row">
+                <div class="flex-space">
+                    <strong>${log.work_date} (${log.duration} hrs)</strong>
+                    ${isEditable ? `
+                        <div class="action-group">
+                            <button type="button" class="btn-sm" onclick="editWorkLog('${log.worklog_id}')">Edit</button>
+                            <button type="button" class="btn-sm btn-danger" onclick="deleteWorkLog('${log.worklog_id}')">Delete</button>
+                        </div>
+                    ` : `<small style="color:#9ca3af;">Locked</small>`}
                 </div>
-              ` : `<small style="color:#9ca3af;">Locked</small>`}
+                <div style="font-size:0.85rem; color:#4b5563;">
+                    <span><strong>${log.project_name}</strong> | ${log.from_time} - ${log.to_time}</span>
+                </div>
+                <p style="font-size:0.82rem; margin-top:4px; color:#374151;">${log.work_description}</p>
             </div>
-            <div style="font-size:0.85rem; color:#4b5563;">
-              <span><strong>${log.project_name}</strong> | ${log.from_time} - ${log.to_time}</span>
-            </div>
-            <p style="font-size:0.82rem; margin-top:4px; color:#374151;">${log.work_description}</p>
-          </div>
         `;
-      });
-      listDiv.innerHTML = html;
-    }
-
-
-function editWorkLog(worklogId) {
-      const log = cachedTimesheet.find(l => l.worklog_id === worklogId);
-      if (!log) return;
-
-      setupWorkFormDropdowns();
-      document.getElementById('work-entry-title').innerText = "Edit Work Log";
-      document.getElementById('editing-worklog-id').value = log.worklog_id;
-      document.getElementById('work-date').value = log.work_date;
-      document.getElementById('work-from').value = log.from_time;
-      document.getElementById('work-to').value = log.to_time;
-      document.getElementById('work-project').value = log.project_id;
-      document.getElementById('work-desc').value = log.work_description;
-
-      // ==> ADD THIS LINE HERE: Dynamically bind the interceptor with this log's specific data <==
-      document.getElementById('work-form').onsubmit = function(event) {
-        confirmAndUpdateWorkLog(event, log.work_date, log.worklog_id, log.duration);
-      };
-
-      switchView('view-work-entry');
-    }
+    });
+    listDiv.innerHTML = html;
+}
 
 
 
     
+
+function editWorkLog(worklogId) {
+    const log = cachedTimesheet.find(l => l.worklog_id === worklogId);
+    if (!log) return;
+
+    setupWorkFormDropdowns();
+    document.getElementById('work-entry-title').innerText = "Edit Work Log";
+    document.getElementById('editing-worklog-id').value = log.worklog_id;
+    document.getElementById('work-date').value = log.work_date;
+    document.getElementById('work-from').value = log.from_time;
+    document.getElementById('work-to').value = log.to_time;
+    document.getElementById('work-project').value = log.project_id;
+    document.getElementById('work-desc').value = log.work_description;
+
+    // The form submission is already handled natively by executeWorkSubmit 
+    // which checks for the 'editing-worklog-id' field value automatically!
+
+    switchView('view-work-entry');
+}
+
+
     async function deleteWorkLog(worklogId) {
-      const confirmed = await showCustomConfirm("Do you really want to delete this work log?");
-      if (!confirmed) return;
+  const confirmed = await showCustomConfirm("Do you really want to delete this work log?");
+  if (!confirmed) return;
 
-      try {
-        const msg = await callBackend("deleteWorkLog", {
-          worklog_id: worklogId,
-          employee_uid: currentUser.employee_uid || currentUser.employeeUid || currentUser.emp_code || currentUser.empCode
-        });
-        showToast(msg, false);
-        await loadTimesheetHistory();
-      } catch(e) {
-        showToast(e.message);
-      }
-    }
-
-
-
+  try {
+    // Remove the work log entry directly using its ID reference
+    await firebase.database().ref(`worklogs/${worklogId}`).remove();
+    showToast("Work log deleted successfully.", false);
+    await loadTimesheetHistory();
+  } catch(e) {
+    showToast(e.message);
+  }
+}
 
     
     async function loadDashboardLeaveStatus() {
