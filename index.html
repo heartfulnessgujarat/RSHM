@@ -942,9 +942,6 @@ async function setupWorkFormDropdowns() {
 }
 
 
-
-    
-
 async function executeWorkSubmit(e) {
   e.preventDefault();
   console.log("1. Submit triggered");
@@ -958,8 +955,6 @@ async function executeWorkSubmit(e) {
   const project_name = projectSelect.options[projectSelect.selectedIndex].text;
   const work_description = document.getElementById('work-desc').value.trim();
 
-  console.log("2. Date read:", work_date);
-
   // ==========================================
   // CUSTOM SUNDAY CONFIRMATION MODAL CHECK
   // ==========================================
@@ -968,8 +963,6 @@ async function executeWorkSubmit(e) {
     const [year, month, day] = work_date.split('-').map(Number);
     const selectedDate = new Date(year, month - 1, day);
     const isSunday = (selectedDate.getDay() === 0);
-    
-    console.log("3. Is Sunday?:", isSunday);
 
     if (isSunday) {
       let userWantsToProceed = false;
@@ -987,9 +980,6 @@ async function executeWorkSubmit(e) {
       sundayConfirmed = true;
     }
   }
-  // ==========================================
-
-  console.log("7. Proceeding to save work log via Firebase...");
 
   const btn = document.getElementById('btn-save-log');
   btn.disabled = true;
@@ -1004,11 +994,19 @@ async function executeWorkSubmit(e) {
     let duration = ((toHours * 60 + toMins) - (fromHours * 60 + fromMins)) / 60;
     if (duration < 0) duration = 0;
 
+    // Use existing editingId if updating, otherwise generate WL timestamp ID matching backend code
+    const worklog_id = editingId ? editingId : ("WL" + new Date().getTime());
+    
+    // Format timestamp string
+    const nowIso = new Date().toISOString();
+
     const dbRef = firebase.database().ref();
+    
+    // Direct path write matching backend: daily_work/{activeEmpCode}/{worklog_id}
+    const logRef = dbRef.child(`daily_work/${activeEmpCode}/${worklog_id}`);
 
     if (editingId) {
-      // Update under daily_work/{activeEmpCode}/{editingId}
-      await dbRef.child(`daily_work/${activeEmpCode}/${editingId}`).update({
+      await logRef.update({
         employee_uid: activeUid,
         emp_code: activeEmpCode,
         work_date,
@@ -1019,14 +1017,11 @@ async function executeWorkSubmit(e) {
         work_description,
         duration,
         sunday_confirmed: sundayConfirmed,
-        updated_at: new Date().toISOString()
+        updated_on: nowIso
       });
       showToast("Work log updated successfully!", false);
     } else {
-      // Push new under daily_work/{activeEmpCode}/
-      const newLogRef = dbRef.child(`daily_work/${activeEmpCode}`).push();
-      const worklog_id = newLogRef.key;
-      await newLogRef.set({
+      await logRef.set({
         worklog_id,
         employee_uid: activeUid,
         emp_code: activeEmpCode,
@@ -1038,7 +1033,8 @@ async function executeWorkSubmit(e) {
         work_description,
         duration,
         sunday_confirmed: sundayConfirmed,
-        created_at: new Date().toISOString()
+        created_on: nowIso,
+        updated_on: nowIso
       });
       showToast("Work log saved successfully!", false);
     }
@@ -1056,6 +1052,10 @@ async function executeWorkSubmit(e) {
     btn.innerText = "Submit Work Log";
   }
 }
+
+
+    
+
 
 async function deleteWorkLog(worklogId) {
   const confirmed = await showCustomConfirm("Do you really want to delete this work log?");
