@@ -966,36 +966,44 @@ async function executeWorkSubmit(e) {
 
 
 
-
 // ==========================================
   // 1. EDIT WINDOW INTERLOCK VALIDATION CHECK
   // ==========================================
   if (work_date) {
     try {
-      const configSnapshot = await firebase.database().ref('config').once('value');
-      const configData = configSnapshot.val() || {};
+      let editWindowDays = 7; // Absolute fallback
       
-      // Explicitly check your config keys and enforce a strict fallback of 7 if missing
-      const editWindowDays = parseInt(configData.worklog_edit_window_days ?? configData.edit_window_days ?? 7, 10);
+      if (typeof window.APP_CONFIG !== 'undefined' && (window.APP_CONFIG.worklog_edit_window_days || window.APP_CONFIG.edit_window_days)) {
+        editWindowDays = parseInt(window.APP_CONFIG.worklog_edit_window_days || window.APP_CONFIG.edit_window_days, 10);
+      } else {
+        const configSnapshot = await firebase.database().ref('config').once('value');
+        const configData = configSnapshot.val() || {};
+        
+        // Check all common possible naming variations for the config property and force integer parsing
+        const rawWindow = configData.worklog_edit_window_days || configData.edit_window_days || configData.window_days || 7;
+        editWindowDays = parseInt(rawWindow, 10);
+        
+        window.APP_CONFIG = configData;
+      }
 
-      // Parse work_date (YYYY-MM-DD)
+      // Safeguard if parseInt somehow returns NaN
+      if (isNaN(editWindowDays)) editWindowDays = 7;
+
       const [year, month, day] = work_date.split('-').map(Number);
       const selectedDate = new Date(year, month - 1, day);
       selectedDate.setHours(0, 0, 0, 0);
 
-      // Get current date stripped of time
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      // Calculate exact calendar day difference cleanly
       const diffTime = today.getTime() - selectedDate.getTime();
       const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
-      console.log("--- EDIT WINDOW CHECK ---");
+      console.log("--- STRICT EDIT WINDOW CHECK ---");
       console.log("Selected Date:", selectedDate.toDateString());
       console.log("Today:", today.toDateString());
       console.log("Calculated diffDays:", diffDays);
-      console.log("Configured editWindowDays limit:", editWindowDays);
+      console.log("Parsed numeric editWindowDays limit:", editWindowDays);
 
       if (selectedDate > today) {
         throw new Error("You cannot log work hours for future dates.");
@@ -1011,17 +1019,14 @@ async function executeWorkSubmit(e) {
         alert(windowErr.message);
       }
       
-      // Reset button state before returning
       const btn = document.getElementById('btn-save-log');
       if (btn) {
         btn.disabled = false;
         btn.innerText = "Submit Work Log";
       }
-      return; // Stop execution and block submission
+      return; // Stops submission immediately
     }
-  }
-
-  
+  }  
 
 
 
