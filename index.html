@@ -1109,11 +1109,23 @@ async function executeWorkSubmit(e) {
   const activeUid = currentUser.employee_uid || currentUser.employeeUid || activeEmpCode;
 
   try {
+
+
+
     const [fromHours, fromMins] = from_time.split(':').map(Number);
     const [toHours, toMins] = to_time.split(':').map(Number);
-    let duration = ((toHours * 60 + toMins) - (fromHours * 60 + fromMins)) / 60;
-    if (duration < 0) duration = 0;
+    
+    let totalMins = (toHours * 60 + toMins) - (fromHours * 60 + fromMins);
+    if (totalMins < 0) totalMins = 0;
 
+    const durHours = Math.floor(totalMins / 60);
+    const durMins = totalMins % 60;
+    const duration = `${String(durHours).padStart(2, '0')}:${String(durMins).padStart(2, '0')}`;
+
+
+
+
+    
     const worklog_id = editingId ? editingId : ("WL" + new Date().getTime());
     const nowIso = new Date().toISOString();
 
