@@ -1435,18 +1435,12 @@ async function loadDashboardLeaveStatus() {
 }
 
 
-    
-   
-
 /**
  * REPLACEMENT FOR openLeaveModule() / loadLeaveBalances()
- * Compatible with GitHub Pages using BACKEND_API (Includes PH Balance Support)
+ * Compatible with direct Firebase reads (Includes PH Balance Support)
  */
 async function openLeaveModule() {
-
-
-
-// 1. Switch UI view to the leave module card & reset form inputs for a fresh state
+  // 1. Switch UI view to the leave module card & reset form inputs for a fresh state
   if (typeof switchView === 'function') {
     switchView('view-leave-module');
   }
@@ -1466,12 +1460,9 @@ async function openLeaveModule() {
   const statusMsgElem = document.getElementById('leaveStatusMessage');
   if (statusMsgElem) statusMsgElem.innerText = '';
 
-
-
-  
   // 2. Try multiple fallback sources to get the logged-in employee ID safely
   let empId = (typeof currentUser !== 'undefined' && currentUser) 
-              ? (currentUser.empCode || currentUser.empId || currentUser.uid) 
+              ? (currentUser.empCode || currentUser.empId || currentUser.uid || currentUser.emp_code) 
               : '';
 
   if (!empId) {
@@ -1507,40 +1498,35 @@ async function openLeaveModule() {
   if (coElem) coElem.innerText = '..';
   if (phElem) phElem.innerText = '..';
 
-  // Determine standard Google Apps Script Web App Endpoint URL
-  const apiUrl = typeof BACKEND_API !== 'undefined' ? BACKEND_API : 
-                 (typeof SCRIPT_URL !== 'undefined' ? SCRIPT_URL : '');
-
-  if (!apiUrl) {
-    console.error('BACKEND_API is not defined in index.html');
-    if (typeof showToast === 'function') {
-      showToast('Backend API URL is not configured.', 'error');
-    }
-    return;
-  }
-
   try {
-    // 4. Make HTTP request to Google Apps Script Web App
-    const response = await fetch(`${apiUrl}?action=getEmployeeLeaveBalances&empIdentifier=${encodeURIComponent(empId)}`);
-    const data = await response.json();
+    // 4. ⭐ DIRECT FIREBASE READ FOR BALANCES ⭐
+    const snapshot = await firebase.database().ref(`leave_balances/${empId}`).once('value');
+    const balances = snapshot.val();
 
-    if (data && (data.success || data.balances)) {
-      renderLeaveBalances(data.balances || data);
+    if (balances) {
+      renderLeaveBalances(balances);
     } else {
-      if (typeof showToast === 'function') {
-        showToast(data?.message || 'Failed to load balances.', 'error');
+      // Fallback check if stored under employee master node
+      const empSnapshot = await firebase.database().ref(`masters/employees/${empId}`).once('value');
+      const empData = empSnapshot.val();
+      if (empData && empData.balances) {
+        renderLeaveBalances(empData.balances);
+      } else {
+        // Default zero balances if none found
+        renderLeaveBalances({ cl: 0, sl: 0, co: 0, ph: 0 });
       }
     }
-
-
-    
   } catch (err) {
-    console.error("Error fetching leave balances:", err);
+    console.error("Error fetching leave balances from Firebase:", err);
     if (typeof showToast === 'function') {
       showToast('Error fetching leave balances: ' + err.message, 'error');
     }
   }
 }
+
+
+    
+   
 
 /**
  * Helper to render balance values dynamically in index.html spans (Includes PH)
