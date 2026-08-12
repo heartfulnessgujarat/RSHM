@@ -1196,12 +1196,7 @@ throw new Error(`You have already entered work from ${log.from_time} to ${log.to
 
     switchView('view-dashboard');
 
-
-
-
-
-
-    
+   
   } catch(err) {
     console.error("Save error caught:", err);
     if (typeof showToast === 'function') showToast(err.message || String(err));
@@ -1213,22 +1208,6 @@ throw new Error(`You have already entered work from ${log.from_time} to ${log.to
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     
 // Ensure you also have this helper function included in your script:
 function timeToMins(timeStr) {
@@ -1237,9 +1216,7 @@ function timeToMins(timeStr) {
   return (hours * 60) + mins;
 }
 
-
     
-
 
 async function deleteWorkLog(worklogId) {
   const confirmed = await showCustomConfirm("Do you really want to delete this work log?");
@@ -2208,7 +2185,7 @@ function formatDatetoDDMMMYYYY(dateStr) {
   return dateStr;
 }
 
-async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, overrideStatus = null) {
+    async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, overrideStatus = null) {
   try {
     const dbRef = firebase.database();
     
@@ -2226,10 +2203,10 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     const isSunday = !isNaN(dateObjCheck.getTime()) && dateObjCheck.getDay() === 0;
 
     let totalHours = 0;
-    let finalStatus = "NE";
+    let finalStatus = "NE"; // Default baseline to NE as intended for payroll cycles
 
     if (overrideStatus) {
-      // 1. Instant fallback parsing so the UI doesn't lag waiting for network
+      // 1. Leave override flow
       const upper = String(overrideStatus).trim().toUpperCase();
       let derivedCode = upper;
       if (upper.includes('CAS') || upper.includes('CL')) derivedCode = 'CL';
@@ -2240,24 +2217,24 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       finalStatus = isSunday ? "WO" : derivedCode;
       totalHours = 0;
 
-      // 2. Perform the database master lookup asynchronously in the background 
-      // without blocking the write or the success message prompt!
+      // Background master lookup
       dbRef.ref(`masters/leave_master/${String(overrideStatus).trim()}`).once('value').then(masterSnap => {
         if (masterSnap.exists()) {
           const masterData = masterSnap.val();
           const trueCode = masterData.leave_code_approved || masterData.leave_code_unapproved;
           if (trueCode && trueCode !== finalStatus) {
-            // Silently update with the precise master code if it differs
             dbRef.ref(`attendance/${activeEmpCode}/${targetDateDisplay}/status`).set(trueCode);
           }
         }
       }).catch(err => console.warn("Background leave_master sync note:", err));
 
     } else {
+      // 2. Standard work log calculation flow
       const allLogsSnap = await dbRef.ref(`daily_work/${activeEmpCode}`).once('value');
       if (allLogsSnap.exists()) {
         allLogsSnap.forEach(childSnap => {
           const log = childSnap.val();
+          // Match logs belonging precisely to this workDate
           if (log && String(log.work_date).trim() === workDate) {
             const dur = log.duration || "00:00";
             if (typeof dur === 'string' && dur.includes(':')) {
@@ -2286,7 +2263,7 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       } else if (totalHours > 0) {
         finalStatus = codeBelowThreshold;
       } else {
-        finalStatus = codeNoEntry;
+        finalStatus = codeNoEntry; // Safely defaults to NE if 0 hours and no override!
       }
     }
 
@@ -2305,7 +2282,7 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     };
 
     await dbRef.ref(`attendance/${activeEmpCode}/${targetDateDisplay}`).set(attendanceRecord);
-    console.log("✅ Successfully synced attendance to Firebase for " + activeEmpCode + " on " + targetDateDisplay + " with status: " + finalStatus);
+    console.log("✅ Successfully synced attendance for " + activeEmpCode + " on " + targetDateDisplay + " with status: " + finalStatus);
 
   } catch (err) {
     console.warn("💥 Error in recalculateAndSyncAttendanceFrontend:", err);
