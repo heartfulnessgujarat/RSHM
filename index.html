@@ -2197,7 +2197,6 @@ function formatDatetoDDMMMYYYY(dateStr) {
   return dateStr;
 }
 
-
 async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, overrideStatus = null) {
   try {
     const dbRef = firebase.database();
@@ -2222,8 +2221,20 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     let finalStatus = "NE";
 
     if (overrideStatus) {
-      // If an explicit status (like CL, SL, etc.) was passed, use it!
-      finalStatus = isSunday ? "WO" : String(overrideStatus).trim().toUpperCase();
+      // Dynamically derive short code from overrideStatus (e.g., "Causal Leave" -> "CL")
+      const upperType = String(overrideStatus).trim().toUpperCase();
+      let derivedCode = upperType;
+      
+      if (upperType.includes('CASUAL')) derivedCode = 'CL';
+      else if (upperType.includes('SICK')) derivedCode = 'SL';
+      else if (upperType.includes('COMP') || upperType.includes('CO')) derivedCode = 'CO';
+      else if (upperType.includes('PAID') || upperType.includes('PH')) derivedCode = 'PH';
+      else if (upperType.length > 5) {
+        // Fallback abbreviation generator if it's a long custom string
+        derivedCode = upperType.split(' ').map(w => w[0]).join('').substring(0, 4);
+      }
+
+      finalStatus = isSunday ? "WO" : derivedCode;
       totalHours = 0;
     } else {
       // Otherwise, calculate standard work hours from daily_work logs
