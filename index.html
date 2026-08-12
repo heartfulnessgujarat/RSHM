@@ -1310,7 +1310,21 @@ function renderTimesheetList() {
         const isEditable = diffDays <= windowDays;
 
         // Format the decimal duration to hh:mm
-        const formattedDuration = formatHoursToHM(log.duration || 0);
+      
+    //    const formattedDuration = formatHoursToHM(log.duration || 0);
+
+// To this robust version:
+        let formattedDuration = "00:00";
+        if (typeof log.duration === 'string' && log.duration.includes(':')) {
+            formattedDuration = log.duration; // Already in hh:mm format
+        } else {
+            formattedDuration = formatHoursToHM(parseFloat(log.duration) || 0); // Fallback for decimals
+        }
+
+
+
+
+      
 
         html += `
             <div class="item-row">
