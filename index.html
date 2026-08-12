@@ -1820,13 +1820,19 @@ async function handleLeaveSubmit(e) {
 
 
 
-    
-    
-// Trigger attendance recalculation if function exists
-// Roll back to triggering attendance sync with finalLeaveType properly passed
+    // ⭐ STEP 2: DYNAMICALLY RESOLVE UPPERCODE FROM leave_master CACHE ⭐
+const selectedLeaveTypeName = finalLeaveType; 
+const standardizedCode = (window.APP_LEAVE_CODES_MAP && window.APP_LEAVE_CODES_MAP[selectedLeaveTypeName]) 
+  ? window.APP_LEAVE_CODES_MAP[selectedLeaveTypeName] 
+  : selectedLeaveTypeName.trim().toUpperCase().substring(0, 3);
+
+console.log(`-> [ATTENDANCE SYNC] Translating leave type [${selectedLeaveTypeName}] to master code [${standardizedCode}]`);
+
+// Trigger attendance recalculation with the clean uppercase code
 if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
-  await recalculateAndSyncAttendanceFrontend(empCode, fromDate, finalLeaveType);
+  await recalculateAndSyncAttendanceFrontend(empCode, fromDate, standardizedCode);
 }
+    
 
 
 
@@ -2308,6 +2314,23 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     console.warn("💥 Error in recalculateAndSyncAttendanceFrontend:", err);
   }
 }
+
+function getLeaveCodeFromMaster(leaveTypeName) {
+  if (!leaveTypeName) return 'P'; // Default / Present fallback
+  
+  // Check our global map populated by loadLeaveMasterOptions()
+  if (window.APP_LEAVE_CODES_MAP && window.APP_LEAVE_CODES_MAP[leaveTypeName]) {
+    return window.APP_LEAVE_CODES_MAP[leaveTypeName];
+  }
+  
+  // Fallback if not found in cache: clean and uppercase safely
+  return leaveTypeName.trim().toUpperCase().substring(0, 3);
+}
+
+
+
+
+
     
   </script>
 </body>
