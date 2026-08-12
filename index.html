@@ -1384,45 +1384,59 @@ function formatHoursToHM(decimalHours) {
 }
     
     
-    
-    async function loadDashboardLeaveStatus() {
-      const container = document.getElementById('dashboardLeaveStatusContainer');
-      if (!container || !currentUser) return;
+async function loadDashboardLeaveStatus() {
+  const container = document.getElementById('dashboardLeaveStatusContainer');
+  if (!container || !currentUser) return;
 
-      try {
-        const res = await callBackend("getEmployeeLeaveRequests", {
-          emp_code: currentUser.emp_code || currentUser.empCode || currentUser.employee_uid
-        });
+  try {
+    const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
+    if (!empCode) return;
 
-        if (!res || !res.requests || res.requests.length === 0) {
-          container.innerHTML = `<div style="font-size: 0.85rem; color: #6b7280; font-style: italic;">No leave applications found.</div>`;
-          return;
-        }
+    // ⭐ DIRECT FIREBASE READ FROM THE NEW STRUCTURE ⭐
+    const snapshot = await firebase.database().ref(`leave_requests/${empCode}`).once('value');
+    const leavesData = snapshot.val();
 
-        const pending = res.requests.filter(r => String(r.status).toLowerCase() === 'pending');
-        if (pending.length === 0) {
-          container.innerHTML = `<div style="font-size: 0.85rem; color: #16a34a; font-weight: 500;">All leave requests actioned!</div>`;
-          return;
-        }
-
-        let html = "";
-        pending.forEach(r => {
-          html += `
-            <div style="font-size: 0.82rem; border-bottom: 1px dashed #e5e7eb; padding: 6px 0;">
-              <div><strong>${r.leaveType}</strong> (${r.leaveDate})</div>
-              <div style="color: #6b7280;">Reason: ${r.reason || 'N/A'}</div>
-              <div style="color: #d97706; font-weight: 600; margin-top: 2px;">Status: ${r.status}</div>
-            </div>
-          `;
-        });
-        container.innerHTML = html;
-      } catch(e) {
-        container.innerHTML = `<div style="font-size: 0.82rem; color: #dc2626;">Unable to load status.</div>`;
-      }
+    if (!leavesData) {
+      container.innerHTML = `<div style="font-size: 0.85rem; color: #6b7280; font-style: italic;">No leave applications found.</div>`;
+      return;
     }
 
+    // Convert the object of leaves into an array
+    const requestsArray = [];
+    for (const leaveId in leavesData) {
+      requestsArray.push(leavesData[leaveId]);
+    }
+
+    const pending = requestsArray.filter(r => String(r.status).toLowerCase() === 'pending');
+    if (pending.length === 0) {
+      container.innerHTML = `<div style="font-size: 0.85rem; color: #16a34a; font-weight: 500;">All leave requests actioned!</div>`;
+      return;
+    }
+
+    let html = "";
+    pending.forEach(r => {
+      // Support both property formats just in case (leave_type vs leaveType)
+      const lType = r.leave_type || r.leaveType || 'Leave';
+      const lDate = r.leave_date || r.leaveDate || '';
+      
+      html += `
+        <div style="font-size: 0.82rem; border-bottom: 1px dashed #e5e7eb; padding: 6px 0;">
+          <div><strong>${lType}</strong> (${lDate})</div>
+          <div style="color: #6b7280;">Reason: ${r.reason || 'N/A'}</div>
+          <div style="color: #d97706; font-weight: 600; margin-top: 2px;">Status: ${r.status}</div>
+        </div>
+      `;
+    });
+    container.innerHTML = html;
+  } catch(e) {
+    console.error("Error loading dashboard leave status:", e);
+    container.innerHTML = `<div style="font-size: 0.82rem; color: #dc2626;">Unable to load status.</div>`;
+  }
+}
 
 
+    
+   
 
 /**
  * REPLACEMENT FOR openLeaveModule() / loadLeaveBalances()
