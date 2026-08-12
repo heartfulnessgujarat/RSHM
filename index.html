@@ -396,11 +396,6 @@
     </div>
 
 
-
-
-
-
-
     
     <!-- Leave Application Form -->
     <form id="leaveApplyForm" onsubmit="handleLeaveSubmit(event)">
@@ -1823,13 +1818,19 @@ async function handleLeaveSubmit(e) {
     }
 
 
+
+
+    
     
 // Trigger attendance recalculation if function exists
 // Roll back to triggering attendance sync with finalLeaveType properly passed
 if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
   await recalculateAndSyncAttendanceFrontend(empCode, fromDate, finalLeaveType);
 }
-   
+
+
+
+    
     
     if (statusDiv) {
       statusDiv.style.color = '#1e8e3e';
@@ -1864,10 +1865,6 @@ if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
 }
 
 
-
-    
-    
-    
 async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
   const selectElem = document.getElementById('leaveTypeSelect');
@@ -1900,13 +1897,22 @@ async function loadLeaveMasterOptions() {
     // Reset Leave Types dropdown
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
 
+    // ⭐ STEP 1: INITIALIZE GLOBAL LOOKUP CACHE FOR DYNAMIC CODES ⭐
+    window.APP_LEAVE_CODES_MAP = window.APP_LEAVE_CODES_MAP || {};
+
     leaveTypesArray.forEach((item) => {
       if (!item) return;
       // Matches your database keys like type_of_leave and leave_code_unapproved
       const leaveName = item.type_of_leave || item.type || item.leaveType || item.name || '';
       const unapprovedCode = item.leave_code_unapproved || item.unapproved || item.code || '';
       
+      // Look for your approved code property in your database item schema, falling back to unapproved code
+      const approvedCode = item.leave_code_approved || item.approved_code || item.code || unapprovedCode; 
+      
       if (leaveName) {
+        // Map the leave name dynamically to its approved uppercase code
+        window.APP_LEAVE_CODES_MAP[leaveName] = approvedCode.toUpperCase();
+
         const option = document.createElement('option');
         option.value = leaveName; 
         option.textContent = unapprovedCode ? `${leaveName} (${unapprovedCode.toUpperCase()})` : leaveName;
@@ -1960,8 +1966,8 @@ async function loadLeaveMasterOptions() {
     selectElem.innerHTML = '<option value="">-- Error Loading Options --</option>';
   }
 }
-
-
+    
+    
     
 async function executeLoginResetPassword() {
   const empCode = document.getElementById('login-emp-code').value.trim();
