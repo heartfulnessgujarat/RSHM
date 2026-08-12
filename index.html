@@ -1828,11 +1828,26 @@ const standardizedCode = (window.APP_LEAVE_CODES_MAP && window.APP_LEAVE_CODES_M
 
 console.log(`-> [ATTENDANCE SYNC] Translating leave type [${selectedLeaveTypeName}] to master code [${standardizedCode}]`);
 
-// Trigger attendance recalculation with the clean uppercase code
+
+    // ⭐ STEP 2: DYNAMICALLY RESOLVE STATUS-BASED CODE FROM CACHE ⭐
+const selectedLeaveTypeName = finalLeaveType; 
+const isApprovedNow = (leaveStatus === 'Approved'); // Check if status is explicitly approved
+
+let standardizedCode = '';
+if (isApprovedNow && window.APP_LEAVE_CODES_MAP && window.APP_LEAVE_CODES_MAP[selectedLeaveTypeName]) {
+  // Use uppercase approved code if approved
+  standardizedCode = window.APP_LEAVE_CODES_MAP[selectedLeaveTypeName];
+} else {
+  // Default to lowercase/unapproved format for pending submissions
+  standardizedCode = selectedLeaveTypeName.trim().toLowerCase().substring(0, 3);
+}
+
+console.log(`-> [ATTENDANCE SYNC] Leave Type [${selectedLeaveTypeName}] | Status: ${leaveStatus || 'Pending'} | Resolved Code: [${standardizedCode}]`);
+
+// Trigger attendance recalculation with the correct code based on status
 if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
   await recalculateAndSyncAttendanceFrontend(empCode, fromDate, standardizedCode);
 }
-    
 
 
 
@@ -1906,13 +1921,19 @@ async function loadLeaveMasterOptions() {
     // ⭐ STEP 1: INITIALIZE GLOBAL LOOKUP CACHE FOR DYNAMIC CODES ⭐
     window.APP_LEAVE_CODES_MAP = window.APP_LEAVE_CODES_MAP || {};
 
+
+    
+
+   // ⭐ STEP 1: INITIALIZE GLOBAL LOOKUP CACHE FOR DYNAMIC CODES ⭐
+    window.APP_LEAVE_CODES_MAP = window.APP_LEAVE_CODES_MAP || {};
+
     leaveTypesArray.forEach((item) => {
       if (!item) return;
       // Matches your database keys like type_of_leave and leave_code_unapproved
       const leaveName = item.type_of_leave || item.type || item.leaveType || item.name || '';
       const unapprovedCode = item.leave_code_unapproved || item.unapproved || item.code || '';
       
-      // Look for your approved code property in your database item schema, falling back to unapproved code
+      // Look for approved code property in your database item schema, falling back to unapproved code
       const approvedCode = item.leave_code_approved || item.approved_code || item.code || unapprovedCode; 
       
       if (leaveName) {
@@ -1925,6 +1946,11 @@ async function loadLeaveMasterOptions() {
         selectElem.appendChild(option);
       }
     });
+
+
+
+
+    
 
     // Populate Paid Holidays with DD-MMM-YYYY formatting
     const phSelectElem = document.getElementById('paidHolidaySelect');
