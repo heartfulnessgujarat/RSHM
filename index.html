@@ -1702,6 +1702,7 @@ function calculateRequestedDays() {
   if (badge) badge.classList.remove('hidden');
 }
 
+
 async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -1733,12 +1734,16 @@ async function handleLeaveSubmit(e) {
                     || localStorage.getItem('employee_name') 
                     || '';
 
+    if (!empCode) throw new Error('Employee code not found. Please log in again.');
+
     const leaveTypeEl = document.getElementById('leaveTypeSelect');
     const leaveTypeVal = leaveTypeEl ? leaveTypeEl.value : '';
 
     if (!leaveTypeVal) throw new Error('Please select a leave type.');
 
     const isPh = leaveTypeVal.toUpperCase().includes('PH') || leaveTypeVal.toUpperCase().includes('PAID HOLIDAY');
+    const isCo = leaveTypeVal.toUpperCase().includes('CO') || leaveTypeVal.toUpperCase().includes('COMPENSATORY');
+
     let fromDate = '';
     let toDate = '';
     let totalDays = 0;
@@ -1781,42 +1786,58 @@ async function handleLeaveSubmit(e) {
 
     const reason = document.getElementById('leaveReason')?.value?.trim() || (isPh ? finalLeaveType : 'Leave Application');
 
-    // Constructing the payload expected by handleApplyForLeave in code.gs
-    const payload = {
-      emp_code: empCode,
-      employeeId: empCode,
-      employee_name: empName,
-      leaveType: finalLeaveType,
-      fromDate: fromDate,
-      toDate: toDate,
-      totalDays: totalDays,
-      reason: reason,
-      skipEmailNotification: false
+    // Format timestamps and IDs
+    const timestamp = new Date();
+    const leaveId = "LV" + timestamp.getTime();
+    const nowIso = timestamp.toISOString();
+    
+    // Simple date formatter if needed
+    const formatDt = (d) => {
+      if (!d) return '';
+      const dateObj = new Date(d);
+      if (isNaN(dateObj.getTime())) return d;
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+      return `${day}-${months[dateObj.getMonth()]}-${dateObj.getFullYear()}`;
     };
 
-    console.log("-> [DIAGNOSTIC] Sending leave application to backend script:", payload);
+    const startDateStr = formatDt(fromDate);
+    const endDateStr = formatDt(toDate);
+    const dateDisplay = startDateStr + (endDateStr && endDateStr !== startDateStr ? " to " + endDateStr : "");
 
-    let response;
-    if (typeof callBackend === 'function') {
-      response = await callBackend("applyLeave", payload);
-    } else {
-      const targetUrl = typeof BACKEND_API !== 'undefined' ? BACKEND_API : SCRIPT_URL;
-      const res = await fetch(targetUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'applyLeave', payload: payload })
-      });
-      const jsonRes = await res.json();
-      response = jsonRes.data || jsonRes;
-    }
+    const isAutoApproved = isCo || finalLeaveType.toUpperCase().includes('AUTO');
+    const initialStatus = isAutoApproved ? 'Auto Approved' : 'Pending';
 
-    if (!response || response.success === false) {
-      throw new Error(response?.error || response?.message || 'Failed to submit leave application.');
+    const leaveRecord = {
+      leave_id: leaveId,
+      emp_code: empCode,
+      employee_name: empName,
+      leave_type: finalLeaveType,
+      leave_date: dateDisplay,
+      total_days: totalDays,
+      reason: reason,
+      status: initialStatus,
+      applied_on: nowIso,
+      updated_at: nowIso,
+      actioned_by: isAutoApproved ? 'SYSTEM_AUTO' : '',
+      actioned_on: isAutoApproved ? nowIso : ''
+    };
+
+    console.log("-> [DIAGNOSTIC] Writing leave application directly to Firebase:", leaveRecord);
+
+    // ⭐ DIRECT FIREBASE WRITE TO THE NEW STRUCTURE ⭐
+    const dbRef = firebase.database().ref();
+    const leaveRef = dbRef.child(`leave_requests/${empCode}/${leaveId}`);
+    await leaveRef.set(leaveRecord);
+
+    // Trigger attendance recalculation if function exists
+    if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
+      await recalculateAndSyncAttendanceFrontend(empCode, fromDate);
     }
 
     if (statusDiv) {
       statusDiv.style.color = '#1e8e3e';
-      statusDiv.innerText = response.message || 'Leave request submitted successfully and sent for approval!';
+      statusDiv.innerText = 'Leave request submitted successfully!';
     }
 
     setTimeout(() => {
@@ -1846,6 +1867,10 @@ async function handleLeaveSubmit(e) {
   }
 }
 
+
+
+    
+    
     
 async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
