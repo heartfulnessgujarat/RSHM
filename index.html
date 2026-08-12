@@ -953,6 +953,14 @@ async function setupWorkFormDropdowns() {
 }
 
 
+
+
+
+
+
+
+
+    
 async function executeWorkSubmit(e) {
   if (e) {
     if (typeof e.preventDefault === 'function') e.preventDefault();
@@ -1142,6 +1150,9 @@ throw new Error(`You have already entered work from ${log.from_time} to ${log.to
     const dbRef = firebase.database().ref();
     const logRef = dbRef.child(`daily_work/${activeEmpCode}/${worklog_id}`);
 
+
+
+
     if (editingId) {
       await logRef.update({
         employee_uid: activeUid,
@@ -1176,11 +1187,21 @@ throw new Error(`You have already entered work from ${log.from_time} to ${log.to
       if (typeof showToast === 'function') showToast("Work log saved successfully!", false);
     }
     
+    // ⭐ TRIGGER ATTENDANCE RECALCULATION & SYNC IMMEDIATELY AFTER SAVE ⭐
+    await recalculateAndSyncAttendanceFrontend(activeEmpCode, work_date);
+
     document.getElementById('work-form').reset();
     const editingField = document.getElementById('editing-worklog-id');
     if (editingField) editingField.value = "";
 
     switchView('view-dashboard');
+
+
+
+
+
+
+    
   } catch(err) {
     console.error("Save error caught:", err);
     if (typeof showToast === 'function') showToast(err.message || String(err));
@@ -1192,6 +1213,23 @@ throw new Error(`You have already entered work from ${log.from_time} to ${log.to
   }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
 // Ensure you also have this helper function included in your script:
 function timeToMins(timeStr) {
   if (!timeStr) return 0;
@@ -2111,7 +2149,65 @@ function formatDatetoDDMMMYYYY(dateStr) {
 }
 
 
+async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate) {
+  try {
+    const dbRef = firebase.database();
+    
+    // 1. Fetch all user logs for this specific date from Firebase RTDB
+    const allLogsSnap = await dbRef.ref(`daily_work/${activeEmpCode}`).once('value');
+    let totalHours = 0;
 
+    if (allLogsSnap.exists()) {
+      allLogsSnap.forEach(childSnap => {
+        const log = childSnap.val();
+        if (log && String(log.work_date).trim() === workDate) {
+          const dur = log.duration || "00:00";
+          if (typeof dur === 'string' && dur.includes(':')) {
+            const [h, m] = dur.split(':').map(Number);
+            totalHours += h + (m / 60);
+          } else {
+            totalHours += parseFloat(dur) || 0;
+          }
+        }
+      });
+    }
+    totalHours = parseFloat(totalHours.toFixed(2));
+
+    // 2. Load configuration rules from Firebase
+    const configSnap = await dbRef.ref('config').once('value');
+    const config = configSnap.val() || {};
+    const threshold = parseFloat(config.attendance_hours_threshold || config.threshold_hours) || 4.0;
+    
+    const codePresent = config.attendance_code_present || "P";
+    const codeBelowThreshold = config.attendance_code_below_threshold || "WL4H";
+    const codeNoEntry = config.attendance_code_no_entry || "NE";
+
+    let finalStatus = codeNoEntry;
+    if (totalHours >= threshold) {
+      finalStatus = codePresent;
+    } else if (totalHours > 0) {
+      finalStatus = codeBelowThreshold;
+    }
+
+    const calcTimestamp = new Date().toISOString();
+
+    // 3. Construct Final Attendance Object
+    const attendanceRecord = {
+      emp_code: activeEmpCode,
+      date: workDate,
+      hours: totalHours,
+      status: finalStatus,
+      calculated_at: calcTimestamp
+    };
+
+    // 4. Direct Write to Firebase Attendance Node: attendance/{emp_code}/{date}
+    await dbRef.ref(`attendance/${activeEmpCode}/${workDate}`).set(attendanceRecord);
+    console.log("✅ Successfully synced attendance to Firebase for " + activeEmpCode + " on " + workDate);
+
+  } catch (err) {
+    console.warn("💥 Error in recalculateAndSyncAttendanceFrontend:", err);
+  }
+}
 
 
     
