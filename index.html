@@ -2172,7 +2172,7 @@ function formatDatetoDDMMMYYYY(dateStr) {
   return dateStr;
 }
 
- async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, overrideStatus = null) {
+async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, overrideStatus = null) {
   try {
     const dbRef = firebase.database();
     
@@ -2192,6 +2192,20 @@ function formatDatetoDDMMMYYYY(dateStr) {
     let totalHours = 0;
     let finalStatus = "NE";
 
+    // 1. Check if there is an active leave request for this date if overrideStatus isn't explicitly passed
+    if (!overrideStatus) {
+      const leaveSnap = await dbRef.ref(`leave_requests/${activeEmpCode}`).once('value');
+      if (leaveSnap.exists()) {
+        leaveSnap.forEach(child => {
+          const leave = child.val();
+          if (leave && leave.leave_date && String(leave.leave_date).includes(targetDateDisplay)) {
+            overrideStatus = leave.leave_type; // Capture the leave type from the request
+            // If it's pending, we can flag or handle it, but we map it through the leave master below
+          }
+        });
+      }
+    }
+
     if (overrideStatus) {
       const upper = String(overrideStatus).trim().toUpperCase();
       let derivedCode = upper;
@@ -2204,18 +2218,33 @@ function formatDatetoDDMMMYYYY(dateStr) {
       finalStatus = isSunday ? "WO" : derivedCode;
       totalHours = 0;
 
-      // Background master lookup
-      dbRef.ref(`masters/leave_master/${String(overrideStatus).trim()}`).once('value').then(masterSnap => {
-        if (masterSnap.exists()) {
-          const masterData = masterSnap.val();
-          const trueCode = masterData.leave_code_approved || masterData.leave_code_unapproved;
-          if (trueCode && trueCode !== finalStatus) {
-            dbRef.ref(`attendance/${activeEmpCode}/${targetDateDisplay}/status`).set(trueCode);
-          }
+      // 2. Perform database master lookup to precisely grab approved vs unapproved codes
+      const masterSnap = await dbRef.ref(`masters/leave_master/${String(overrideStatus).trim()}`).once('value');
+      if (masterSnap.exists()) {
+        const masterData = masterSnap.val();
+        
+        // Check leave requests again to determine if it's approved or unapproved
+        let isApproved = true; // default safe assumption for direct overrides
+        const leaveSnapCheck = await dbRef.ref(`leave_requests/${activeEmpCode}`).once('value');
+        if (leaveSnapCheck.exists()) {
+          leaveSnapCheck.forEach(child => {
+            const leave = child.val();
+            if (leave && leave.leave_date && String(leave.leave_date).includes(targetDateDisplay)) {
+              if (leave.status && leave.status.toLowerCase().includes('pending')) {
+                isApproved = false;
+              }
+            }
+          });
         }
-      }).catch(err => console.warn("Background leave_master sync note:", err));
+
+        const trueCode = isApproved ? (masterData.leave_code_approved || derivedCode) : (masterData.leave_code_unapproved || derivedCode);
+        if (trueCode) {
+          finalStatus = isSunday ? "WO" : trueCode;
+        }
+      }
 
     } else {
+      // 3. Standard work log calculation flow
       const allLogsSnap = await dbRef.ref(`daily_work/${activeEmpCode}`).once('value');
       if (allLogsSnap.exists()) {
         allLogsSnap.forEach(childSnap => {
@@ -2273,7 +2302,6 @@ function formatDatetoDDMMMYYYY(dateStr) {
     console.warn("💥 Error in recalculateAndSyncAttendanceFrontend:", err);
   }
 }
-
     
   </script>
 </body>
