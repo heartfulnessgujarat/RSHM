@@ -1852,10 +1852,18 @@ async function handleLeaveSubmit(e) {
 
     
     // Trigger attendance recalculation if function exists
-    if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
-      await recalculateAndSyncAttendanceFrontend(empCode, fromDate);
-    }
+//    if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
+//      await recalculateAndSyncAttendanceFrontend(empCode, fromDate);
+//    }
 
+// Trigger attendance recalculation if function exists
+if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
+  await recalculateAndSyncAttendanceFrontend(empCode, fromDate, finalLeaveType);
+}
+
+
+
+    
     if (statusDiv) {
       statusDiv.style.color = '#1e8e3e';
       statusDiv.innerText = 'Leave request submitted successfully!';
@@ -2218,31 +2226,30 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     let finalStatus = "NE";
 
     if (overrideStatus) {
-      let derivedCode = overrideStatus;
-      
-      try {
-        // Fetch the mapping directly from your leave_master path in Firebase
-        // e.g., masters/leave_master/Causal Leave
-        const cleanLeaveTypeKey = String(overrideStatus).trim();
-        const masterSnap = await dbRef.ref(`masters/leave_master/${cleanLeaveTypeKey}`).once('value');
-        
-        if (masterSnap.exists()) {
-          const masterData = masterSnap.val();
-          // Use leave_code_approved if available, else fallback to leave_code_unapproved
-          derivedCode = masterData.leave_code_approved || masterData.leave_code_unapproved || overrideStatus;
-        } else {
-          // Fallback manual cleanup if key doesn't match precisely
-          const upper = overrideStatus.toUpperCase();
-          if (upper.includes('CASUAL')) derivedCode = 'CL';
-          else if (upper.includes('SICK')) derivedCode = 'SL';
-          else if (upper.includes('COMP')) derivedCode = 'CO';
-        }
-      } catch (masterErr) {
-        console.warn("Could not fetch from leave_master, using fallback status parsing:", masterErr);
-      }
+      // 1. Instant fallback parsing so the UI doesn't lag waiting for network
+      const upper = String(overrideStatus).trim().toUpperCase();
+      let derivedCode = upper;
+      if (upper.includes('CAS') || upper.includes('CL')) derivedCode = 'CL';
+      else if (upper.includes('SIC') || upper.includes('SL')) derivedCode = 'SL';
+      else if (upper.includes('COMP') || upper.includes('CO')) derivedCode = 'CO';
+      else if (upper.includes('PAID') || upper.includes('PH')) derivedCode = 'PH';
 
       finalStatus = isSunday ? "WO" : derivedCode;
       totalHours = 0;
+
+      // 2. Perform the database master lookup asynchronously in the background 
+      // without blocking the write or the success message prompt!
+      dbRef.ref(`masters/leave_master/${String(overrideStatus).trim()}`).once('value').then(masterSnap => {
+        if (masterSnap.exists()) {
+          const masterData = masterSnap.val();
+          const trueCode = masterData.leave_code_approved || masterData.leave_code_unapproved;
+          if (trueCode && trueCode !== finalStatus) {
+            // Silently update with the precise master code if it differs
+            dbRef.ref(`attendance/${activeEmpCode}/${targetDateDisplay}/status`).set(trueCode);
+          }
+        }
+      }).catch(err => console.warn("Background leave_master sync note:", err));
+
     } else {
       const allLogsSnap = await dbRef.ref(`daily_work/${activeEmpCode}`).once('value');
       if (allLogsSnap.exists()) {
@@ -2301,7 +2308,6 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     console.warn("💥 Error in recalculateAndSyncAttendanceFrontend:", err);
   }
 }
-
 
     
   </script>
