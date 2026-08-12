@@ -2172,7 +2172,7 @@ function formatDatetoDDMMMYYYY(dateStr) {
   return dateStr;
 }
 
-    async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, overrideStatus = null) {
+ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, overrideStatus = null) {
   try {
     const dbRef = firebase.database();
     
@@ -2190,12 +2190,12 @@ function formatDatetoDDMMMYYYY(dateStr) {
     const isSunday = !isNaN(dateObjCheck.getTime()) && dateObjCheck.getDay() === 0;
 
     let totalHours = 0;
-    let finalStatus = "NE"; // Default baseline to NE as intended for payroll cycles
+    let finalStatus = "NE";
 
     if (overrideStatus) {
-      // 1. Leave override flow
       const upper = String(overrideStatus).trim().toUpperCase();
       let derivedCode = upper;
+      
       if (upper.includes('CAS') || upper.includes('CL')) derivedCode = 'CL';
       else if (upper.includes('SIC') || upper.includes('SL')) derivedCode = 'SL';
       else if (upper.includes('COMP') || upper.includes('CO')) derivedCode = 'CO';
@@ -2216,12 +2216,10 @@ function formatDatetoDDMMMYYYY(dateStr) {
       }).catch(err => console.warn("Background leave_master sync note:", err));
 
     } else {
-      // 2. Standard work log calculation flow
       const allLogsSnap = await dbRef.ref(`daily_work/${activeEmpCode}`).once('value');
       if (allLogsSnap.exists()) {
         allLogsSnap.forEach(childSnap => {
           const log = childSnap.val();
-          // Match logs belonging precisely to this workDate
           if (log && String(log.work_date).trim() === workDate) {
             const dur = log.duration || "00:00";
             if (typeof dur === 'string' && dur.includes(':')) {
@@ -2250,7 +2248,7 @@ function formatDatetoDDMMMYYYY(dateStr) {
       } else if (totalHours > 0) {
         finalStatus = codeBelowThreshold;
       } else {
-        finalStatus = codeNoEntry; // Safely defaults to NE if 0 hours and no override!
+        finalStatus = codeNoEntry;
       }
     }
 
