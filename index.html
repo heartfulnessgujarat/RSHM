@@ -1316,7 +1316,9 @@ function formatHoursToHM(decimalHours) {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
-function renderTimesheetList() {
+
+
+    function renderTimesheetList() {
     const listDiv = document.getElementById('timesheet-list');
     if (!cachedTimesheet || cachedTimesheet.length === 0) {
         listDiv.innerHTML = "<p style='text-align:center; padding:15px;'>No work logs recorded yet.</p>";
@@ -1347,13 +1349,15 @@ function renderTimesheetList() {
         const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
         const isEditable = diffDays <= windowDays;
 
-        // Robust duration formatting (handles both hh:mm string and legacy decimals)
-        let formattedDuration = "00:00";
+        // Convert duration to decimal format for display and monthly summation
+        let decimalDuration = 0;
         if (typeof log.duration === 'string' && log.duration.includes(':')) {
-            formattedDuration = log.duration;
+            const [h, m] = log.duration.split(':').map(Number);
+            decimalDuration = h + (m / 60);
         } else {
-            formattedDuration = formatHoursToHM(parseFloat(log.duration) || 0);
+            decimalDuration = parseFloat(log.duration) || 0;
         }
+        const formattedDuration = decimalDuration.toFixed(2);
 
         // Format date to DD-MMM-YYYY using your custom helper
         const displayDate = formatDatetoDDMMMYYYY(log.work_date);
@@ -1378,7 +1382,6 @@ function renderTimesheetList() {
     });
     listDiv.innerHTML = html;
 }
-
     
     
     
