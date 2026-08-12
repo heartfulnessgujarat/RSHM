@@ -2189,18 +2189,28 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate) {
       finalStatus = codeBelowThreshold;
     }
 
-    const calcTimestamp = new Date().toISOString();
+    // 3. Format timestamp as DD-MMM-YYYY HH:mm using your helper
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const isoDateOnly = `${year}-${month}-${day}`;
+    
+    const displayDatePart = typeof formatDatetoDDMMMYYYY === 'function' ? formatDatetoDDMMMYYYY(isoDateOnly) : isoDateOnly;
+    const hoursPart = String(now.getHours()).padStart(2, '0');
+    const minsPart = String(now.getMinutes()).padStart(2, '0');
+    const formattedTimestamp = `${displayDatePart} ${hoursPart}:${minsPart}`;
 
-    // 3. Construct Final Attendance Object
+    // 4. Construct Final Attendance Object
     const attendanceRecord = {
       emp_code: activeEmpCode,
       date: workDate,
       hours: totalHours,
       status: finalStatus,
-      calculated_at: calcTimestamp
+      calculated_at: formattedTimestamp
     };
 
-    // 4. Direct Write to Firebase Attendance Node: attendance/{emp_code}/{date}
+    // 5. Direct Write to Firebase Attendance Node: attendance/{emp_code}/{date}
     await dbRef.ref(`attendance/${activeEmpCode}/${workDate}`).set(attendanceRecord);
     console.log("✅ Successfully synced attendance to Firebase for " + activeEmpCode + " on " + workDate);
 
@@ -2208,8 +2218,6 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate) {
     console.warn("💥 Error in recalculateAndSyncAttendanceFrontend:", err);
   }
 }
-
-
     
        
   </script>
