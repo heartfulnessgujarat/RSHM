@@ -2201,7 +2201,6 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
   try {
     const dbRef = firebase.database();
     
-    // Helper to format dates as DD-MMM-YYYY
     const formatDt = (d) => {
       if (!d) return '';
       const dateObj = new Date(d);
@@ -2212,8 +2211,6 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     };
 
     const targetDateDisplay = formatDt(workDate);
-    
-    // Check if it's Sunday -> Mark Weekly Off ("WO")
     const dateObjCheck = new Date(workDate);
     const isSunday = !isNaN(dateObjCheck.getTime()) && dateObjCheck.getDay() === 0;
 
@@ -2221,23 +2218,32 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     let finalStatus = "NE";
 
     if (overrideStatus) {
-      // Dynamically derive short code from overrideStatus (e.g., "Causal Leave" -> "CL")
-      const upperType = String(overrideStatus).trim().toUpperCase();
-      let derivedCode = upperType;
+      let derivedCode = overrideStatus;
       
-      if (upperType.includes('CASUAL')) derivedCode = 'CL';
-      else if (upperType.includes('SICK')) derivedCode = 'SL';
-      else if (upperType.includes('COMP') || upperType.includes('CO')) derivedCode = 'CO';
-      else if (upperType.includes('PAID') || upperType.includes('PH')) derivedCode = 'PH';
-      else if (upperType.length > 5) {
-        // Fallback abbreviation generator if it's a long custom string
-        derivedCode = upperType.split(' ').map(w => w[0]).join('').substring(0, 4);
+      try {
+        // Fetch the mapping directly from your leave_master path in Firebase
+        // e.g., masters/leave_master/Causal Leave
+        const cleanLeaveTypeKey = String(overrideStatus).trim();
+        const masterSnap = await dbRef.ref(`masters/leave_master/${cleanLeaveTypeKey}`).once('value');
+        
+        if (masterSnap.exists()) {
+          const masterData = masterSnap.val();
+          // Use leave_code_approved if available, else fallback to leave_code_unapproved
+          derivedCode = masterData.leave_code_approved || masterData.leave_code_unapproved || overrideStatus;
+        } else {
+          // Fallback manual cleanup if key doesn't match precisely
+          const upper = overrideStatus.toUpperCase();
+          if (upper.includes('CASUAL')) derivedCode = 'CL';
+          else if (upper.includes('SICK')) derivedCode = 'SL';
+          else if (upper.includes('COMP')) derivedCode = 'CO';
+        }
+      } catch (masterErr) {
+        console.warn("Could not fetch from leave_master, using fallback status parsing:", masterErr);
       }
 
       finalStatus = isSunday ? "WO" : derivedCode;
       totalHours = 0;
     } else {
-      // Otherwise, calculate standard work hours from daily_work logs
       const allLogsSnap = await dbRef.ref(`daily_work/${activeEmpCode}`).once('value');
       if (allLogsSnap.exists()) {
         allLogsSnap.forEach(childSnap => {
@@ -2255,7 +2261,6 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       }
       totalHours = parseFloat(totalHours.toFixed(2));
 
-      // Load configuration rules from Firebase
       const configSnap = await dbRef.ref('config').once('value');
       const config = configSnap.val() || {};
       const threshold = parseFloat(config.attendance_hours_threshold || config.threshold_hours) || 4.0;
@@ -2275,14 +2280,12 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       }
     }
 
-    // Format timestamp as DD-MMM-YYYY HH:mm
     const now = new Date();
     const displayDatePart = formatDt(now);
     const hoursPart = String(now.getHours()).padStart(2, '0');
     const minsPart = String(now.getMinutes()).padStart(2, '0');
     const formattedTimestamp = `${displayDatePart} ${hoursPart}:${minsPart}`;
 
-    // Construct Final Attendance Object using DD-MMM-YYYY for the date property
     const attendanceRecord = {
       emp_code: activeEmpCode,
       date: targetDateDisplay,
@@ -2291,7 +2294,6 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       calculated_at: formattedTimestamp
     };
 
-    // Direct Write to Firebase Attendance Node: attendance/{emp_code}/{DD-MMM-YYYY}
     await dbRef.ref(`attendance/${activeEmpCode}/${targetDateDisplay}`).set(attendanceRecord);
     console.log("✅ Successfully synced attendance to Firebase for " + activeEmpCode + " on " + targetDateDisplay + " with status: " + finalStatus);
 
@@ -2299,7 +2301,6 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     console.warn("💥 Error in recalculateAndSyncAttendanceFrontend:", err);
   }
 }
-
 
 
     
