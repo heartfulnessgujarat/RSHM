@@ -1825,16 +1825,10 @@ async function handleLeaveSubmit(e) {
 
     
 // Trigger attendance recalculation if function exists
-
-
-    // ⭐ CORRECTION: Only sync attendance if the leave is Auto-Approved. 
-    // If it's "Pending", skip attendance updates completely so it doesn't force "NE".
-    if (initialStatus === 'Auto Approved' && typeof recalculateAndSyncAttendanceFrontend === 'function') {
-      await recalculateAndSyncAttendanceFrontend(empCode, fromDate, finalLeaveType);
-    } else {
-      console.log("-> [DIAGNOSTIC] Leave is Pending. Skipping attendance calculation to prevent forcing NE.");
-    }
-     
+// Roll back to triggering attendance sync with finalLeaveType properly passed
+if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
+  await recalculateAndSyncAttendanceFrontend(empCode, fromDate, finalLeaveType);
+}
    
     
     if (statusDiv) {
