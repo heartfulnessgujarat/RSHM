@@ -1826,6 +1826,31 @@ async function handleLeaveSubmit(e) {
     const leaveRef = dbRef.child(`leave_requests/${empCode}/${leaveId}`);
     await leaveRef.set(leaveRecord);
 
+
+    // ⭐ TRIGGER EMAIL NOTIFICATION TO RIC ⭐
+    try {
+      const ricEmail = userObj.ric_email || userObj.reporting_incharge_email || userObj.ricEmail || '';
+      console.log("-> [DIAGNOSTIC] Attempting to send approval email to RIC:", ricEmail);
+
+      if (ricEmail && typeof callBackend === 'function') {
+        await callBackend("sendLeaveEmail", {
+          ricEmail: ricEmail,
+          leaveData: leaveRecord
+        });
+        console.log("-> [DIAGNOSTIC] Email dispatch request sent successfully.");
+      } else {
+        console.warn("-> [DIAGNOSTIC] RIC email missing or callBackend not found.");
+      }
+    } catch (emailErr) {
+      console.warn("Email notification trigger failed, but leave was saved:", emailErr);
+    }
+
+
+
+
+
+
+    
     // Trigger attendance recalculation if function exists
     if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
       await recalculateAndSyncAttendanceFrontend(empCode, fromDate);
