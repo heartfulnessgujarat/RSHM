@@ -1258,15 +1258,11 @@ async function deleteWorkLog(worklogId) {
 
 
 
-
-
-    
-
-function editWorkLog(worklogId) {
+async function editWorkLog(worklogId) {
     const log = cachedTimesheet.find(l => l.worklog_id === worklogId);
     if (!log) return;
 
-    setupWorkFormDropdowns();
+    await setupWorkFormDropdowns();
     document.getElementById('work-entry-title').innerText = "Edit Work Log";
     document.getElementById('editing-worklog-id').value = log.worklog_id;
     document.getElementById('work-date').value = log.work_date;
@@ -1277,6 +1273,10 @@ function editWorkLog(worklogId) {
 
     switchView('view-work-entry');
 }
+
+    
+
+
 
     
 async function loadTimesheetHistory() {
