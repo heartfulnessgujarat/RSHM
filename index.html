@@ -1051,7 +1051,17 @@ async function executeWorkSubmit(e) {
             const isOverlapping = (newFromMins < existingToMins) && (newToMins > existingFromMins);
 
             if (isOverlapping) {
-              throw new Error(`Time overlap detected! This conflicts with an existing log on ${work_date} (${log.from_time} - ${log.to_time}).`);
+
+
+              
+          //    throw new Error(`Time overlap detected! This conflicts with an existing log on ${work_date} (${log.from_time} - ${log.to_time}).`);
+
+              const formattedDate = formatDatetoDDMMMYYYY(work_date);
+throw new Error(`You have already entered work from ${log.from_time} to ${log.to_time} on ${formattedDate}.`);
+
+
+
+              
             }
           }
         });
@@ -2076,6 +2086,28 @@ async function setWorkDateLimits() {
     console.error("Failed to set date limits:", err);
   }
 }
+
+
+// Global helper to format YYYY-MM-DD into DD-MMM-YYYY
+function formatDatetoDDMMMYYYY(dateStr) {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const year = parts[0];
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    const day = parts[2];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    if (months[monthIndex]) {
+      return `${day}-${months[monthIndex]}-${year}`;
+    }
+  }
+  return dateStr;
+}
+
+
+
+
+
     
        
   </script>
