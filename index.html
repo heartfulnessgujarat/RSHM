@@ -1278,7 +1278,6 @@ function formatHoursToHM(decimalHours) {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
-
 function renderTimesheetList() {
     const listDiv = document.getElementById('timesheet-list');
     if (!cachedTimesheet || cachedTimesheet.length === 0) {
@@ -1299,6 +1298,7 @@ function renderTimesheetList() {
     );
 
     let html = "";
+
     cachedTimesheet.forEach(log => {
         const [year, month, day] = log.work_date.split('-').map(Number);
         const logDate = new Date(year, month - 1, day);
@@ -1309,27 +1309,21 @@ function renderTimesheetList() {
         const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
         const isEditable = diffDays <= windowDays;
 
-        // Format the decimal duration to hh:mm
-      
-    //    const formattedDuration = formatHoursToHM(log.duration || 0);
-
-// To this robust version:
+        // Robust duration formatting (handles both hh:mm string and legacy decimals)
         let formattedDuration = "00:00";
         if (typeof log.duration === 'string' && log.duration.includes(':')) {
-            formattedDuration = log.duration; // Already in hh:mm format
+            formattedDuration = log.duration;
         } else {
-            formattedDuration = formatHoursToHM(parseFloat(log.duration) || 0); // Fallback for decimals
+            formattedDuration = formatHoursToHM(parseFloat(log.duration) || 0);
         }
 
-
-
-
-      
+        // Format date to DD-MMM-YYYY using your custom helper
+        const displayDate = formatDatetoDDMMMYYYY(log.work_date);
 
         html += `
             <div class="item-row">
                 <div class="flex-space">
-                    <strong>${log.work_date} (${formattedDuration} hrs)</strong>
+                    <strong>${displayDate} (${formattedDuration} hrs)</strong>
                     ${isEditable ? `
                         <div class="action-group">
                             <button type="button" class="btn-sm" onclick="editWorkLog('${log.worklog_id}')">Edit</button>
@@ -1346,8 +1340,6 @@ function renderTimesheetList() {
     });
     listDiv.innerHTML = html;
 }
-
-
 
     
     
