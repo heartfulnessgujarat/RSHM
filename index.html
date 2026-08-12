@@ -1820,15 +1820,6 @@ async function handleLeaveSubmit(e) {
 
 
 
-    // ⭐ STEP 2: DYNAMICALLY RESOLVE UPPERCODE FROM leave_master CACHE ⭐
-const selectedLeaveTypeName = finalLeaveType; 
-const standardizedCode = (window.APP_LEAVE_CODES_MAP && window.APP_LEAVE_CODES_MAP[selectedLeaveTypeName]) 
-  ? window.APP_LEAVE_CODES_MAP[selectedLeaveTypeName] 
-  : selectedLeaveTypeName.trim().toUpperCase().substring(0, 3);
-
-console.log(`-> [ATTENDANCE SYNC] Translating leave type [${selectedLeaveTypeName}] to master code [${standardizedCode}]`);
-
-
     // ⭐ STEP 2: DYNAMICALLY RESOLVE STATUS-BASED CODE FROM CACHE ⭐
 const selectedLeaveTypeName = finalLeaveType; 
 const isApprovedNow = (leaveStatus === 'Approved'); // Check if status is explicitly approved
