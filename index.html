@@ -1671,7 +1671,9 @@ function calculateRequestedDays() {
 }
 
 
-async function handleLeaveSubmit(e) {
+
+
+    async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
   const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.querySelector('button[type="submit"]');
@@ -1759,7 +1761,7 @@ async function handleLeaveSubmit(e) {
     const leaveId = "LV" + timestamp.getTime();
     const nowIso = timestamp.toISOString();
     
-    // Simple date formatter
+    // Standard DD-MMM-YYYY date formatter matching the rest of the application
     const formatDt = (d) => {
       if (!d) return '';
       const dateObj = new Date(d);
@@ -1816,7 +1818,7 @@ async function handleLeaveSubmit(e) {
       console.warn("Email notification trigger failed, but leave was saved:", emailErr);
     }
 
-    // ⭐ DEDICATED LEAVE ATTENDANCE WRITER BLOCK ⭐
+    // ⭐ DEDICATED LEAVE ATTENDANCE WRITER BLOCK (FIXED WITH DD-MMM-YYYY FORMAT) ⭐
     try {
       const selectedLeaveTypeName = finalLeaveType; 
       const isApprovedNow = (initialStatus === 'Auto Approved' || initialStatus === 'Approved'); 
@@ -1837,20 +1839,19 @@ async function handleLeaveSubmit(e) {
         const lastDate = new Date(toDate);
 
         while (currDate <= lastDate) {
-          const year = currDate.getFullYear();
-          const month = String(currDate.getMonth() + 1).padStart(2, '0');
-          const day = String(currDate.getDate()).padStart(2, '0');
-          const dateStringLoop = `${year}-${month}-${day}`;
+          // Format each date using formatDt so the key matches DD-MMM-YYYY
+          const loopDateFormatted = formatDt(currDate);
 
-          // Direct write to attendance node without calling daily-log recalculation
-          const attendanceRowRef = dbRef.child(`attendance/${empCode}/${dateStringLoop}`);
-          await attendanceRowRef.set({
-            emp_code: empCode,
-            date: dateStringLoop,
-            hours: 0,
-            status: standardizedCode,
-            calculated_at: new Date().toLocaleString()
-          });
+          if (loopDateFormatted) {
+            const attendanceRowRef = dbRef.child(`attendance/${empCode}/${loopDateFormatted}`);
+            await attendanceRowRef.set({
+              emp_code: empCode,
+              date: loopDateFormatted,
+              hours: 0,
+              status: standardizedCode,
+              calculated_at: new Date().toLocaleString()
+            });
+          }
 
           currDate.setDate(currDate.getDate() + 1);
         }
@@ -1890,8 +1891,6 @@ async function handleLeaveSubmit(e) {
     if (submitBtn) submitBtn.disabled = false;
   }
 }
-
-
 
 
   async function loadLeaveMasterOptions() {
