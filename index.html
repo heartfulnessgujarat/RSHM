@@ -1382,9 +1382,14 @@ async function loadTimesheetHistory(selectedCycleOffset = 0) {
   }
 }
 
+
+
+
+
 function renderTimesheetHistoryUI(startDay, endDay, currentOffset) {
   const listDiv = document.getElementById('timesheet-list');
   
+  // Format cycle range label for display
   const now = new Date();
   let targetMonth = now.getMonth();
   if (now.getDate() < startDay) targetMonth -= 1;
@@ -1409,54 +1414,12 @@ function renderTimesheetHistoryUI(startDay, endDay, currentOffset) {
     </div>
   `;
 
-  // Now call your exact, unmodified render function!
+  // Call your exact, original render function to populate the cards
   renderTimesheetList();
 }
-
-
     
-
-
-// Helper to render UI controls for switching cycles and then rendering cards
-function renderTimesheetHistoryUI(startDay, endDay, currentOffset) {
-  const listDiv = document.getElementById('timesheet-list');
-  
-  // Format cycle range label for display
-  const now = new Date();
-  let targetMonth = now.getMonth();
-  if (now.getDate() < startDay) targetMonth -= 1;
-  targetMonth -= currentOffset;
-
-  const startLabelDate = new Date(now.getFullYear(), targetMonth, startDay);
-  const endLabelDate = new Date(now.getFullYear(), targetMonth + 1, endDay);
-  const monthsNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const cycleLabelText = `${startLabelDate.getDate()} ${monthsNames[startLabelDate.getMonth()]} - ${endLabelDate.getDate()} ${monthsNames[endLabelDate.getMonth()]} ${endLabelDate.getFullYear()}`;
-
-  let htmlContent = `
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 5px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
-      <span style="font-size: 13px; font-weight: 600; color: #555;">
-        Cycle: ${cycleLabelText}
-      </span>
-      <select id="payroll-cycle-selector" onchange="loadTimesheetHistory(parseInt(this.value, 10))" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px;">
-        <option value="0" ${currentOffset === 0 ? 'selected' : ''}>Current Cycle</option>
-        <option value="1" ${currentOffset === 1 ? 'selected' : ''}>Previous Cycle</option>
-        <option value="2" ${currentOffset === 2 ? 'selected' : ''}>2 Cycles Ago</option>
-      </select>
-    </div>
-  `;
-
-  if (!cachedTimesheet || cachedTimesheet.length === 0) {
-    htmlContent += `<p style='text-align:center; padding:20px; color: #777;'>No work logs found for this payroll cycle.</p>`;
-    listDiv.innerHTML = htmlContent;
-    return;
-  }
-
-  // Set the header wrapper first, then let renderTimesheetList append the items or wrap them
-  listDiv.innerHTML = htmlContent;
-  
-  // Call original card generator to populate the rest of the items inside listDiv
-  appendTimesheetCardsToList(listDiv);
-}
+    
+    
 
 // Helper function to convert decimal hours to "hh:mm" format
 function formatHoursToHM(decimalHours) {
