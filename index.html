@@ -2080,11 +2080,16 @@ if (fromDate && toDate) {
           rejected: rejectedCode
         };
 
+
+
         const option = document.createElement('option');
         option.value = leaveName; 
-        // Display dropdown text using whatever unapproved code is set in Firebase
-        option.textContent = unapprovedCode ? `${leaveName} (${unapprovedCode})` : leaveName;
+        // Display dropdown text using the approved code (capitalized) from Firebase
+        option.textContent = approvedCode ? `${leaveName} (${approvedCode})` : leaveName;
         selectElem.appendChild(option);
+
+
+        
       }
     });
 
