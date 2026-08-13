@@ -1816,13 +1816,48 @@ async function handleLeaveSubmit(e) {
       console.warn("Email notification trigger failed, but leave was saved:", emailErr);
     }
 
+    // ⭐ DEDICATED LEAVE ATTENDANCE WRITER BLOCK ⭐
+    try {
+      const selectedLeaveTypeName = finalLeaveType; 
+      const isApprovedNow = (initialStatus === 'Auto Approved' || initialStatus === 'Approved'); 
 
+      let standardizedCode = '';
+      const mapEntry = window.APP_LEAVE_CODES_MAP && window.APP_LEAVE_CODES_MAP[selectedLeaveTypeName];
 
+      if (mapEntry) {
+        standardizedCode = isApprovedNow ? mapEntry.approved : mapEntry.unapproved;
+      } else {
+        standardizedCode = isApprovedNow ? selectedLeaveTypeName.trim().toUpperCase().substring(0, 3) : selectedLeaveTypeName.trim().toLowerCase().substring(0, 3);
+      }
 
+      console.log(`-> [LEAVE ATTENDANCE WRITE] Type [${selectedLeaveTypeName}] | Status: ${initialStatus} | Code: [${standardizedCode}]`);
 
+      if (fromDate && toDate) {
+        let currDate = new Date(fromDate);
+        const lastDate = new Date(toDate);
 
+        while (currDate <= lastDate) {
+          const year = currDate.getFullYear();
+          const month = String(currDate.getMonth() + 1).padStart(2, '0');
+          const day = String(currDate.getDate()).padStart(2, '0');
+          const dateStringLoop = `${year}-${month}-${day}`;
 
-    
+          // Direct write to attendance node without calling daily-log recalculation
+          const attendanceRowRef = dbRef.child(`attendance/${empCode}/${dateStringLoop}`);
+          await attendanceRowRef.set({
+            emp_code: empCode,
+            date: dateStringLoop,
+            hours: 0,
+            status: standardizedCode,
+            calculated_at: new Date().toLocaleString()
+          });
+
+          currDate.setDate(currDate.getDate() + 1);
+        }
+      }
+    } catch (attWriteErr) {
+      console.error("Error writing leave to attendance node:", attWriteErr);
+    }
 
     if (statusDiv) {
       statusDiv.style.color = '#1e8e3e';
@@ -1858,6 +1893,10 @@ async function handleLeaveSubmit(e) {
 
 
 
+
+    
+
+  
     
 async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
