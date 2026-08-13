@@ -948,14 +948,6 @@ async function setupWorkFormDropdowns() {
 }
 
 
-
-
-
-
-
-
-
-    
 async function executeWorkSubmit(e) {
   if (e) {
     if (typeof e.preventDefault === 'function') e.preventDefault();
@@ -1054,17 +1046,8 @@ async function executeWorkSubmit(e) {
             const isOverlapping = (newFromMins < existingToMins) && (newToMins > existingFromMins);
 
             if (isOverlapping) {
-
-
-              
-          //    throw new Error(`Time overlap detected! This conflicts with an existing log on ${work_date} (${log.from_time} - ${log.to_time}).`);
-
               const formattedDate = formatDatetoDDMMMYYYY(work_date);
-throw new Error(`You have already entered work from ${log.from_time} to ${log.to_time} on ${formattedDate}.`);
-
-
-
-              
+              throw new Error(`You have already entered work from ${log.from_time} to ${log.to_time} on ${formattedDate}.`);
             }
           }
         });
@@ -1122,9 +1105,6 @@ throw new Error(`You have already entered work from ${log.from_time} to ${log.to
   const activeUid = currentUser.employee_uid || currentUser.employeeUid || activeEmpCode;
 
   try {
-
-
-
     const [fromHours, fromMins] = from_time.split(':').map(Number);
     const [toHours, toMins] = to_time.split(':').map(Number);
     
@@ -1134,21 +1114,26 @@ throw new Error(`You have already entered work from ${log.from_time} to ${log.to
     const durHours = Math.floor(totalMins / 60);
     const durMins = totalMins % 60;
     const duration = `${String(durHours).padStart(2, '0')}:${String(durMins).padStart(2, '0')}`;
+    const newDurationHours = totalMins / 60;
 
-
-
-
-    
     const worklog_id = editingId ? editingId : ("WL" + new Date().getTime());
     const nowIso = new Date().toISOString();
 
     const dbRef = firebase.database().ref();
     const logRef = dbRef.child(`daily_work/${activeEmpCode}/${worklog_id}`);
 
-
-
-
+    // If editing, fetch old duration first so we can calculate proper delta changes if hours change
+    let oldDurationHours = 0;
     if (editingId) {
+      const oldSnap = await logRef.once('value');
+      if (oldSnap.exists()) {
+        const oldLog = oldSnap.val();
+        if (oldLog.duration) {
+          const [oh, om] = oldLog.duration.split(':').map(Number);
+          oldDurationHours = (oh || 0) + ((om || 0) / 60);
+        }
+      }
+
       await logRef.update({
         employee_uid: activeUid,
         emp_code: activeEmpCode,
@@ -1182,6 +1167,57 @@ throw new Error(`You have already entered work from ${log.from_time} to ${log.to
       if (typeof showToast === 'function') showToast("Work log saved successfully!", false);
     }
     
+    // ==========================================
+    // ⭐ FRONT-END COMP-OFF (CO) EARNING CALCULATION ⭐
+    // ==========================================
+    try {
+      const configSnap = await dbRef.child("config").once('value');
+      const configData = configSnap.val() || {};
+      
+      const configuredWeeklyOff = String(
+        configData.weeklyoff || 
+        configData.WeeklyOff || 
+        configData.weekly_off || 
+        "sunday"
+      ).trim().toLowerCase();
+
+      const [y, m, d] = work_date.split('-').map(Number);
+      const targetDateObj = new Date(y, m - 1, d);
+      const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+      const workDateDayName = dayNames[targetDateObj.getDay()];
+
+      if (configuredWeeklyOff && workDateDayName === configuredWeeklyOff) {
+        const fullCreditHours = parseFloat(configData.co_full_credit_hours || 8);
+        let maxCreditPerDay = parseFloat(configData.co_max_credit_per_day || 1);
+        if (isNaN(maxCreditPerDay)) maxCreditPerDay = 1;
+        const divisor = isNaN(fullCreditHours) || fullCreditHours <= 0 ? 8 : fullCreditHours;
+
+        let oldEarnedCO = oldDurationHours / divisor;
+        if (oldEarnedCO > maxCreditPerDay) oldEarnedCO = maxCreditPerDay;
+
+        let newEarnedCO = newDurationHours / divisor;
+        if (newEarnedCO > maxCreditPerDay) newEarnedCO = maxCreditPerDay;
+
+        const coDelta = parseFloat((newEarnedCO - oldEarnedCO).toFixed(2));
+
+        if (coDelta !== 0) {
+          const empNodeRef = dbRef.child(`masters/employees/${activeEmpCode}`);
+          const empSnap = await empNodeRef.once('value');
+          const empData = empSnap.val() || {};
+          
+          let currentCo = parseFloat(String(empData.co_balance || "0").replace(/"/g, ''));
+          if (isNaN(currentCo)) currentCo = 0;
+          
+          const newCoBalance = parseFloat((currentCo + coDelta).toFixed(2));
+          
+          await empNodeRef.child("co_balance").set(newCoBalance);
+          console.log(`-> [FRONT-END CO EARN] Updated co_balance for ${activeEmpCode} by delta ${coDelta}. New balance: ${newCoBalance}`);
+        }
+      }
+    } catch (coErr) {
+      console.warn("Non-critical: CO balance calculation skipped on frontend:", coErr);
+    }
+
     // ⭐ TRIGGER ATTENDANCE RECALCULATION & SYNC IMMEDIATELY AFTER SAVE ⭐
     await recalculateAndSyncAttendanceFrontend(activeEmpCode, work_date);
 
@@ -1202,6 +1238,11 @@ throw new Error(`You have already entered work from ${log.from_time} to ${log.to
     }
   }
 }
+
+
+
+
+
 
     
 // Ensure you also have this helper function included in your script:
