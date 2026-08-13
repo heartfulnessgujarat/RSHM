@@ -1712,8 +1712,7 @@ function calculateRequestedDays() {
 }
 
 
-    
-async function handleLeaveSubmit(e) {
+   async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
   const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.querySelector('button[type="submit"]');
@@ -1758,6 +1757,7 @@ async function handleLeaveSubmit(e) {
     let toDate = '';
     let totalDays = 0;
     let finalLeaveType = leaveTypeVal;
+    let reason = '';
 
     if (isPh) {
       const phSelectEl = document.getElementById('paidHolidaySelect');
@@ -1768,17 +1768,13 @@ async function handleLeaveSubmit(e) {
       toDate = phDateVal;
       totalDays = 1;
 
-
-    if (phSelectEl && phSelectEl.selectedIndex !== -1) {
+      if (phSelectEl && phSelectEl.selectedIndex !== -1) {
         const selectedOptionText = phSelectEl.options[phSelectEl.selectedIndex].text;
         if (selectedOptionText) {
           reason = `Paid Holiday: ${selectedOptionText}`;
         }
       }
       finalLeaveType = 'Paid Holiday';
-
-
-      
     } else {
       const fromDateEl = document.getElementById('leaveFromDate');
       fromDate = fromDateEl ? fromDateEl.value : '';
@@ -1795,11 +1791,11 @@ async function handleLeaveSubmit(e) {
       } else if (calculatedDaysEl && calculatedDaysEl.innerText && !isNaN(calculatedDaysEl.innerText)) {
         totalDays = parseFloat(calculatedDaysEl.innerText);
       }
+
+      reason = document.getElementById('leaveReason')?.value?.trim() || 'Leave Application';
     }
 
     if (totalDays <= 0) throw new Error('Invalid date selection or leave duration is 0 days.');
-
-    const reason = document.getElementById('leaveReason')?.value?.trim() || (isPh ? finalLeaveType : 'Leave Application');
 
     // ==========================================
     // ⭐ BALANCE VALIDATION CHECK BEFORE SUBMITTING ⭐
@@ -1846,14 +1842,9 @@ async function handleLeaveSubmit(e) {
     const endDateStr = formatDt(toDate);
     const dateDisplay = startDateStr + (endDateStr && endDateStr !== startDateStr ? " to " + endDateStr : "");
 
-    
-//  const isAutoApproved = isCo || finalLeaveType.toUpperCase().includes('AUTO');
-
     const isAutoApproved = isCo || finalLeaveType.toUpperCase().includes('PH') || finalLeaveType.toUpperCase().includes('PAID HOLIDAY');
     const initialStatus = isAutoApproved ? 'Auto Approved' : 'Pending';
-   
 
-   
     const leaveRecord = {
       leave_id: leaveId,
       emp_code: empCode,
@@ -1886,8 +1877,7 @@ async function handleLeaveSubmit(e) {
       }
     }
 
-
-// ⭐ TRIGGER EMAIL NOTIFICATION TO RIC (SKIPPED FOR AUTO-APPROVED / CO / PH LEAVES) ⭐
+    // ⭐ TRIGGER EMAIL NOTIFICATION TO RIC (SKIPPED FOR AUTO-APPROVED / CO / PH LEAVES) ⭐
     try {
       if (initialStatus !== 'Auto Approved') {
         const ricEmail = userObj.ric_email || userObj.reporting_incharge_email || userObj.ricEmail || '';
@@ -1909,9 +1899,6 @@ async function handleLeaveSubmit(e) {
       console.warn("Email notification trigger failed, but leave was saved:", emailErr);
     }
 
-
-
-    
     // ⭐ DEDICATED LEAVE ATTENDANCE WRITER BLOCK ⭐
     try {
       const selectedLeaveTypeName = finalLeaveType; 
@@ -1983,7 +1970,8 @@ async function handleLeaveSubmit(e) {
   } finally {
     if (submitBtn) submitBtn.disabled = false;
   }
-}
+} 
+
 
   async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
