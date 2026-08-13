@@ -1839,7 +1839,13 @@ async function handleLeaveSubmit(e) {
     const endDateStr = formatDt(toDate);
     const dateDisplay = startDateStr + (endDateStr && endDateStr !== startDateStr ? " to " + endDateStr : "");
 
-    const isAutoApproved = isCo || finalLeaveType.toUpperCase().includes('AUTO');
+    
+  //  const isAutoApproved = isCo || finalLeaveType.toUpperCase().includes('AUTO');
+ //   const initialStatus = isAutoApproved ? 'Auto Approved' : 'Pending';
+   
+
+    // Only Compensatory Off (CO) is auto-approved. PH, CL, and SL require RIC approval.
+    const isAutoApproved = isCo;
     const initialStatus = isAutoApproved ? 'Auto Approved' : 'Pending';
 
     const leaveRecord = {
