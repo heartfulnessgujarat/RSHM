@@ -1888,7 +1888,6 @@ async function loadLeaveMasterOptions() {
   try {
     console.log("-> Loading leave master data directly from Firebase...");
     
-    // Updated to point to your exact database schema paths: masters/leave_master and masters/holidays
     const dbRef = firebase.database().ref();
     const [leaveMasterSnap, holidaysSnap, configSnap] = await Promise.all([
       dbRef.child('masters/leave_master').once('value'),
@@ -1902,46 +1901,37 @@ async function loadLeaveMasterOptions() {
     const holidaysRaw = holidaysSnap.val() || {};
     const configData = configSnap.exists() ? configSnap.val() : {};
 
-    // Convert object maps to arrays for iteration
     const leaveTypesArray = Object.values(leaveMasterRaw).filter(Boolean);
     const holidaysArray = Array.isArray(holidaysRaw) ? holidaysRaw.filter(Boolean) : Object.values(holidaysRaw);
 
     // Reset Leave Types dropdown
     selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
 
-    // ⭐ STEP 1: INITIALIZE GLOBAL LOOKUP CACHE FOR DYNAMIC CODES ⭐
-    window.APP_LEAVE_CODES_MAP = window.APP_LEAVE_CODES_MAP || {};
-
-
-    
-
-   // ⭐ STEP 1: INITIALIZE GLOBAL LOOKUP CACHE FOR DYNAMIC CODES ⭐
+    // ⭐ INITIALIZE GLOBAL LOOKUP CACHE ONCE (CLEAN & NON-DUPLICATED) ⭐
     window.APP_LEAVE_CODES_MAP = window.APP_LEAVE_CODES_MAP || {};
 
     leaveTypesArray.forEach((item) => {
       if (!item) return;
-      // Matches your database keys like type_of_leave and leave_code_unapproved
-      const leaveName = item.type_of_leave || item.type || item.leaveType || item.name || '';
-      const unapprovedCode = item.leave_code_unapproved || item.unapproved || item.code || '';
       
-      // Look for approved code property in your database item schema, falling back to unapproved code
-      const approvedCode = item.leave_code_approved || item.approved_code || item.code || unapprovedCode; 
+      // Directly aligned with your Firebase schema keys
+      const leaveName = item.type_of_leave || '';
+      const unapprovedCode = item.leave_code_unapproved || '';
+      const approvedCode = item.leave_code_approved || ''; 
       
       if (leaveName) {
-        // Map the leave name dynamically to its approved uppercase code
-        window.APP_LEAVE_CODES_MAP[leaveName] = approvedCode.toUpperCase();
+        // Store both codes dynamically so HR updates in Firebase apply automatically
+        window.APP_LEAVE_CODES_MAP[leaveName] = {
+          approved: approvedCode,
+          unapproved: unapprovedCode
+        };
 
         const option = document.createElement('option');
         option.value = leaveName; 
-        option.textContent = unapprovedCode ? `${leaveName} (${unapprovedCode.toUpperCase()})` : leaveName;
+        // Display dropdown text using whatever unapproved code is set in Firebase
+        option.textContent = unapprovedCode ? `${leaveName} (${unapprovedCode})` : leaveName;
         selectElem.appendChild(option);
       }
     });
-
-
-
-
-    
 
     // Populate Paid Holidays with DD-MMM-YYYY formatting
     const phSelectElem = document.getElementById('paidHolidaySelect');
@@ -1989,8 +1979,8 @@ async function loadLeaveMasterOptions() {
     selectElem.innerHTML = '<option value="">-- Error Loading Options --</option>';
   }
 }
-    
-    
+
+
     
 async function executeLoginResetPassword() {
   const empCode = document.getElementById('login-emp-code').value.trim();
