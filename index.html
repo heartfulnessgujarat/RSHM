@@ -2489,11 +2489,28 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
         finalStatus = codePresent;
       } else if (totalHours > 0) {
         finalStatus = codeBelowThreshold;
-      } else {
-        // ZERO HOURS AND NO LEAVE: Do nothing / skip writing so default sheet behavior takes over
-        console.log(`-> [ATTENDANCE SYNC] Zero hours and no leave for ${activeEmpCode} on ${targetDateDisplay}. Skipping write.`);
+
+
+
+
+
+
+
+        
+    } else {
+        // ZERO HOURS AND NO LEAVE: Explicitly remove the attendance node from Firebase so it gets completely deleted
+        console.log(`-> [ATTENDANCE SYNC] Zero hours and no leave for ${activeEmpCode} on ${targetDateDisplay}. Deleting attendance record.`);
+        await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).remove();
         return; 
       }
+
+
+
+
+
+
+
+      
     }
 
     const now = new Date();
