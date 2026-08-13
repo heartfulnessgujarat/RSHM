@@ -1711,7 +1711,6 @@ function calculateRequestedDays() {
   if (badge) badge.classList.remove('hidden');
 }
 
-
 async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -1795,12 +1794,38 @@ async function handleLeaveSubmit(e) {
 
     const reason = document.getElementById('leaveReason')?.value?.trim() || (isPh ? finalLeaveType : 'Leave Application');
 
+    // ==========================================
+    // ⭐ BALANCE VALIDATION CHECK BEFORE SUBMITTING ⭐
+    // ==========================================
+    const dbRef = firebase.database().ref();
+    const empNodeRef = dbRef.child(`masters/employees/${empCode}`);
+    const empSnapshot = await empNodeRef.once('value');
+    const empData = empSnapshot.val() || {};
+
+    const cleanType = finalLeaveType.toLowerCase();
+    let targetPrefix = 'cl';
+    if (cleanType.includes('ph') || cleanType.includes('holiday')) {
+      targetPrefix = 'ph';
+    } else if (cleanType.includes('sl') || cleanType.includes('sick')) {
+      targetPrefix = 'sl';
+    } else if (cleanType.includes('co') || cleanType.includes('comp')) {
+      targetPrefix = 'co';
+    } else if (cleanType.includes('el') || cleanType.includes('earned')) {
+      targetPrefix = 'el';
+    }
+
+    const balanceField = `${targetPrefix}_balance`;
+    const currentBal = parseFloat(String(empData[balanceField] || "0").replace(/"/g, ''));
+    
+    if (isNaN(currentBal) || totalDays > currentBal) {
+      throw new Error(`You do not have enough balance to apply for this leave. Available: ${isNaN(currentBal) ? 0 : currentBal}, Requested: ${totalDays}`);
+    }
+
     // Format timestamps and IDs
     const timestamp = new Date();
     const leaveId = "LV" + timestamp.getTime();
     const nowIso = timestamp.toISOString();
     
-    // Standard DD-MMM-YYYY date formatter matching the rest of the application
     const formatDt = (d) => {
       if (!d) return '';
       const dateObj = new Date(d);
@@ -1835,33 +1860,13 @@ async function handleLeaveSubmit(e) {
     console.log("-> [DIAGNOSTIC] Writing leave application directly to Firebase:", leaveRecord);
 
     // DIRECT FIREBASE WRITE TO LEAVE REQUESTS
-    const dbRef = firebase.database().ref();
     const leaveRef = dbRef.child(`leave_requests/${empCode}/${leaveId}`);
     await leaveRef.set(leaveRecord);
 
-    // ⭐ FRONT-END BALANCE DEDUCTION BLOCK FOR AUTO-APPROVED LEAVES (ADDED) ⭐
+    // ⭐ FRONT-END BALANCE DEDUCTION BLOCK FOR AUTO-APPROVED LEAVES ⭐
     if (initialStatus === 'Auto Approved') {
       try {
-        const cleanType = finalLeaveType.toLowerCase();
-        let targetPrefix = 'cl';
-        if (cleanType.includes('ph') || cleanType.includes('holiday')) {
-          targetPrefix = 'ph';
-        } else if (cleanType.includes('sl') || cleanType.includes('sick')) {
-          targetPrefix = 'sl';
-        } else if (cleanType.includes('co') || cleanType.includes('comp')) {
-          targetPrefix = 'co';
-        } else if (cleanType.includes('el') || cleanType.includes('earned')) {
-          targetPrefix = 'el';
-        }
-
-        const balanceField = `${targetPrefix}_balance`;
-        const empNodeRef = dbRef.child(`masters/employees/${empCode}`);
-        const empSnapshot = await empNodeRef.once('value');
-        const empData = empSnapshot.val() || {};
-
-        const currentBal = parseFloat(empData[balanceField] || 0);
         const newBal = Math.max(0, currentBal - totalDays);
-
         await empNodeRef.child(balanceField).set(parseFloat(newBal.toFixed(2)));
         console.log(`-> [BALANCE DEDUCT] Successfully deducted ${totalDays} from ${balanceField}. New balance: ${newBal}`);
       } catch (balErr) {
@@ -1869,19 +1874,23 @@ async function handleLeaveSubmit(e) {
       }
     }
 
-    // TRIGGER EMAIL NOTIFICATION TO RIC (Backend Service Only)
+    // ⭐ TRIGGER EMAIL NOTIFICATION TO RIC (SKIPPED FOR AUTO-APPROVED / CO LEAVES) ⭐
     try {
-      const ricEmail = userObj.ric_email || userObj.reporting_incharge_email || userObj.ricEmail || '';
-      console.log("-> [DIAGNOSTIC] Attempting to send approval email to RIC:", ricEmail);
+      if (initialStatus !== 'Auto Approved') {
+        const ricEmail = userObj.ric_email || userObj.reporting_incharge_email || userObj.ricEmail || '';
+        console.log("-> [DIAGNOSTIC] Attempting to send approval email to RIC:", ricEmail);
 
-      if (ricEmail && typeof callBackend === 'function') {
-        await callBackend("sendLeaveEmail", {
-          ricEmail: ricEmail,
-          leaveData: leaveRecord
-        });
-        console.log("-> [DIAGNOSTIC] Email dispatch request sent successfully.");
+        if (ricEmail && typeof callBackend === 'function') {
+          await callBackend("sendLeaveEmail", {
+            ricEmail: ricEmail,
+            leaveData: leaveRecord
+          });
+          console.log("-> [DIAGNOSTIC] Email dispatch request sent successfully.");
+        } else {
+          console.warn("-> [DIAGNOSTIC] RIC email missing or callBackend not found.");
+        }
       } else {
-        console.warn("-> [DIAGNOSTIC] RIC email missing or callBackend not found.");
+        console.log("-> [DIAGNOSTIC] Leave is auto-approved (CO). Skipping RIC email trigger.");
       }
     } catch (emailErr) {
       console.warn("Email notification trigger failed, but leave was saved:", emailErr);
@@ -1959,9 +1968,6 @@ async function handleLeaveSubmit(e) {
     if (submitBtn) submitBtn.disabled = false;
   }
 }
-
-    
-
 
   async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
