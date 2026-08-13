@@ -948,6 +948,8 @@ async function setupWorkFormDropdowns() {
 }
 
 
+
+    
 async function executeWorkSubmit(e) {
   if (e) {
     if (typeof e.preventDefault === 'function') e.preventDefault();
@@ -1105,16 +1107,27 @@ async function executeWorkSubmit(e) {
   const activeUid = currentUser.employee_uid || currentUser.employeeUid || activeEmpCode;
 
   try {
-    const [fromHours, fromMins] = from_time.split(':').map(Number);
+
+
+
+
+
+
+
+const [fromHours, fromMins] = from_time.split(':').map(Number);
     const [toHours, toMins] = to_time.split(':').map(Number);
     
     let totalMins = (toHours * 60 + toMins) - (fromHours * 60 + fromMins);
     if (totalMins < 0) totalMins = 0;
 
-    const durHours = Math.floor(totalMins / 60);
-    const durMins = totalMins % 60;
-    const duration = `${String(durHours).padStart(2, '0')}:${String(durMins).padStart(2, '0')}`;
-    const newDurationHours = totalMins / 60;
+    const newDurationHours = parseFloat((totalMins / 60).toFixed(2));
+    // Save duration as decimal hours (matching attendance node)
+    const duration = newDurationHours;
+    
+    
+
+
+    
 
     const worklog_id = editingId ? editingId : ("WL" + new Date().getTime());
     
@@ -2366,6 +2379,8 @@ function formatDatetoDDMMMYYYY(dateStr) {
   return dateStr;
 }
 
+
+    
 
 async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, overrideStatus = null) {
   try {
