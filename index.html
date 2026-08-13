@@ -1758,7 +1758,10 @@ async function handleLeaveSubmit(e) {
     let finalLeaveType = leaveTypeVal;
     let reason = '';
 
-    if (isPh) {
+
+
+    
+if (isPh) {
       const phSelectEl = document.getElementById('paidHolidaySelect');
       const phDateVal = phSelectEl ? phSelectEl.value : '';
       if (!phDateVal) throw new Error('Please select a Paid Holiday.');
@@ -1782,8 +1785,30 @@ async function handleLeaveSubmit(e) {
       if (!fromDate) throw new Error('Please select a From Date.');
       if (!toDate || toDate === '') toDate = fromDate;
 
+      // ==========================================
+      // ⭐ SL FUTURE DATE VALIDATION CHECK ⭐
+      // ==========================================
+      const cleanType = finalLeaveType.toLowerCase();
+      if (cleanType.includes('sl') || cleanType.includes('sick')) {
+        const todayObj = new Date();
+        const year = todayObj.getFullYear();
+        const month = String(todayObj.getMonth() + 1).padStart(2, '0');
+        const day = String(todayObj.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
+
+        if (fromDate > todayStr || toDate > todayStr) {
+          throw new Error('Sick Leave (SL) cannot be applied for future dates.');
+        }
+      }
+
       const effectiveDaysEl = document.getElementById('effectiveDaysCount');
       const calculatedDaysEl = document.getElementById('calculatedDaysCount');
+
+
+
+
+
+      
       
       if (effectiveDaysEl && effectiveDaysEl.innerText && !isNaN(effectiveDaysEl.innerText)) {
         totalDays = parseFloat(effectiveDaysEl.innerText);
