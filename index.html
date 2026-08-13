@@ -1606,22 +1606,36 @@ function toggleLeaveFields() {
   minDate.setDate(minDate.getDate() - editWindowDays);
   const minDateStr = minDate.toISOString().split('T')[0];
 
+
+
+
+
+  
+
   const fromInput = document.getElementById('leaveFromDate');
   const toInput = document.getElementById('leaveToDate');
 
   if (fromInput && toInput) {
-    fromInput.min = minDateStr;
-    toInput.min = minDateStr;
-
-    if (type.includes('SL')) {
+    // Apply 7-day back-date limit ONLY if it's NOT Sick Leave
+    if (type.includes('SL') || type.includes('SICK')) {
+      fromInput.removeAttribute('min');
+      toInput.removeAttribute('min');
+      
       fromInput.max = todayStr;
       toInput.max = todayStr;
     } else {
+      fromInput.min = minDateStr;
+      toInput.min = minDateStr;
+      
       fromInput.removeAttribute('max');
       toInput.removeAttribute('max');
     }
   }
 
+
+
+
+  
   if (typeof calculateRequestedDays === 'function') {
     calculateRequestedDays();
   }
