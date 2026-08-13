@@ -1840,14 +1840,11 @@ async function handleLeaveSubmit(e) {
     const dateDisplay = startDateStr + (endDateStr && endDateStr !== startDateStr ? " to " + endDateStr : "");
 
     
-  //  const isAutoApproved = isCo || finalLeaveType.toUpperCase().includes('AUTO');
- //   const initialStatus = isAutoApproved ? 'Auto Approved' : 'Pending';
+  const isAutoApproved = isCo || finalLeaveType.toUpperCase().includes('AUTO');
+    const initialStatus = isAutoApproved ? 'Auto Approved' : 'Pending';
    
 
-    // Only Compensatory Off (CO) is auto-approved. PH, CL, and SL require RIC approval.
-    const isAutoApproved = isCo;
-    const initialStatus = isAutoApproved ? 'Auto Approved' : 'Pending';
-
+   
     const leaveRecord = {
       leave_id: leaveId,
       emp_code: empCode,
@@ -1880,7 +1877,8 @@ async function handleLeaveSubmit(e) {
       }
     }
 
-    // ⭐ TRIGGER EMAIL NOTIFICATION TO RIC (SKIPPED FOR AUTO-APPROVED / CO LEAVES) ⭐
+
+// ⭐ TRIGGER EMAIL NOTIFICATION TO RIC (SKIPPED FOR AUTO-APPROVED / CO / PH LEAVES) ⭐
     try {
       if (initialStatus !== 'Auto Approved') {
         const ricEmail = userObj.ric_email || userObj.reporting_incharge_email || userObj.ricEmail || '';
@@ -1896,12 +1894,15 @@ async function handleLeaveSubmit(e) {
           console.warn("-> [DIAGNOSTIC] RIC email missing or callBackend not found.");
         }
       } else {
-        console.log("-> [DIAGNOSTIC] Leave is auto-approved (CO). Skipping RIC email trigger.");
+        console.log("-> [DIAGNOSTIC] Leave is auto-approved. Skipping RIC email trigger.");
       }
     } catch (emailErr) {
       console.warn("Email notification trigger failed, but leave was saved:", emailErr);
     }
 
+
+
+    
     // ⭐ DEDICATED LEAVE ATTENDANCE WRITER BLOCK ⭐
     try {
       const selectedLeaveTypeName = finalLeaveType; 
