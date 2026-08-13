@@ -1711,6 +1711,8 @@ function calculateRequestedDays() {
   if (badge) badge.classList.remove('hidden');
 }
 
+
+    
 async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -1766,12 +1768,17 @@ async function handleLeaveSubmit(e) {
       toDate = phDateVal;
       totalDays = 1;
 
-      if (phSelectEl && phSelectEl.selectedIndex !== -1) {
+
+    if (phSelectEl && phSelectEl.selectedIndex !== -1) {
         const selectedOptionText = phSelectEl.options[phSelectEl.selectedIndex].text;
         if (selectedOptionText) {
-          finalLeaveType = selectedOptionText; 
+          reason = `Paid Holiday: ${selectedOptionText}`;
         }
       }
+      finalLeaveType = 'Paid Holiday';
+
+
+      
     } else {
       const fromDateEl = document.getElementById('leaveFromDate');
       fromDate = fromDateEl ? fromDateEl.value : '';
