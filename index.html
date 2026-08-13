@@ -2191,9 +2191,10 @@ function formatDatetoDDMMMYYYY(dateStr) {
   return dateStr;
 }
 
+
 async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, overrideStatus = null) {
   try {
-    const dbRef = firebase.database();
+    const dbRef = firebase.database().ref();
     
     const formatDt = (d) => {
       if (!d) return '';
@@ -2201,7 +2202,7 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       if (isNaN(dateObj.getTime())) return d;
       const day = String(dateObj.getDate()).padStart(2, '0');
       const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-      return `${day}-${months[dateObj.getMonth() ]}-${dateObj.getFullYear()}`;
+      return `${day}-${months[dateObj.getMonth()]}-${dateObj.getFullYear()}`;
     };
 
     const targetDateDisplay = formatDt(workDate);
@@ -2209,62 +2210,45 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     const isSunday = !isNaN(dateObjCheck.getTime()) && dateObjCheck.getDay() === 0;
 
     let totalHours = 0;
-    let finalStatus = "NE";
+    let finalStatus = null;
+    let leaveTypeNameFound = overrideStatus;
+    let leaveStatusFound = 'Approved'; // default if overridden directly
 
-    // 1. Check if there is an active leave request for this date if overrideStatus isn't explicitly passed
+    // 1. If overrideStatus wasn't passed, check active leave requests for this date
     if (!overrideStatus) {
-      const leaveSnap = await dbRef.ref(`leave_requests/${activeEmpCode}`).once('value');
+      const leaveSnap = await dbRef.child(`leave_requests/${activeEmpCode}`).once('value');
       if (leaveSnap.exists()) {
         leaveSnap.forEach(child => {
           const leave = child.val();
           if (leave && leave.leave_date && String(leave.leave_date).includes(targetDateDisplay)) {
-            overrideStatus = leave.leave_type; // Capture the leave type from the request
-            // If it's pending, we can flag or handle it, but we map it through the leave master below
+            leaveTypeNameFound = leave.leave_type; 
+            leaveStatusFound = leave.status || 'Pending';
           }
         });
       }
     }
 
-    if (overrideStatus) {
-      const upper = String(overrideStatus).trim().toUpperCase();
-      let derivedCode = upper;
-      
-      if (upper.includes('CAS') || upper.includes('CL')) derivedCode = 'CL';
-      else if (upper.includes('SIC') || upper.includes('SL')) derivedCode = 'SL';
-      else if (upper.includes('COMP') || upper.includes('CO')) derivedCode = 'CO';
-      else if (upper.includes('PAID') || upper.includes('PH')) derivedCode = 'PH';
-
-      finalStatus = isSunday ? "WO" : derivedCode;
+    // 2. Handle Leave or Sunday / Weekend
+    if (leaveTypeNameFound) {
       totalHours = 0;
+      
+      if (isSunday) {
+        finalStatus = "WO";
+      } else {
+        // Dynamically look up from our global cache populated by loadLeaveMasterOptions()
+        const mapEntry = window.APP_LEAVE_CODES_MAP && window.APP_LEAVE_CODES_MAP[leaveTypeNameFound];
+        const isApproved = String(leaveStatusFound).toLowerCase().includes('approved');
 
-      // 2. Perform database master lookup to precisely grab approved vs unapproved codes
-      const masterSnap = await dbRef.ref(`masters/leave_master/${String(overrideStatus).trim()}`).once('value');
-      if (masterSnap.exists()) {
-        const masterData = masterSnap.val();
-        
-        // Check leave requests again to determine if it's approved or unapproved
-        let isApproved = true; // default safe assumption for direct overrides
-        const leaveSnapCheck = await dbRef.ref(`leave_requests/${activeEmpCode}`).once('value');
-        if (leaveSnapCheck.exists()) {
-          leaveSnapCheck.forEach(child => {
-            const leave = child.val();
-            if (leave && leave.leave_date && String(leave.leave_date).includes(targetDateDisplay)) {
-              if (leave.status && leave.status.toLowerCase().includes('pending')) {
-                isApproved = false;
-              }
-            }
-          });
-        }
-
-        const trueCode = isApproved ? (masterData.leave_code_approved || derivedCode) : (masterData.leave_code_unapproved || derivedCode);
-        if (trueCode) {
-          finalStatus = isSunday ? "WO" : trueCode;
+        if (mapEntry) {
+          finalStatus = isApproved ? mapEntry.approved : mapEntry.unapproved;
+        } else {
+          // Fallback if cache isn't ready yet
+          finalStatus = isApproved ? leaveTypeNameFound.trim().toUpperCase().substring(0, 3) : leaveTypeNameFound.trim().toLowerCase().substring(0, 3);
         }
       }
-
     } else {
       // 3. Standard work log calculation flow
-      const allLogsSnap = await dbRef.ref(`daily_work/${activeEmpCode}`).once('value');
+      const allLogsSnap = await dbRef.child(`daily_work/${activeEmpCode}`).once('value');
       if (allLogsSnap.exists()) {
         allLogsSnap.forEach(childSnap => {
           const log = childSnap.val();
@@ -2281,13 +2265,12 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       }
       totalHours = parseFloat(totalHours.toFixed(2));
 
-      const configSnap = await dbRef.ref('config').once('value');
+      const configSnap = await dbRef.child('config').once('value');
       const config = configSnap.val() || {};
       const threshold = parseFloat(config.attendance_hours_threshold || config.threshold_hours) || 4.0;
       
       const codePresent = config.attendance_code_present || "P";
       const codeBelowThreshold = config.attendance_code_below_threshold || "WL4H";
-      const codeNoEntry = config.attendance_code_no_entry || "NE";
 
       if (isSunday) {
         finalStatus = "WO";
@@ -2296,7 +2279,9 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       } else if (totalHours > 0) {
         finalStatus = codeBelowThreshold;
       } else {
-        finalStatus = codeNoEntry;
+        // ZERO HOURS AND NO LEAVE: Do nothing / skip writing so default sheet behavior takes over
+        console.log(`-> [ATTENDANCE SYNC] Zero hours and no leave for ${activeEmpCode} on ${targetDateDisplay}. Skipping write.`);
+        return; 
       }
     }
 
@@ -2314,7 +2299,7 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       calculated_at: formattedTimestamp
     };
 
-    await dbRef.ref(`attendance/${activeEmpCode}/${targetDateDisplay}`).set(attendanceRecord);
+    await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).set(attendanceRecord);
     console.log("✅ Successfully synced attendance for " + activeEmpCode + " on " + targetDateDisplay + " with status: " + finalStatus);
 
   } catch (err) {
@@ -2322,6 +2307,9 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
   }
 }
 
+
+
+    
 function getLeaveCodeFromMaster(leaveTypeName) {
   if (!leaveTypeName) return 'P'; // Default / Present fallback
   
