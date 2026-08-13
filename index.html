@@ -1671,9 +1671,7 @@ function calculateRequestedDays() {
 }
 
 
-
-
-    async function handleLeaveSubmit(e) {
+async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
   const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.querySelector('button[type="submit"]');
@@ -1800,7 +1798,37 @@ function calculateRequestedDays() {
     const leaveRef = dbRef.child(`leave_requests/${empCode}/${leaveId}`);
     await leaveRef.set(leaveRecord);
 
-    // TRIGGER EMAIL NOTIFICATION TO RIC
+    // ⭐ FRONT-END BALANCE DEDUCTION BLOCK FOR AUTO-APPROVED LEAVES (ADDED) ⭐
+    if (initialStatus === 'Auto Approved') {
+      try {
+        const cleanType = finalLeaveType.toLowerCase();
+        let targetPrefix = 'cl';
+        if (cleanType.includes('ph') || cleanType.includes('holiday')) {
+          targetPrefix = 'ph';
+        } else if (cleanType.includes('sl') || cleanType.includes('sick')) {
+          targetPrefix = 'sl';
+        } else if (cleanType.includes('co') || cleanType.includes('comp')) {
+          targetPrefix = 'co';
+        } else if (cleanType.includes('el') || cleanType.includes('earned')) {
+          targetPrefix = 'el';
+        }
+
+        const balanceField = `${targetPrefix}_balance`;
+        const empNodeRef = dbRef.child(`masters/employees/${empCode}`);
+        const empSnapshot = await empNodeRef.once('value');
+        const empData = empSnapshot.val() || {};
+
+        const currentBal = parseFloat(empData[balanceField] || 0);
+        const newBal = Math.max(0, currentBal - totalDays);
+
+        await empNodeRef.child(balanceField).set(parseFloat(newBal.toFixed(2)));
+        console.log(`-> [BALANCE DEDUCT] Successfully deducted ${totalDays} from ${balanceField}. New balance: ${newBal}`);
+      } catch (balErr) {
+        console.error("Error deducting leave balance on frontend:", balErr);
+      }
+    }
+
+    // TRIGGER EMAIL NOTIFICATION TO RIC (Backend Service Only)
     try {
       const ricEmail = userObj.ric_email || userObj.reporting_incharge_email || userObj.ricEmail || '';
       console.log("-> [DIAGNOSTIC] Attempting to send approval email to RIC:", ricEmail);
@@ -1818,7 +1846,7 @@ function calculateRequestedDays() {
       console.warn("Email notification trigger failed, but leave was saved:", emailErr);
     }
 
-    // ⭐ DEDICATED LEAVE ATTENDANCE WRITER BLOCK (FIXED WITH DD-MMM-YYYY FORMAT) ⭐
+    // ⭐ DEDICATED LEAVE ATTENDANCE WRITER BLOCK ⭐
     try {
       const selectedLeaveTypeName = finalLeaveType; 
       const isApprovedNow = (initialStatus === 'Auto Approved' || initialStatus === 'Approved'); 
@@ -1839,7 +1867,6 @@ function calculateRequestedDays() {
         const lastDate = new Date(toDate);
 
         while (currDate <= lastDate) {
-          // Format each date using formatDt so the key matches DD-MMM-YYYY
           const loopDateFormatted = formatDt(currDate);
 
           if (loopDateFormatted) {
@@ -1891,6 +1918,8 @@ function calculateRequestedDays() {
     if (submitBtn) submitBtn.disabled = false;
   }
 }
+
+    
 
 
   async function loadLeaveMasterOptions() {
