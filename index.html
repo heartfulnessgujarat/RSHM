@@ -1430,10 +1430,11 @@ function formatHoursToHM(decimalHours) {
 }
 
 
+
 function renderTimesheetList() {
     const listDiv = document.getElementById('timesheet-list');
     
-    // Always start with our cycle header if it exists
+    // Header setup
     let html = window._payrollCycleHeaderHTML || "";
 
     if (!cachedTimesheet || cachedTimesheet.length === 0) {
@@ -1442,9 +1443,7 @@ function renderTimesheetList() {
         return;
     }
 
-    // Calculate total hours for this filtered cycle
     let totalCycleHours = 0;
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -1456,8 +1455,7 @@ function renderTimesheetList() {
         10
     );
 
-    // Wrap cards in a scrollable container so 150 entries don't break the page layout
-    let cardsHtml = '<div style="max-height: 450px; overflow-y: auto; padding-right: 4px; border: 1px solid #f3f4f6; border-radius: 6px;">';
+    let cardsHtml = "";
 
     cachedTimesheet.forEach(log => {
         const [year, month, day] = log.work_date.split('-').map(Number);
@@ -1499,9 +1497,6 @@ function renderTimesheetList() {
         `;
     });
 
-    cardsHtml += '</div>';
-
-    // Optional: Prepend a small total hours summary right below the header
     let summaryBanner = `
         <div style="font-size: 12px; color: #4b5563; margin-bottom: 8px; font-weight: 500; display: flex; justify-content: space-between;">
           <span>Total Entries: <strong>${cachedTimesheet.length}</strong></span>
@@ -1509,11 +1504,17 @@ function renderTimesheetList() {
         </div>
     `;
 
-    listDiv.innerHTML = html + summaryBanner + cardsHtml;
+    // Enforce max-height and scrolling explicitly on the wrapper element
+    listDiv.innerHTML = `
+      ${html}
+      ${summaryBanner}
+      <div style="max-height: 400px; overflow-y: auto; overflow-x: hidden; padding-right: 4px; border: 1px solid #f3f4f6; border-radius: 6px;">
+        ${cardsHtml}
+      </div>
+    `;
 }
 
-
-
+    
     
     
     
