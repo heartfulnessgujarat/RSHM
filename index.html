@@ -2327,22 +2327,29 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
 }
 
 
-
-    
-function getLeaveCodeFromMaster(leaveTypeName) {
+function getLeaveCodeFromMaster(leaveTypeName, status) {
   if (!leaveTypeName) return 'P'; // Default / Present fallback
   
   // Check our global map populated by loadLeaveMasterOptions()
-  if (window.APP_LEAVE_CODES_MAP && window.APP_LEAVE_CODES_MAP[leaveTypeName]) {
-    return window.APP_LEAVE_CODES_MAP[leaveTypeName];
+  const mapEntry = window.APP_LEAVE_CODES_MAP ? window.APP_LEAVE_CODES_MAP[leaveTypeName] : null;
+  
+  if (mapEntry) {
+    // Determine which code to return based on status
+    const lowerStatus = (status || '').toLowerCase();
+    
+    if (lowerStatus.includes('reject')) {
+        return mapEntry.rejected || 'REJ'; // Fallback to REJ if code missing
+    } else if (lowerStatus.includes('approve')) {
+        return mapEntry.approved || leaveTypeName.substring(0, 3).toUpperCase();
+    } else {
+        return mapEntry.unapproved || leaveTypeName.substring(0, 3).toLowerCase();
+    }
   }
   
-  // Fallback if not found in cache: clean and uppercase safely
-  return leaveTypeName.trim().toUpperCase().substring(0, 3);
+  // Fallback if not found in cache
+  return leaveTypeName.trim().substring(0, 3);
 }
-
-
-
+    
 
 
     
