@@ -1744,9 +1744,23 @@ async function handleLeaveSubmit(e) {
 
     if (!empCode) throw new Error('Employee code not found. Please log in again.');
 
-    const leaveTypeEl = document.getElementById('leaveTypeSelect');
-    const leaveTypeVal = leaveTypeEl ? leaveTypeEl.value : '';
+    
 
+ //   const leaveTypeEl = document.getElementById('leaveTypeSelect');
+ //   const leaveTypeVal = leaveTypeEl ? leaveTypeEl.value : '';
+
+const leaveTypeEl = document.getElementById('leaveTypeSelect');
+  
+  if (leaveTypeEl) {
+    leaveTypeEl.removeEventListener('change', updateLeaveDateRestrictions); // Prevents duplicate bindings if called multiple times
+    leaveTypeEl.addEventListener('change', updateLeaveDateRestrictions);
+    updateLeaveDateRestrictions(); // Run on load
+  }
+
+  const leaveTypeVal = leaveTypeEl ? leaveTypeEl.value : '';
+
+
+    
     if (!leaveTypeVal) throw new Error('Please select a leave type.');
 
     const isPh = leaveTypeVal.toUpperCase().includes('PH') || leaveTypeVal.toUpperCase().includes('PAID HOLIDAY');
