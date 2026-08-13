@@ -1894,11 +1894,7 @@ async function handleLeaveSubmit(e) {
 
 
 
-    
-
-  
-    
-async function loadLeaveMasterOptions() {
+  async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
   const selectElem = document.getElementById('leaveTypeSelect');
   if (!selectElem) {
@@ -1934,16 +1930,18 @@ async function loadLeaveMasterOptions() {
     leaveTypesArray.forEach((item) => {
       if (!item) return;
       
-      // Directly aligned with your Firebase schema keys
+      // Directly aligned with your Firebase schema keys including rejected code
       const leaveName = item.type_of_leave || '';
       const unapprovedCode = item.leave_code_unapproved || '';
       const approvedCode = item.leave_code_approved || ''; 
+      const rejectedCode = item.leave_code_rejected || '';
       
       if (leaveName) {
-        // Store both codes dynamically so HR updates in Firebase apply automatically
+        // Store approved, unapproved, and rejected codes dynamically
         window.APP_LEAVE_CODES_MAP[leaveName] = {
           approved: approvedCode,
-          unapproved: unapprovedCode
+          unapproved: unapprovedCode,
+          rejected: rejectedCode
         };
 
         const option = document.createElement('option');
@@ -1999,9 +1997,10 @@ async function loadLeaveMasterOptions() {
     console.error("-> Error in loadLeaveMasterOptions:", err);
     selectElem.innerHTML = '<option value="">-- Error Loading Options --</option>';
   }
-}
+}  
 
-
+  
+    
     
 async function executeLoginResetPassword() {
   const empCode = document.getElementById('login-emp-code').value.trim();
