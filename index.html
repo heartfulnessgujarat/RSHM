@@ -1697,10 +1697,10 @@ async function handleLeaveSubmit(e) {
                  || '';
 
     const empName = document.getElementById('leaveEmpName')?.value?.trim() 
-                    || userObj.employee_name 
-                    || userObj.emp_name 
-                    || localStorage.getItem('employee_name') 
-                    || '';
+                  || userObj.employee_name 
+                  || userObj.emp_name 
+                  || localStorage.getItem('employee_name') 
+                  || '';
 
     if (!empCode) throw new Error('Employee code not found. Please log in again.');
 
@@ -1759,7 +1759,7 @@ async function handleLeaveSubmit(e) {
     const leaveId = "LV" + timestamp.getTime();
     const nowIso = timestamp.toISOString();
     
-    // Simple date formatter if needed
+    // Simple date formatter
     const formatDt = (d) => {
       if (!d) return '';
       const dateObj = new Date(d);
@@ -1793,13 +1793,12 @@ async function handleLeaveSubmit(e) {
 
     console.log("-> [DIAGNOSTIC] Writing leave application directly to Firebase:", leaveRecord);
 
-    // ⭐ DIRECT FIREBASE WRITE TO THE NEW STRUCTURE ⭐
+    // DIRECT FIREBASE WRITE TO LEAVE REQUESTS
     const dbRef = firebase.database().ref();
     const leaveRef = dbRef.child(`leave_requests/${empCode}/${leaveId}`);
     await leaveRef.set(leaveRecord);
 
-
-    // ⭐ TRIGGER EMAIL NOTIFICATION TO RIC ⭐
+    // TRIGGER EMAIL NOTIFICATION TO RIC
     try {
       const ricEmail = userObj.ric_email || userObj.reporting_incharge_email || userObj.ricEmail || '';
       console.log("-> [DIAGNOSTIC] Attempting to send approval email to RIC:", ricEmail);
@@ -1817,33 +1816,41 @@ async function handleLeaveSubmit(e) {
       console.warn("Email notification trigger failed, but leave was saved:", emailErr);
     }
 
+    // ⭐ DYNAMICALLY RESOLVE STATUS-BASED CODE FROM CACHE ⭐
+    const selectedLeaveTypeName = finalLeaveType; 
+    const isApprovedNow = (initialStatus === 'Auto Approved' || initialStatus === 'Approved'); 
 
+    let standardizedCode = '';
+    const mapEntry = window.APP_LEAVE_CODES_MAP && window.APP_LEAVE_CODES_MAP[selectedLeaveTypeName];
 
+    if (mapEntry) {
+      standardizedCode = isApprovedNow ? mapEntry.approved : mapEntry.unapproved;
+    } else {
+      // Fallback if map isn't loaded
+      standardizedCode = isApprovedNow ? selectedLeaveTypeName.trim().toUpperCase().substring(0, 3) : selectedLeaveTypeName.trim().toLowerCase().substring(0, 3);
+    }
 
-    // ⭐ STEP 2: DYNAMICALLY RESOLVE STATUS-BASED CODE FROM CACHE ⭐
-const selectedLeaveTypeName = finalLeaveType; 
-const isApprovedNow = (leaveStatus === 'Approved'); // Check if status is explicitly approved
+    console.log(`-> [ATTENDANCE SYNC] Leave Type [${selectedLeaveTypeName}] | Status: ${initialStatus} | Resolved Code: [${standardizedCode}]`);
 
-let standardizedCode = '';
-if (isApprovedNow && window.APP_LEAVE_CODES_MAP && window.APP_LEAVE_CODES_MAP[selectedLeaveTypeName]) {
-  // Use uppercase approved code if approved
-  standardizedCode = window.APP_LEAVE_CODES_MAP[selectedLeaveTypeName];
-} else {
-  // Default to lowercase/unapproved format for pending submissions
-  standardizedCode = selectedLeaveTypeName.trim().toLowerCase().substring(0, 3);
-}
+    // ⭐ LOOP THROUGH ALL DATES IN RANGE AND SYNC ATTENDANCE FOR EACH DAY ⭐
+    if (typeof recalculateAndSyncAttendanceFrontend === 'function' && fromDate && toDate) {
+      let currDate = new Date(fromDate);
+      const lastDate = new Date(toDate);
 
-console.log(`-> [ATTENDANCE SYNC] Leave Type [${selectedLeaveTypeName}] | Status: ${leaveStatus || 'Pending'} | Resolved Code: [${standardizedCode}]`);
+      while (currDate <= lastDate) {
+        // Format current loop date to standard YYYY-MM-DD or whatever format your sync function expects
+        const year = currDate.getFullYear();
+        const month = String(currDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currDate.getDate()).padStart(2, '0');
+        const dateStringLoop = `${year}-${month}-${day}`;
 
-// Trigger attendance recalculation with the correct code based on status
-if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
-  await recalculateAndSyncAttendanceFrontend(empCode, fromDate, standardizedCode);
-}
+        await recalculateAndSyncAttendanceFrontend(empCode, dateStringLoop, standardizedCode);
 
+        // Move to next day
+        currDate.setDate(currDate.getDate() + 1);
+      }
+    }
 
-
-    
-    
     if (statusDiv) {
       statusDiv.style.color = '#1e8e3e';
       statusDiv.innerText = 'Leave request submitted successfully!';
@@ -1877,6 +1884,8 @@ if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
 }
 
 
+
+    
 async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
   const selectElem = document.getElementById('leaveTypeSelect');
