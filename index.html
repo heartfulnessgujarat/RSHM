@@ -1816,40 +1816,13 @@ async function handleLeaveSubmit(e) {
       console.warn("Email notification trigger failed, but leave was saved:", emailErr);
     }
 
-    // ⭐ DYNAMICALLY RESOLVE STATUS-BASED CODE FROM CACHE ⭐
-    const selectedLeaveTypeName = finalLeaveType; 
-    const isApprovedNow = (initialStatus === 'Auto Approved' || initialStatus === 'Approved'); 
 
-    let standardizedCode = '';
-    const mapEntry = window.APP_LEAVE_CODES_MAP && window.APP_LEAVE_CODES_MAP[selectedLeaveTypeName];
 
-    if (mapEntry) {
-      standardizedCode = isApprovedNow ? mapEntry.approved : mapEntry.unapproved;
-    } else {
-      // Fallback if map isn't loaded
-      standardizedCode = isApprovedNow ? selectedLeaveTypeName.trim().toUpperCase().substring(0, 3) : selectedLeaveTypeName.trim().toLowerCase().substring(0, 3);
-    }
 
-    console.log(`-> [ATTENDANCE SYNC] Leave Type [${selectedLeaveTypeName}] | Status: ${initialStatus} | Resolved Code: [${standardizedCode}]`);
 
-    // ⭐ LOOP THROUGH ALL DATES IN RANGE AND SYNC ATTENDANCE FOR EACH DAY ⭐
-    if (typeof recalculateAndSyncAttendanceFrontend === 'function' && fromDate && toDate) {
-      let currDate = new Date(fromDate);
-      const lastDate = new Date(toDate);
 
-      while (currDate <= lastDate) {
-        // Format current loop date to standard YYYY-MM-DD or whatever format your sync function expects
-        const year = currDate.getFullYear();
-        const month = String(currDate.getMonth() + 1).padStart(2, '0');
-        const day = String(currDate.getDate()).padStart(2, '0');
-        const dateStringLoop = `${year}-${month}-${day}`;
 
-        await recalculateAndSyncAttendanceFrontend(empCode, dateStringLoop, standardizedCode);
-
-        // Move to next day
-        currDate.setDate(currDate.getDate() + 1);
-      }
-    }
+    
 
     if (statusDiv) {
       statusDiv.style.color = '#1e8e3e';
