@@ -1265,22 +1265,43 @@ function timeToMins(timeStr) {
 }
 
     
-
 async function deleteWorkLog(worklogId) {
+  const activeEmpCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
+
+  // 1. Fetch the log details first so we know its work_date before deleting it
+  let workDateToRecalc = null;
+  try {
+    const logSnap = await firebase.database().ref(`daily_work/${activeEmpCode}/${worklogId}`).once('value');
+    if (logSnap.exists()) {
+      workDateToRecalc = logSnap.val().work_date;
+    }
+  } catch (err) {
+    console.warn("Could not fetch log details prior to deletion:", err);
+  }
+
   const confirmed = await showCustomConfirm("Do you really want to delete this work log?");
   if (!confirmed) return;
 
-  const activeEmpCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
-
   try {
+    // 2. Remove the work log from Firebase
     await firebase.database().ref(`daily_work/${activeEmpCode}/${worklogId}`).remove();
     showToast("Work log deleted successfully.", false);
+
+    // 3. If we found a work date, recalculate attendance for that date
+    if (workDateToRecalc) {
+      if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
+        await recalculateAndSyncAttendanceFrontend(activeEmpCode, workDateToRecalc);
+      }
+    }
+
     await loadTimesheetHistory();
   } catch(e) {
     showToast(e.message);
   }
 }
 
+
+    
 
 
 async function editWorkLog(worklogId) {
