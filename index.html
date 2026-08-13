@@ -1876,28 +1876,31 @@ async function handleLeaveSubmit(e) {
       }
     }
 
+
+
+
+    
     // ⭐ TRIGGER EMAIL NOTIFICATION TO RIC (SKIPPED FOR AUTO-APPROVED / CO / PH LEAVES) ⭐
-    try {
-      if (initialStatus !== 'Auto Approved') {
-        const ricEmail = userObj.ric_email || userObj.reporting_incharge_email || userObj.ricEmail || '';
-        console.log("-> [DIAGNOSTIC] Attempting to send approval email to RIC:", ricEmail);
 
-        if (ricEmail && typeof callBackend === 'function') {
-          await callBackend("sendLeaveEmail", {
-            ricEmail: ricEmail,
-            leaveData: leaveRecord
-          });
-          console.log("-> [DIAGNOSTIC] Email dispatch request sent successfully.");
-        } else {
-          console.warn("-> [DIAGNOSTIC] RIC email missing or callBackend not found.");
-        }
-      } else {
-        console.log("-> [DIAGNOSTIC] Leave is auto-approved. Skipping RIC email trigger.");
-      }
-    } catch (emailErr) {
-      console.warn("Email notification trigger failed, but leave was saved:", emailErr);
-    }
 
+    // ⭐ TRIGGER EMAIL NOTIFICATION TO RIC (NON-BLOCKING BACKGROUND CALL) ⭐
+if (initialStatus !== 'Auto Approved') {
+  const ricEmail = userObj.ric_email || userObj.reporting_incharge_email || userObj.ricEmail || '';
+  if (ricEmail && typeof callBackend === 'function') {
+    // Fire-and-forget so UI doesn't wait 8-10 seconds for GmailApp to send
+    callBackend("sendLeaveEmail", {
+      ricEmail: ricEmail,
+      leaveData: leaveRecord
+    }).then(() => {
+      console.log("-> [DIAGNOSTIC] Background email dispatch completed.");
+    }).catch(emailErr => {
+      console.warn("Background email notification trigger failed:", emailErr);
+    });
+  }
+}
+
+   
+    
     // ⭐ DEDICATED LEAVE ATTENDANCE WRITER BLOCK ⭐
     try {
       const selectedLeaveTypeName = finalLeaveType; 
@@ -1914,12 +1917,18 @@ async function handleLeaveSubmit(e) {
 
       console.log(`-> [LEAVE ATTENDANCE WRITE] Type [${selectedLeaveTypeName}] | Status: ${initialStatus} | Code: [${standardizedCode}]`);
 
-      if (fromDate && toDate) {
+
+      
+if (fromDate && toDate) {
         let currDate = new Date(fromDate);
         const lastDate = new Date(toDate);
 
         while (currDate <= lastDate) {
           const loopDateFormatted = formatDt(currDate);
+          
+          // Check if the current day is Sunday (Day 0)
+          const isSunday = currDate.getDay() === 0;
+          const dayStatus = isSunday ? 'WO' : standardizedCode;
 
           if (loopDateFormatted) {
             const attendanceRowRef = dbRef.child(`attendance/${empCode}/${loopDateFormatted}`);
@@ -1927,14 +1936,22 @@ async function handleLeaveSubmit(e) {
               emp_code: empCode,
               date: loopDateFormatted,
               hours: 0,
-              status: standardizedCode,
+              status: dayStatus,
               calculated_at: new Date().toLocaleString()
             });
+            console.log(`-> [ATTENDANCE] Date: ${loopDateFormatted} marked as ${dayStatus}`);
           }
 
           currDate.setDate(currDate.getDate() + 1);
         }
       }
+
+
+
+
+
+
+      
     } catch (attWriteErr) {
       console.error("Error writing leave to attendance node:", attWriteErr);
     }
