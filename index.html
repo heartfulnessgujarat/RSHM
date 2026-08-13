@@ -1847,7 +1847,9 @@ async function handleLeaveSubmit(e) {
     const dateDisplay = startDateStr + (endDateStr && endDateStr !== startDateStr ? " to " + endDateStr : "");
 
     
-  const isAutoApproved = isCo || finalLeaveType.toUpperCase().includes('AUTO');
+//  const isAutoApproved = isCo || finalLeaveType.toUpperCase().includes('AUTO');
+
+    const isAutoApproved = isCo || finalLeaveType.toUpperCase().includes('PH') || finalLeaveType.toUpperCase().includes('PAID HOLIDAY');
     const initialStatus = isAutoApproved ? 'Auto Approved' : 'Pending';
    
 
