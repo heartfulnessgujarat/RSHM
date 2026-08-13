@@ -1321,11 +1321,7 @@ async function editWorkLog(worklogId) {
 }
 
     
-
-
-
-    
-async function loadTimesheetHistory() {
+async function loadTimesheetHistory(selectedCycleOffset = 0) {
   switchView('view-timesheet');
   const listDiv = document.getElementById('timesheet-list');
   listDiv.innerHTML = "<p style='text-align:center; padding:15px;'>Loading records...</p>";
@@ -1333,23 +1329,97 @@ async function loadTimesheetHistory() {
   const activeEmpCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
 
   try {
-    // UPDATED: Now points to the correct location: daily_work/{activeEmpCode}
+    // 1. Fetch Config for Payroll Cycle Start/End Days (Default to 26 and 25 if not set)
+    const configSnap = await firebase.database().ref('config').once('value');
+    const configData = configSnap.val() || {};
+    
+    const payrollStartDay = parseInt(configData.payroll_start_day || configData.start_day || 26, 10);
+    const payrollEndDay = parseInt(configData.payroll_end_day || configData.end_day || 25, 10);
+
+    // 2. Calculate Payroll Cycle Date Boundaries based on offset (0 = Current, 1 = Previous, etc.)
+    const now = new Date();
+    let targetYear = now.getFullYear();
+    let targetMonth = now.getMonth(); // 0-indexed
+
+    // Adjust month/year based on selected offset and payroll start day
+    // If today's date is before the payroll start day, we are currently in the cycle that started last month
+    if (now.getDate() < payrollStartDay) {
+      targetMonth -= 1;
+    }
+    
+    // Apply the historical offset requested by user
+    targetMonth -= selectedCycleOffset;
+
+    const cycleStartDate = new Date(targetYear, targetMonth, payrollStartDay);
+    const cycleEndDate = new Date(targetYear, targetMonth + 1, payrollEndDay);
+    cycleEndDate.setHours(23, 59, 59, 999); // End of the final day
+
+    // 3. Fetch logs from Firebase
     const snapshot = await firebase.database().ref(`daily_work/${activeEmpCode}`).once('value');
 
-    cachedTimesheet = [];
+    let allLogs = [];
     if (snapshot.exists()) {
       snapshot.forEach(childSnap => {
-        cachedTimesheet.push(childSnap.val());
+        allLogs.push(childSnap.val());
       });
-      // Sort newest dates first
-      cachedTimesheet.sort((a, b) => new Date(b.work_date) - new Date(a.work_date));
     }
 
-    renderTimesheetList();
+    // 4. Filter logs strictly within the calculated payroll cycle boundaries
+    cachedTimesheet = allLogs.filter(log => {
+      if (!log.work_date) return false;
+      const [y, m, d] = log.work_date.split('-').map(Number);
+      const logDate = new Date(y, m - 1, d);
+      return logDate >= cycleStartDate && logDate <= cycleEndDate;
+    });
+
+    // Sort newest dates first
+    cachedTimesheet.sort((a, b) => new Date(b.work_date) - new Date(a.work_date));
+
+    // 5. Render list along with a cycle selector dropdown ui
+    renderTimesheetHistoryUI(payrollStartDay, payrollEndDay, selectedCycleOffset);
+
   } catch(e) {
     console.error("Error loading history:", e);
     showToast("Error loading history: " + e.message);
   }
+}
+
+// Helper to render UI controls for switching cycles
+function renderTimesheetHistoryUI(startDay, endDay, currentOffset) {
+  const listDiv = document.getElementById('timesheet-list');
+  
+  // Format cycle range label for display
+  const now = new Date();
+  let targetMonth = now.getMonth();
+  if (now.getDate() < startDay) targetMonth -= 1;
+  targetMonth -= currentOffset;
+
+  const startLabelDate = new Date(now.getFullYear(), targetMonth, startDay);
+  const endLabelDate = new Date(now.getFullYear(), targetMonth + 1, endDay);
+  const optionsStr = ["Current Cycle", "Previous Month", "2 Months Ago"];
+
+  let htmlContent = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 0 5px;">
+      <span style="font-size: 13px; font-weight: 600; color: #555;">
+        Cycle: ${startLabelDate.getDate()} ${startLabelDate.toLocaleString('default', { month: 'short' })} - ${endLabelDate.getDate()} ${endLabelDate.toLocaleString('default', { month: 'short' })} ${endLabelDate.getFullYear()}
+      </span>
+      <select id="payroll-cycle-selector" onchange="loadTimesheetHistory(parseInt(this.value, 10))" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px;">
+        <option value="0" ${currentOffset === 0 ? 'selected' : ''}>Current Cycle</option>
+        <option value="1" ${currentOffset === 1 ? 'selected' : ''}>Previous Cycle</option>
+        <option value="2" ${currentOffset === 2 ? 'selected' : ''}>2 Cycles Ago</option>
+      </select>
+    </div>
+  `;
+
+  if (cachedTimesheet.length === 0) {
+    htmlContent += `<p style='text-align:center; padding:20px; color: #777;'>No work logs found for this payroll cycle.</p>`;
+    listDiv.innerHTML = htmlContent;
+    return;
+  }
+
+  // Render your standard log cards
+  // (Assuming your existing render loop populates the rest of the list items)
+  listDiv.innerHTML = htmlContent + generateTimesheetCardsHTML();
 }
 
     
