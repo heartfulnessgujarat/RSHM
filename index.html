@@ -947,6 +947,7 @@ async function setupWorkFormDropdowns() {
   }
 }
 
+
 async function executeWorkSubmit(e) {
   if (e) {
     if (typeof e.preventDefault === 'function') e.preventDefault();
@@ -962,6 +963,9 @@ async function executeWorkSubmit(e) {
   const projectSelect = document.getElementById('work-project');
   const project_name = projectSelect.options[projectSelect.selectedIndex].text;
   const work_description = document.getElementById('work-desc').value.trim();
+
+  const activeEmpCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
+  const activeUid = currentUser.employee_uid || currentUser.employeeUid || activeEmpCode;
 
   // ==========================================
   // 1. EDIT WINDOW & FUTURE TIME INTERLOCK CHECK
@@ -1034,11 +1038,62 @@ async function executeWorkSubmit(e) {
   }  
 
   // ==========================================
+  // 1.5. LEAVE CONFLICT CHECK FOR WORK ENTRY ⭐
+  // ==========================================
+  if (work_date && activeEmpCode) {
+    try {
+      const leavesSnap = await firebase.database().ref(`leave_requests/${activeEmpCode}`).once('value');
+      if (leavesSnap.exists()) {
+        const [y, m, d] = work_date.split('-').map(Number);
+        const targetDateObj = new Date(y, m - 1, d);
+
+        let conflictingLeaveType = '';
+        leavesSnap.forEach(childSnap => {
+          const leave = childSnap.val();
+          if (leave.status && leave.status.toLowerCase().includes('reject')) return; // Ignore rejected leaves
+
+          const leaveDateStr = leave.leave_date || '';
+          // Handle single date or range e.g. "11-AUG-2026" or "11-AUG-2026 to 13-AUG-2026"
+          if (leaveDateStr.includes(' to ')) {
+            const parts = leaveDateStr.split(' to ');
+            const startDate = parseFormattedDateToObj(parts[0]);
+            const endDate = parseFormattedDateToObj(parts[1]);
+            if (startDate && endDate && targetDateObj >= startDate && targetDateObj <= endDate) {
+              conflictingLeaveType = leave.leave_type || 'Leave';
+            }
+          } else {
+            const singleDate = parseFormattedDateToObj(leaveDateStr);
+            if (singleDate && singleDate.getTime() === targetDateObj.getTime()) {
+              conflictingLeaveType = leave.leave_type || 'Leave';
+            }
+          }
+        });
+
+        if (conflictingLeaveType) {
+          const formattedDate = formatDatetoDDMMMYYYY(work_date);
+          let proceedWithWork = false;
+          try {
+            proceedWithWork = await showCustomConfirm(`You have already applied leave (${conflictingLeaveType}) on ${formattedDate}. Are you sure you want to make a work entry on this date?`);
+          } catch (err) {
+            proceedWithWork = confirm(`You have already applied leave (${conflictingLeaveType}) on ${formattedDate}. Are you sure you want to make a work entry on this date?`);
+          }
+          if (!proceedWithWork) {
+            const btn = document.getElementById('btn-save-log');
+            if (btn) { btn.disabled = false; btn.innerText = "Submit Work Log"; }
+            return;
+          }
+        }
+      }
+    } catch (leaveCheckErr) {
+      console.warn("Non-critical: Leave conflict check skipped:", leaveCheckErr);
+    }
+  }
+
+  // ==========================================
   // 2. TIME OVERLAP INTERLOCK VALIDATION CHECK
   // ==========================================
   if (work_date && from_time && to_time) {
     try {
-      const activeEmpCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
       const existingLogsSnapshot = await firebase.database().ref(`daily_work/${activeEmpCode}`).once('value');
       
       if (existingLogsSnapshot.exists()) {
@@ -1115,9 +1170,6 @@ async function executeWorkSubmit(e) {
     btn.disabled = true;
     btn.innerText = "Saving Work Log...";
   }
-
-  const activeEmpCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
-  const activeUid = currentUser.employee_uid || currentUser.employeeUid || activeEmpCode;
 
   try {
     const [fromHours, fromMins] = from_time.split(':').map(Number);
@@ -1220,7 +1272,6 @@ async function executeWorkSubmit(e) {
           const newCoBalance = parseFloat((currentCo + coDelta).toFixed(2));
           
           await empNodeRef.child("co_balance").set(newCoBalance);
-          console.log(`-> [FRONT-END CO EARN] Updated co_balance for ${activeEmpCode} by delta ${coDelta}. New balance: ${newCoBalance}`);
         }
       }
     } catch (coErr) {
@@ -1247,6 +1298,21 @@ async function executeWorkSubmit(e) {
   }
 }
 
+// Helper utility for parsing stored DD-MMM-YYYY strings back into Date objects
+function parseFormattedDateToObj(dateStr) {
+  if (!dateStr) return null;
+  const parts = dateStr.trim().split('-');
+  if (parts.length < 3) return null;
+  const day = parseInt(parts[0], 10);
+  const monthStr = parts[1].toUpperCase();
+  const year = parseInt(parts[2], 10);
+  const months = {"JAN":0, "FEB":1, "MAR":2, "APR":3, "MAY":4, "JUN":5, "JUL":6, "AUG":7, "SEP":8, "OCT":9, "NOV":10, "DEC":11};
+  if (!(monthStr in months)) return null;
+  const d = new Date(year, months[monthStr], day);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+    
     
 
 
