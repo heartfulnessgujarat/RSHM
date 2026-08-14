@@ -1944,7 +1944,7 @@ function calculateRequestedDays() {
 }
 
 
-async function handleLeaveSubmit(e) {
+    async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
   const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.querySelector('button[type="submit"]');
@@ -1958,16 +1958,16 @@ async function handleLeaveSubmit(e) {
 
   try {
     const userObj = (typeof currentUser !== 'undefined' && currentUser) 
-                 || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) 
-                 || (typeof loggedInUser !== 'undefined' && loggedInUser) 
-                 || JSON.parse(localStorage.getItem('currentUser') || localStorage.getItem('user') || '{}');
+               || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) 
+               || (typeof loggedInUser !== 'undefined' && loggedInUser) 
+               || JSON.parse(localStorage.getItem('currentUser') || localStorage.getItem('user') || '{}');
 
     const empCode = document.getElementById('leaveEmpId')?.value?.trim() 
-                 || userObj.emp_code 
-                 || userObj.employee_uid 
-                 || userObj.employeeUid 
-                 || localStorage.getItem('emp_code') 
-                 || '';
+               || userObj.emp_code 
+               || userObj.employee_uid 
+               || userObj.employeeUid 
+               || localStorage.getItem('emp_code') 
+               || '';
 
     const empName = document.getElementById('leaveEmpName')?.value?.trim() 
                   || userObj.employee_name 
@@ -1977,23 +1977,14 @@ async function handleLeaveSubmit(e) {
 
     if (!empCode) throw new Error('Employee code not found. Please log in again.');
 
-    
+    const leaveTypeEl = document.getElementById('leaveTypeSelect');
+    if (leaveTypeEl) {
+      leaveTypeEl.removeEventListener('change', updateLeaveDateRestrictions); 
+      leaveTypeEl.addEventListener('change', updateLeaveDateRestrictions);
+      updateLeaveDateRestrictions(); 
+    }
 
- //   const leaveTypeEl = document.getElementById('leaveTypeSelect');
- //   const leaveTypeVal = leaveTypeEl ? leaveTypeEl.value : '';
-
-const leaveTypeEl = document.getElementById('leaveTypeSelect');
-  
-  if (leaveTypeEl) {
-    leaveTypeEl.removeEventListener('change', updateLeaveDateRestrictions); // Prevents duplicate bindings if called multiple times
-    leaveTypeEl.addEventListener('change', updateLeaveDateRestrictions);
-    updateLeaveDateRestrictions(); // Run on load
-  }
-
-  const leaveTypeVal = leaveTypeEl ? leaveTypeEl.value : '';
-
-
-    
+    const leaveTypeVal = leaveTypeEl ? leaveTypeEl.value : '';
     if (!leaveTypeVal) throw new Error('Please select a leave type.');
 
     const isPh = leaveTypeVal.toUpperCase().includes('PH') || leaveTypeVal.toUpperCase().includes('PAID HOLIDAY');
@@ -2005,10 +1996,7 @@ const leaveTypeEl = document.getElementById('leaveTypeSelect');
     let finalLeaveType = leaveTypeVal;
     let reason = '';
 
-
-
-    
-if (isPh) {
+    if (isPh) {
       const phSelectEl = document.getElementById('paidHolidaySelect');
       const phDateVal = phSelectEl ? phSelectEl.value : '';
       if (!phDateVal) throw new Error('Please select a Paid Holiday.');
@@ -2051,12 +2039,6 @@ if (isPh) {
       const effectiveDaysEl = document.getElementById('effectiveDaysCount');
       const calculatedDaysEl = document.getElementById('calculatedDaysCount');
 
-
-
-
-
-      
-      
       if (effectiveDaysEl && effectiveDaysEl.innerText && !isNaN(effectiveDaysEl.innerText)) {
         totalDays = parseFloat(effectiveDaysEl.innerText);
       } else if (calculatedDaysEl && calculatedDaysEl.innerText && !isNaN(calculatedDaysEl.innerText)) {
@@ -2067,6 +2049,55 @@ if (isPh) {
     }
 
     if (totalDays <= 0) throw new Error('Invalid date selection or leave duration is 0 days.');
+
+    // ==========================================
+    // ⭐ WORK LOG CONFLICT CHECK FOR LEAVE ⭐
+    // ==========================================
+    if (fromDate && toDate && empCode) {
+      try {
+        const workLogsSnap = await firebase.database().ref(`daily_work/${empCode}`).once('value');
+        if (workLogsSnap.exists()) {
+          const startObj = new Date(fromDate);
+          startObj.setHours(0, 0, 0, 0);
+          const endObj = new Date(toDate);
+          endObj.setHours(0, 0, 0, 0);
+
+          let conflictingLog = null;
+          workLogsSnap.forEach(childSnap => {
+            const log = childSnap.val();
+            if (log.work_date) {
+              const [y, m, d] = log.work_date.split('-').map(Number);
+              const logDateObj = new Date(y, m - 1, d);
+              logDateObj.setHours(0, 0, 0, 0);
+
+              if (logDateObj >= startObj && logDateObj <= endObj) {
+                conflictingLog = log;
+              }
+            }
+          });
+
+          if (conflictingLog) {
+            const formattedDate = formatDatetoDDMMMYYYY(conflictingLog.work_date);
+            const confirmMsg = `You have already entered work on ${formattedDate} from ${conflictingLog.from_time} to ${conflictingLog.to_time} (${conflictingLog.duration} hrs). Are you sure you want to apply for leave on this date?`;
+            
+            let proceedWithLeave = false;
+            try {
+              proceedWithLeave = await showCustomConfirm(confirmMsg);
+            } catch (err) {
+              proceedWithLeave = confirm(confirmMsg);
+            }
+
+            if (!proceedWithLeave) {
+              if (submitBtn) submitBtn.disabled = false;
+              if (statusDiv) statusDiv.innerText = '';
+              return;
+            }
+          }
+        }
+      } catch (workCheckErr) {
+        console.warn("Non-critical: Work log conflict check during leave submission skipped:", workCheckErr);
+      }
+    }
 
     // ==========================================
     // ⭐ BALANCE VALIDATION CHECK BEFORE SUBMITTING ⭐
@@ -2095,7 +2126,6 @@ if (isPh) {
       throw new Error(`You do not have enough balance to apply for this leave. Available: ${isNaN(currentBal) ? 0 : currentBal}, Requested: ${totalDays}`);
     }
 
-    // Using global formatTimestamp helper
     const timestamp = new Date();
     const formattedTimestamp = window.formatTimestamp(timestamp);
     const leaveId = "LV" + timestamp.getTime();
@@ -2131,49 +2161,32 @@ if (isPh) {
       actioned_on: isAutoApproved ? formattedTimestamp : ''
     };
 
-    console.log("-> [DIAGNOSTIC] Writing leave application directly to Firebase:", leaveRecord);
-
-    // DIRECT FIREBASE WRITE TO LEAVE REQUESTS
     const leaveRef = dbRef.child(`leave_requests/${empCode}/${leaveId}`);
     await leaveRef.set(leaveRecord);
 
-    // ⭐ FRONT-END BALANCE DEDUCTION BLOCK FOR AUTO-APPROVED LEAVES ⭐
     if (initialStatus === 'Auto Approved') {
       try {
         const newBal = Math.max(0, currentBal - totalDays);
         await empNodeRef.child(balanceField).set(parseFloat(newBal.toFixed(2)));
-        console.log(`-> [BALANCE DEDUCT] Successfully deducted ${totalDays} from ${balanceField}. New balance: ${newBal}`);
       } catch (balErr) {
         console.error("Error deducting leave balance on frontend:", balErr);
       }
     }
 
-
-
-
+    if (initialStatus !== 'Auto Approved') {
+      const ricEmail = userObj.ric_email || userObj.reporting_incharge_email || userObj.ricEmail || '';
+      if (ricEmail && typeof callBackend === 'function') {
+        callBackend("sendLeaveEmail", {
+          ricEmail: ricEmail,
+          leaveData: leaveRecord
+        }).then(() => {
+          console.log("-> [DIAGNOSTIC] Background email dispatch completed.");
+        }).catch(emailErr => {
+          console.warn("Background email notification trigger failed:", emailErr);
+        });
+      }
+    }
     
-    // ⭐ TRIGGER EMAIL NOTIFICATION TO RIC (SKIPPED FOR AUTO-APPROVED / CO / PH LEAVES) ⭐
-
-
-    // ⭐ TRIGGER EMAIL NOTIFICATION TO RIC (NON-BLOCKING BACKGROUND CALL) ⭐
-if (initialStatus !== 'Auto Approved') {
-  const ricEmail = userObj.ric_email || userObj.reporting_incharge_email || userObj.ricEmail || '';
-  if (ricEmail && typeof callBackend === 'function') {
-    // Fire-and-forget so UI doesn't wait 8-10 seconds for GmailApp to send
-    callBackend("sendLeaveEmail", {
-      ricEmail: ricEmail,
-      leaveData: leaveRecord
-    }).then(() => {
-      console.log("-> [DIAGNOSTIC] Background email dispatch completed.");
-    }).catch(emailErr => {
-      console.warn("Background email notification trigger failed:", emailErr);
-    });
-  }
-}
-
-   
-    
-    // ⭐ DEDICATED LEAVE ATTENDANCE WRITER BLOCK ⭐
     try {
       const selectedLeaveTypeName = finalLeaveType; 
       const isApprovedNow = (initialStatus === 'Auto Approved' || initialStatus === 'Approved'); 
@@ -2187,18 +2200,12 @@ if (initialStatus !== 'Auto Approved') {
         standardizedCode = isApprovedNow ? selectedLeaveTypeName.trim().toUpperCase().substring(0, 3) : selectedLeaveTypeName.trim().toLowerCase().substring(0, 3);
       }
 
-      console.log(`-> [LEAVE ATTENDANCE WRITE] Type [${selectedLeaveTypeName}] | Status: ${initialStatus} | Code: [${standardizedCode}]`);
-
-
-      
-if (fromDate && toDate) {
+      if (fromDate && toDate) {
         let currDate = new Date(fromDate);
         const lastDate = new Date(toDate);
 
         while (currDate <= lastDate) {
           const loopDateFormatted = formatDt(currDate);
-          
-          // Check if the current day is Sunday (Day 0)
           const isSunday = currDate.getDay() === 0;
           const dayStatus = isSunday ? 'WO' : standardizedCode;
 
@@ -2211,19 +2218,10 @@ if (fromDate && toDate) {
               status: dayStatus,
               calculated_at: new Date().toLocaleString()
             });
-            console.log(`-> [ATTENDANCE] Date: ${loopDateFormatted} marked as ${dayStatus}`);
           }
-
           currDate.setDate(currDate.getDate() + 1);
         }
       }
-
-
-
-
-
-
-      
     } catch (attWriteErr) {
       console.error("Error writing leave to attendance node:", attWriteErr);
     }
@@ -2259,8 +2257,6 @@ if (fromDate && toDate) {
     if (submitBtn) submitBtn.disabled = false;
   }
 }
-
-
 
     
   async function loadLeaveMasterOptions() {
