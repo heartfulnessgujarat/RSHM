@@ -1295,8 +1295,36 @@ async function deleteWorkLog(worklogId) {
 }
 
 
-    
+ function updateTimePickerMaxForToday() {
+    const workDateInput = document.getElementById('work-date');
+    const fromTimeInput = document.getElementById('work-from');
+    const toTimeInput = document.getElementById('work-to');
 
+    if (!workDateInput || !fromTimeInput) return;
+
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    if (workDateInput.value === todayStr) {
+        const currentHours = String(now.getHours()).padStart(2, '0');
+        const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+        const currentTimeStr = `${currentHours}:${currentMinutes}`;
+
+        fromTimeInput.max = currentTimeStr;
+        if (toTimeInput) toTimeInput.max = currentTimeStr;
+    } else {
+        fromTimeInput.removeAttribute('max');
+        if (toTimeInput) toTimeInput.removeAttribute('max');
+    }
+}
+
+// Bind event listener to update dynamically when date changes
+document.addEventListener('DOMContentLoaded', () => {
+    const workDateEl = document.getElementById('work-date');
+    if (workDateEl) {
+        workDateEl.addEventListener('change', updateTimePickerMaxForToday);
+    }
+});
 
 async function editWorkLog(worklogId) {
     const log = cachedTimesheet.find(l => l.worklog_id === worklogId);
@@ -1311,10 +1339,19 @@ async function editWorkLog(worklogId) {
     document.getElementById('work-project').value = log.project_id;
     document.getElementById('work-desc').value = log.work_description;
 
+    // Trigger time picker limitation check based on selected date
+    updateTimePickerMaxForToday();
+
     switchView('view-work-entry');
-}
+}   
 
 
+
+
+
+
+
+    
 
 async function loadTimesheetHistory(selectedCycleOffset = 0) {
   switchView('view-timesheet');
