@@ -1081,15 +1081,9 @@ async function executeWorkSubmit(e) {
 if (!isHalfDayLeave) {
             const errorMsg = `Conflict: You have an active/pending Full-Day leave (${leaveType}) on ${formattedDate}. You must cancel your leave before you can log work.`;
             
-            // Uses your customized window modal with an OK acknowledgment
+            // Uses your custom modal window
             try {
-              if (typeof showCustomAlert === 'function') {
-                await showCustomAlert(errorMsg);
-              } else if (typeof showCustomConfirm === 'function') {
-                await showCustomConfirm(errorMsg); // fallback if custom confirm accepts single message
-              } else {
-                alert(errorMsg);
-              }
+              await showCustomConfirm(errorMsg);
             } catch (err) {
               alert(errorMsg);
             }
@@ -1099,6 +1093,7 @@ if (!isHalfDayLeave) {
             return;
           }
 
+          
 
 
           
@@ -2123,19 +2118,12 @@ if (conflictingLog) {
             // If user is applying for a Full-Day leave while a work log exists, block it
 
 
-
 if (!isHalfDayLeave) {
               const errorMsg = `Conflict: You have already logged work on ${formattedDate} (${conflictingLog.duration} hrs). You cannot apply for a Full-Day leave unless you delete your work log first.`;
               
-              // Uses your customized window modal with an OK acknowledgment
+              // Uses your custom modal window
               try {
-                if (typeof showCustomAlert === 'function') {
-                  await showCustomAlert(errorMsg);
-                } else if (typeof showCustomConfirm === 'function') {
-                  await showCustomConfirm(errorMsg);
-                } else {
-                  alert(errorMsg);
-                }
+                await showCustomConfirm(errorMsg);
               } catch (err) {
                 alert(errorMsg);
               }
@@ -2149,6 +2137,10 @@ if (!isHalfDayLeave) {
             }
   
 
+  
+
+
+  
 
   
 
