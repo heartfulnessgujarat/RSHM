@@ -1069,13 +1069,30 @@ async function executeWorkSubmit(e) {
           }
         });
 
-        if (conflictingLeaveType) {
+
+
+
+
+
+
+     if (conflictingLeaveType) {
           const formattedDate = formatDatetoDDMMMYYYY(work_date);
+          const isHalfDayLeave = conflictingLeaveType.toLowerCase().includes('half day');
+
+          // If it's a Full-Day leave, block completely (Require Leave Cancellation)
+          if (!isHalfDayLeave) {
+            alert(`Conflict: You have an active/pending Full-Day leave (${conflictingLeaveType}) on ${formattedDate}. You must cancel your leave before you can log work.`);
+            const btn = document.getElementById('btn-save-log');
+            if (btn) { btn.disabled = false; btn.innerText = "Submit Work Log"; }
+            return;
+          }
+
+          // If it IS a Half-Day leave, allow work entry smoothly with confirmation
           let proceedWithWork = false;
           try {
-            proceedWithWork = await showCustomConfirm(`You have already applied leave (${conflictingLeaveType}) on ${formattedDate}. Are you sure you want to make a work entry on this date?`);
+            proceedWithWork = await showCustomConfirm(`You have a Half-Day leave (${conflictingLeaveType}) on ${formattedDate}. Do you want to proceed with making a work entry?`);
           } catch (err) {
-            proceedWithWork = confirm(`You have already applied leave (${conflictingLeaveType}) on ${formattedDate}. Are you sure you want to make a work entry on this date?`);
+            proceedWithWork = confirm(`You have a Half-Day leave (${conflictingLeaveType}) on ${formattedDate}. Do you want to proceed with making a work entry?`);
           }
           if (!proceedWithWork) {
             const btn = document.getElementById('btn-save-log');
@@ -1083,6 +1100,13 @@ async function executeWorkSubmit(e) {
             return;
           }
         }
+
+
+
+
+
+
+        
       }
     } catch (leaveCheckErr) {
       console.warn("Non-critical: Leave conflict check skipped:", leaveCheckErr);
@@ -2076,9 +2100,24 @@ function calculateRequestedDays() {
             }
           });
 
-          if (conflictingLog) {
+
+
+
+
+if (conflictingLog) {
             const formattedDate = formatDatetoDDMMMYYYY(conflictingLog.work_date);
-            const confirmMsg = `You have already entered work on ${formattedDate} from ${conflictingLog.from_time} to ${conflictingLog.to_time} (${conflictingLog.duration} hrs). Are you sure you want to apply for leave on this date?`;
+            const isHalfDayLeave = finalLeaveType.toLowerCase().includes('half day');
+
+            // If user is applying for a Full-Day leave while a work log exists, block it
+            if (!isHalfDayLeave) {
+              alert(`Conflict: You have already logged work on ${formattedDate} (${conflictingLog.duration} hrs). You cannot apply for a Full-Day leave unless you delete your work log first.`);
+              if (submitBtn) submitBtn.disabled = false;
+              if (statusDiv) statusDiv.innerText = '';
+              return;
+            }
+
+            // If it IS a Half-Day leave, allow it with a prompt/confirmation
+            const confirmMsg = `You have already entered work on ${formattedDate} (${conflictingLog.duration} hrs). Since you selected a Half-Day leave (${finalLeaveType}), do you wish to proceed?`;
             
             let proceedWithLeave = false;
             try {
@@ -2093,6 +2132,14 @@ function calculateRequestedDays() {
               return;
             }
           }
+
+
+
+
+
+
+
+          
         }
       } catch (workCheckErr) {
         console.warn("Non-critical: Work log conflict check during leave submission skipped:", workCheckErr);
