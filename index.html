@@ -1070,12 +1070,18 @@ async function executeWorkSubmit(e) {
           }
         });
 
-        if (activeLeave) {
+
+
+
+
+
+if (activeLeave) {
           const formattedDate = formatDatetoDDMMMYYYY(work_date);
           const leaveType = activeLeave.leave_type || 'Leave';
           const isHalfDayLeave = leaveType.toLowerCase().includes('half day');
 
-          // If it's a Fif (!isHalfDayLeave) {
+          // If it's a Full-Day leave, block completely (Require Leave Cancellation)
+          if (!isHalfDayLeave) {
             const errorMsg = `Conflict: You have an active/pending Full-Day leave (${leaveType}) on ${formattedDate}. You must cancel your leave before you can log work.`;
             
             await showCustomAlert(errorMsg);
@@ -1083,14 +1089,8 @@ async function executeWorkSubmit(e) {
             const btn = document.getElementById('btn-save-log');
             if (btn) { btn.disabled = false; btn.innerText = "Submit Work Log"; }
             return;
-          }ull-Day leave, block completely (Require Leave Cancellation)
+          }
 
-
-
-
-
-
-          
           // If it IS a Half-Day leave, allow work entry smoothly with confirmation
           let proceedWithWork = false;
           try {
@@ -1104,6 +1104,16 @@ async function executeWorkSubmit(e) {
             return;
           }
         }
+
+
+
+
+
+
+
+
+
+      
       }
     } catch (leaveCheckErr) {
       console.warn("Non-critical: Leave conflict check skipped:", leaveCheckErr);
