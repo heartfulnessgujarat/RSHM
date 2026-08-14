@@ -1075,25 +1075,19 @@ async function executeWorkSubmit(e) {
           const leaveType = activeLeave.leave_type || 'Leave';
           const isHalfDayLeave = leaveType.toLowerCase().includes('half day');
 
-          // If it's a Full-Day leave, block completely (Require Leave Cancellation)
-
-
-if (!isHalfDayLeave) {
+          // If it's a Fif (!isHalfDayLeave) {
             const errorMsg = `Conflict: You have an active/pending Full-Day leave (${leaveType}) on ${formattedDate}. You must cancel your leave before you can log work.`;
             
-            // Uses your custom modal window
-            try {
-              await showCustomConfirm(errorMsg);
-            } catch (err) {
-              alert(errorMsg);
-            }
+            await showCustomAlert(errorMsg);
 
             const btn = document.getElementById('btn-save-log');
             if (btn) { btn.disabled = false; btn.innerText = "Submit Work Log"; }
             return;
-          }
+          }ull-Day leave, block completely (Require Leave Cancellation)
 
-          
+
+
+
 
 
           
@@ -2118,15 +2112,12 @@ if (conflictingLog) {
             // If user is applying for a Full-Day leave while a work log exists, block it
 
 
-if (!isHalfDayLeave) {
+
+
+  if (!isHalfDayLeave) {
               const errorMsg = `Conflict: You have already logged work on ${formattedDate} (${conflictingLog.duration} hrs). You cannot apply for a Full-Day leave unless you delete your work log first.`;
               
-              // Uses your custom modal window
-              try {
-                await showCustomConfirm(errorMsg);
-              } catch (err) {
-                alert(errorMsg);
-              }
+              await showCustomAlert(errorMsg);
 
               if (statusDiv) {
                 statusDiv.style.color = '#d93025';
@@ -2135,8 +2126,6 @@ if (!isHalfDayLeave) {
               if (submitBtn) submitBtn.disabled = false;
               return;
             }
-  
-
   
 
 
@@ -2861,7 +2850,37 @@ function updateLeaveDateRestrictions() {
   }
 }
 
+function showCustomAlert(message) {
+  return new Promise((resolve) => {
+    // Check if a custom modal container already exists, otherwise create one
+    let modalOverlay = document.getElementById('custom-alert-overlay');
+    if (!modalOverlay) {
+      modalOverlay = document.createElement('div');
+      modalOverlay.id = 'custom-alert-overlay';
+      modalOverlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.5); display: flex; justify-content: center;
+        align-items: center; z-index: 9999; backdrop-filter: blur(2px);
+      `;
+      document.body.appendChild(modalOverlay);
+    }
 
+    modalOverlay.innerHTML = `
+      <div style="background: white; padding: 25px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.2); text-align: center; font-family: inherit;">
+        <h3 style="margin-top: 0; color: #1a73e8; margin-bottom: 15px;">Notice</h3>
+        <p style="color: #333; font-size: 15px; line-height: 1.5; margin-bottom: 25px;">${message}</p>
+        <button id="custom-alert-ok-btn" style="background: #1a73e8; color: white; border: none; padding: 10px 25px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; width: 100%;">OK</button>
+      </div>
+    `;
+
+    modalOverlay.style.display = 'flex';
+
+    document.getElementById('custom-alert-ok-btn').onclick = () => {
+      modalOverlay.style.display = 'none';
+      resolve();
+    };
+  });
+}
 
 
 
