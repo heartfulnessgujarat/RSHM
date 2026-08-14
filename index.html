@@ -1037,7 +1037,8 @@ async function executeWorkSubmit(e) {
     }
   }  
 
-  // ==========================================
+
+// ==========================================
   // 1.5. LEAVE CONFLICT CHECK FOR WORK ENTRY ⭐
   // ==========================================
   if (work_date && activeEmpCode) {
@@ -1046,64 +1047,53 @@ async function executeWorkSubmit(e) {
       if (leavesSnap.exists()) {
         const [y, m, d] = work_date.split('-').map(Number);
         const targetDateObj = new Date(y, m - 1, d);
+        targetDateObj.setHours(0, 0, 0, 0);
 
-        let conflictingLeaveType = '';
+        let activeLeave = null;
         leavesSnap.forEach(childSnap => {
           const leave = childSnap.val();
           if (leave.status && leave.status.toLowerCase().includes('reject')) return; // Ignore rejected leaves
 
           const leaveDateStr = leave.leave_date || '';
-          // Handle single date or range e.g. "11-AUG-2026" or "11-AUG-2026 to 13-AUG-2026"
           if (leaveDateStr.includes(' to ')) {
             const parts = leaveDateStr.split(' to ');
             const startDate = parseFormattedDateToObj(parts[0]);
             const endDate = parseFormattedDateToObj(parts[1]);
             if (startDate && endDate && targetDateObj >= startDate && targetDateObj <= endDate) {
-              conflictingLeaveType = leave.leave_type || 'Leave';
+              activeLeave = leave;
             }
           } else {
             const singleDate = parseFormattedDateToObj(leaveDateStr);
             if (singleDate && singleDate.getTime() === targetDateObj.getTime()) {
-              conflictingLeaveType = leave.leave_type || 'Leave';
+              activeLeave = leave;
             }
           }
         });
 
-
-
-
-
-
-
-     if (conflictingLeaveType) {
+        if (activeLeave) {
           const formattedDate = formatDatetoDDMMMYYYY(work_date);
-          const isHalfDayLeave = conflictingLeaveType.toLowerCase().includes('half day');
+          const leaveType = activeLeave.leave_type || 'Leave';
+          const isHalfDayLeave = leaveType.toLowerCase().includes('half day');
 
           // If it's a Full-Day leave, block completely (Require Leave Cancellation)
-
-
-
-       if (!isHalfDayLeave) {
-                  const errorMsg = `Conflict: You have an active/pending Full-Day leave (${activeLeave.leave_type}) on ${formattedDate}. You must cancel your leave before you can log work.`;
-                  if (typeof showToast === 'function') {
-                    showToast(errorMsg);
-                  } else {
-                    alert(errorMsg);
-                  }
-                  const btn = document.getElementById('btn-save-log');
-                  if (btn) { btn.disabled = false; btn.innerText = "Submit Work Log"; }
-                  return;
-                }
-
-
-       
+          if (!isHalfDayLeave) {
+            const errorMsg = `Conflict: You have an active/pending Full-Day leave (${leaveType}) on ${formattedDate}. You must cancel your leave before you can log work.`;
+            if (typeof showToast === 'function') {
+              showToast(errorMsg);
+            } else {
+              alert(errorMsg);
+            }
+            const btn = document.getElementById('btn-save-log');
+            if (btn) { btn.disabled = false; btn.innerText = "Submit Work Log"; }
+            return;
+          }
 
           // If it IS a Half-Day leave, allow work entry smoothly with confirmation
           let proceedWithWork = false;
           try {
-            proceedWithWork = await showCustomConfirm(`You have a Half-Day leave (${conflictingLeaveType}) on ${formattedDate}. Do you want to proceed with making a work entry?`);
+            proceedWithWork = await showCustomConfirm(`You have a Half-Day leave (${leaveType}) on ${formattedDate}. Do you want to proceed with making a work entry?`);
           } catch (err) {
-            proceedWithWork = confirm(`You have a Half-Day leave (${conflictingLeaveType}) on ${formattedDate}. Do you want to proceed with making a work entry?`);
+            proceedWithWork = confirm(`You have a Half-Day leave (${leaveType}) on ${formattedDate}. Do you want to proceed with making a work entry?`);
           }
           if (!proceedWithWork) {
             const btn = document.getElementById('btn-save-log');
@@ -1111,9 +1101,13 @@ async function executeWorkSubmit(e) {
             return;
           }
         }
+      }
+    } catch (leaveCheckErr) {
+      console.warn("Non-critical: Leave conflict check skipped:", leaveCheckErr);
+    }
+  }
 
-
-
+  
 
 
 
