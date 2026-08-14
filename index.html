@@ -1078,21 +1078,26 @@ async function executeWorkSubmit(e) {
           // If it's a Full-Day leave, block completely (Require Leave Cancellation)
 
 
-
-      if (!isHalfDayLeave) {
+if (!isHalfDayLeave) {
             const errorMsg = `Conflict: You have an active/pending Full-Day leave (${leaveType}) on ${formattedDate}. You must cancel your leave before you can log work.`;
             
-            // Forces an explicit OK acknowledgment window instead of a fading toast
-            alert(errorMsg);
+            // Uses your customized window modal with an OK acknowledgment
+            try {
+              if (typeof showCustomAlert === 'function') {
+                await showCustomAlert(errorMsg);
+              } else if (typeof showCustomConfirm === 'function') {
+                await showCustomConfirm(errorMsg); // fallback if custom confirm accepts single message
+              } else {
+                alert(errorMsg);
+              }
+            } catch (err) {
+              alert(errorMsg);
+            }
 
             const btn = document.getElementById('btn-save-log');
             if (btn) { btn.disabled = false; btn.innerText = "Submit Work Log"; }
             return;
           }
-
-
-
-
 
 
 
@@ -2119,24 +2124,29 @@ if (conflictingLog) {
 
 
 
-
-  
 if (!isHalfDayLeave) {
               const errorMsg = `Conflict: You have already logged work on ${formattedDate} (${conflictingLog.duration} hrs). You cannot apply for a Full-Day leave unless you delete your work log first.`;
               
-              // Forces an explicit OK acknowledgment window
-              alert(errorMsg);
+              // Uses your customized window modal with an OK acknowledgment
+              try {
+                if (typeof showCustomAlert === 'function') {
+                  await showCustomAlert(errorMsg);
+                } else if (typeof showCustomConfirm === 'function') {
+                  await showCustomConfirm(errorMsg);
+                } else {
+                  alert(errorMsg);
+                }
+              } catch (err) {
+                alert(errorMsg);
+              }
 
               if (statusDiv) {
                 statusDiv.style.color = '#d93025';
-                statusDiv.innerText = ''; // Clears status text so it doesn't duplicate the alert
+                statusDiv.innerText = '';
               }
               if (submitBtn) submitBtn.disabled = false;
               return;
             }
-
-
-
   
 
 
