@@ -1076,18 +1076,27 @@ async function executeWorkSubmit(e) {
           const isHalfDayLeave = leaveType.toLowerCase().includes('half day');
 
           // If it's a Full-Day leave, block completely (Require Leave Cancellation)
-          if (!isHalfDayLeave) {
+
+
+
+      if (!isHalfDayLeave) {
             const errorMsg = `Conflict: You have an active/pending Full-Day leave (${leaveType}) on ${formattedDate}. You must cancel your leave before you can log work.`;
-            if (typeof showToast === 'function') {
-              showToast(errorMsg);
-            } else {
-              alert(errorMsg);
-            }
+            
+            // Forces an explicit OK acknowledgment window instead of a fading toast
+            alert(errorMsg);
+
             const btn = document.getElementById('btn-save-log');
             if (btn) { btn.disabled = false; btn.innerText = "Submit Work Log"; }
             return;
           }
 
+
+
+
+
+
+
+          
           // If it IS a Half-Day leave, allow work entry smoothly with confirmation
           let proceedWithWork = false;
           try {
@@ -2111,21 +2120,24 @@ if (conflictingLog) {
 
 
 
-
-  if (!isHalfDayLeave) {
+  
+if (!isHalfDayLeave) {
               const errorMsg = `Conflict: You have already logged work on ${formattedDate} (${conflictingLog.duration} hrs). You cannot apply for a Full-Day leave unless you delete your work log first.`;
-              if (typeof showToast === 'function') {
-                showToast(errorMsg);
-              } else {
-                alert(errorMsg);
+              
+              // Forces an explicit OK acknowledgment window
+              alert(errorMsg);
+
+              if (statusDiv) {
+                statusDiv.style.color = '#d93025';
+                statusDiv.innerText = ''; // Clears status text so it doesn't duplicate the alert
               }
-              if (statusDiv) statusDiv.style.color = '#d93025';
-              if (statusDiv) statusDiv.innerText = errorMsg;
               if (submitBtn) submitBtn.disabled = false;
               return;
             }
 
 
+
+  
 
 
   
