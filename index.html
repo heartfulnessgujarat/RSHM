@@ -947,9 +947,6 @@ async function setupWorkFormDropdowns() {
   }
 }
 
-
-
-    
 async function executeWorkSubmit(e) {
   if (e) {
     if (typeof e.preventDefault === 'function') e.preventDefault();
@@ -967,7 +964,7 @@ async function executeWorkSubmit(e) {
   const work_description = document.getElementById('work-desc').value.trim();
 
   // ==========================================
-  // 1. EDIT WINDOW INTERLOCK VALIDATION CHECK
+  // 1. EDIT WINDOW & FUTURE TIME INTERLOCK CHECK
   // ==========================================
   if (work_date) {
     try {
@@ -991,8 +988,8 @@ async function executeWorkSubmit(e) {
       const selectedDate = new Date(year, month - 1, day);
       selectedDate.setHours(0, 0, 0, 0);
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
       const diffTime = today.getTime() - selectedDate.getTime();
       const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
@@ -1003,8 +1000,24 @@ async function executeWorkSubmit(e) {
       if (diffDays > editWindowDays) {
         throw new Error(`This work date is outside the allowed entry/edit window (${editWindowDays} days).`);
       }
+
+      // ⭐ FUTURE TIME VALIDATION FOR TODAY ⭐
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      if (work_date === todayStr && from_time) {
+        const currentHours = String(now.getHours()).padStart(2, '0');
+        const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+        const currentTimeStr = `${currentHours}:${currentMinutes}`;
+
+        if (from_time > currentTimeStr) {
+          throw new Error("You cannot select a 'From Time' later than the current time for today's work log.");
+        }
+        if (to_time && to_time > currentTimeStr) {
+          throw new Error("You cannot select a 'To Time' later than the current time for today's work log.");
+        }
+      }
+
     } catch (windowErr) {
-      console.warn("Edit window validation blocked submission:", windowErr.message);
+      console.warn("Edit window/time validation blocked submission:", windowErr.message);
       if (typeof showToast === 'function') {
         showToast(windowErr.message);
       } else {
@@ -1107,37 +1120,21 @@ async function executeWorkSubmit(e) {
   const activeUid = currentUser.employee_uid || currentUser.employeeUid || activeEmpCode;
 
   try {
-
-
-
-
-
-
-
-const [fromHours, fromMins] = from_time.split(':').map(Number);
+    const [fromHours, fromMins] = from_time.split(':').map(Number);
     const [toHours, toMins] = to_time.split(':').map(Number);
     
     let totalMins = (toHours * 60 + toMins) - (fromHours * 60 + fromMins);
     if (totalMins < 0) totalMins = 0;
 
     const newDurationHours = parseFloat((totalMins / 60).toFixed(2));
-    // Save duration as decimal hours (matching attendance node)
     const duration = newDurationHours;
     
-    
-
-
-    
-
     const worklog_id = editingId ? editingId : ("WL" + new Date().getTime());
-    
-    // Using global formatTimestamp helper
     const formattedTimestamp = window.formatTimestamp(new Date());
 
     const dbRef = firebase.database().ref();
     const logRef = dbRef.child(`daily_work/${activeEmpCode}/${worklog_id}`);
 
-    // If editing, fetch old duration first so we can calculate proper delta changes if hours change
     let oldDurationHours = 0;
     if (editingId) {
       const oldSnap = await logRef.once('value');
@@ -1182,9 +1179,6 @@ const [fromHours, fromMins] = from_time.split(':').map(Number);
       if (typeof showToast === 'function') showToast("Work log saved successfully!", false);
     }
     
-    // ==========================================
-    // ⭐ FRONT-END COMP-OFF (CO) EARNING CALCULATION ⭐
-    // ==========================================
     try {
       const configSnap = await dbRef.child("config").once('value');
       const configData = configSnap.val() || {};
@@ -1233,7 +1227,6 @@ const [fromHours, fromMins] = from_time.split(':').map(Number);
       console.warn("Non-critical: CO balance calculation skipped on frontend:", coErr);
     }
 
-    // ⭐ TRIGGER ATTENDANCE RECALCULATION & SYNC IMMEDIATELY AFTER SAVE ⭐
     await recalculateAndSyncAttendanceFrontend(activeEmpCode, work_date);
 
     document.getElementById('work-form').reset();
@@ -1253,6 +1246,7 @@ const [fromHours, fromMins] = from_time.split(':').map(Number);
     }
   }
 }
+
     
 
 
