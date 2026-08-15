@@ -2067,8 +2067,7 @@ function calculateRequestedDays() {
   if (badge) badge.classList.remove('hidden');
 }
 
-
-    async function handleLeaveSubmit(e) {
+async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
   const submitBtn = document.getElementById('btnSubmitLeave') || e?.target?.querySelector('button[type="submit"]');
@@ -2200,20 +2199,12 @@ function calculateRequestedDays() {
             }
           });
 
-
-
-
-
-if (conflictingLog) {
+          if (conflictingLog) {
             const formattedDate = formatDatetoDDMMMYYYY(conflictingLog.work_date);
             const isHalfDayLeave = finalLeaveType.toLowerCase().includes('half day');
 
             // If user is applying for a Full-Day leave while a work log exists, block it
-
-
-
-
-  if (!isHalfDayLeave) {
+            if (!isHalfDayLeave) {
               const errorMsg = `Conflict: You have already logged work on ${formattedDate} (${conflictingLog.duration} hrs). You cannot apply for a Full-Day leave unless you delete your work log first.`;
               
               await showCustomAlert(errorMsg);
@@ -2225,12 +2216,6 @@ if (conflictingLog) {
               if (submitBtn) submitBtn.disabled = false;
               return;
             }
-  
-
-
-  
-
-  
 
             // If it IS a Half-Day leave, allow it with a prompt/confirmation
             const confirmMsg = `You have already entered work on ${formattedDate} (${conflictingLog.duration} hrs). Since you selected a Half-Day leave (${finalLeaveType}), do you wish to proceed?`;
@@ -2248,13 +2233,6 @@ if (conflictingLog) {
               return;
             }
           }
-
-
-
-
-
-
-
           
         }
       } catch (workCheckErr) {
@@ -2319,9 +2297,8 @@ if (conflictingLog) {
       reason: reason,
       status: initialStatus,
       applied_on: formattedTimestamp,
-      updated_at: formattedTimestamp,
-      actioned_by: isAutoApproved ? 'SYSTEM_AUTO' : '',
-      actioned_on: isAutoApproved ? formattedTimestamp : ''
+      leave_approved_or_rejected_on: initialStatus === 'Auto Approved' ? formattedTimestamp : "",
+      leave_approved_or_rejected_by: initialStatus === 'Auto Approved' ? 'SYSTEM_AUTO' : ""
     };
 
     const leaveRef = dbRef.child(`leave_requests/${empCode}/${leaveId}`);
