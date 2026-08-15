@@ -2730,8 +2730,6 @@ function formatDatetoDDMMMYYYY(dateStr) {
 }
 
 
-    
-
 async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, overrideStatus = null) {
   try {
     const dbRef = firebase.database().ref();
@@ -2754,80 +2752,74 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     let leaveTypeNameFound = overrideStatus;
     let leaveStatusFound = 'Approved'; // default if overridden directly
 
-    // 1. If overrideStatus wasn't passed, check active leave requests for this date
+    // 1. ALWAYS fetch daily work hours first so work logs are never lost!
+    const allLogsSnap = await dbRef.child(`daily_work/${activeEmpCode}`).once('value');
+    if (allLogsSnap.exists()) {
+      allLogsSnap.forEach(childSnap => {
+        const log = childSnap.val();
+        if (log && String(log.work_date).trim() === workDate) {
+          const dur = log.duration || "00:00";
+          if (typeof dur === 'string' && dur.includes(':')) {
+            const [h, m] = dur.split(':').map(Number);
+            totalHours += h + (m / 60);
+          } else {
+            totalHours += parseFloat(dur) || 0;
+          }
+        }
+      });
+    }
+    totalHours = parseFloat(totalHours.toFixed(2));
+
+    // 2. If overrideStatus wasn't passed, check active leave requests for this date
     if (!overrideStatus) {
       const leaveSnap = await dbRef.child(`leave_requests/${activeEmpCode}`).once('value');
       if (leaveSnap.exists()) {
         leaveSnap.forEach(child => {
           const leave = child.val();
           if (leave && leave.leave_date && String(leave.leave_date).includes(targetDateDisplay)) {
-            leaveTypeNameFound = leave.leave_type; 
-            leaveStatusFound = leave.status || 'Pending';
+            const lStatus = String(leave.status || '').toLowerCase();
+            if (lStatus !== 'cancelled' && lStatus !== 'rejected') {
+              leaveTypeNameFound = leave.leave_type; 
+              leaveStatusFound = leave.status || 'Pending';
+            }
           }
         });
       }
     }
 
-    // 2. Handle Leave or Sunday / Weekend
-    if (leaveTypeNameFound) {
-      totalHours = 0;
-      
-      if (isSunday) {
-        finalStatus = "WO";
+    const configSnap = await dbRef.child('config').once('value');
+    const config = configSnap.val() || {};
+    const threshold = parseFloat(config.attendance_hours_threshold || config.threshold_hours) || 4.0;
+    const codePresent = config.attendance_code_present || "P";
+    const codeBelowThreshold = config.attendance_code_below_threshold || "WL4H";
+
+    // 3. Handle Leave, Sunday, or Standard Work Hours
+    if (isSunday) {
+      finalStatus = "WO";
+    } else if (leaveTypeNameFound) {
+      // Dynamically look up from our global cache populated by loadLeaveMasterOptions()
+      const mapEntry = window.APP_LEAVE_CODES_MAP && window.APP_LEAVE_CODES_MAP[leaveTypeNameFound];
+      const isApproved = String(leaveStatusFound).toLowerCase().includes('approved');
+
+      if (mapEntry) {
+        finalStatus = isApproved ? mapEntry.approved : mapEntry.unapproved;
       } else {
-        // Dynamically look up from our global cache populated by loadLeaveMasterOptions()
-        const mapEntry = window.APP_LEAVE_CODES_MAP && window.APP_LEAVE_CODES_MAP[leaveTypeNameFound];
-        const isApproved = String(leaveStatusFound).toLowerCase().includes('approved');
-
-        if (mapEntry) {
-          finalStatus = isApproved ? mapEntry.approved : mapEntry.unapproved;
-        } else {
-          // Fallback if cache isn't ready yet
-          finalStatus = isApproved ? leaveTypeNameFound.trim().toUpperCase().substring(0, 3) : leaveTypeNameFound.trim().toLowerCase().substring(0, 3);
-        }
+        // Fallback if cache isn't ready yet
+        finalStatus = isApproved ? leaveTypeNameFound.trim().toUpperCase().substring(0, 3) : leaveTypeNameFound.trim().toLowerCase().substring(0, 3);
       }
+      // Note: We retain totalHours computed from daily_work instead of overwriting it to 0!
     } else {
-      // 3. Standard work log calculation flow
-      const allLogsSnap = await dbRef.child(`daily_work/${activeEmpCode}`).once('value');
-      if (allLogsSnap.exists()) {
-        allLogsSnap.forEach(childSnap => {
-          const log = childSnap.val();
-          if (log && String(log.work_date).trim() === workDate) {
-            const dur = log.duration || "00:00";
-            if (typeof dur === 'string' && dur.includes(':')) {
-              const [h, m] = dur.split(':').map(Number);
-              totalHours += h + (m / 60);
-            } else {
-              totalHours += parseFloat(dur) || 0;
-            }
-          }
-        });
-      }
-      totalHours = parseFloat(totalHours.toFixed(2));
-
-      const configSnap = await dbRef.child('config').once('value');
-      const config = configSnap.val() || {};
-      const threshold = parseFloat(config.attendance_hours_threshold || config.threshold_hours) || 4.0;
-      
-      const codePresent = config.attendance_code_present || "P";
-      const codeBelowThreshold = config.attendance_code_below_threshold || "WL4H";
-
-      if (isSunday) {
-        finalStatus = "WO";
-      } else if (totalHours >= threshold) {
+      // Standard work log calculation flow
+      if (totalHours >= threshold) {
         finalStatus = codePresent;
       } else if (totalHours > 0) {
         finalStatus = codeBelowThreshold;
-
-        
-    } else {
+      } else {
         // ZERO HOURS AND NO LEAVE: Explicitly remove the attendance node from Firebase so it gets completely deleted
         console.log(`-> [ATTENDANCE SYNC] Zero hours and no leave for ${activeEmpCode} on ${targetDateDisplay}. Deleting attendance record.`);
         await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).remove();
         return; 
       }
-
-     
     }
 
     const now = new Date();
@@ -2845,13 +2837,16 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     };
 
     await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).set(attendanceRecord);
-    console.log("✅ Successfully synced attendance for " + activeEmpCode + " on " + targetDateDisplay + " with status: " + finalStatus);
+    console.log("✅ Successfully synced attendance for " + activeEmpCode + " on " + targetDateDisplay + " with hours: " + totalHours + " and status: " + finalStatus);
 
   } catch (err) {
     console.warn("💥 Error in recalculateAndSyncAttendanceFrontend:", err);
   }
 }
 
+
+    
+    
 
 function getLeaveCodeFromMaster(leaveTypeName, status) {
   if (!leaveTypeName) return 'P'; // Default / Present fallback
