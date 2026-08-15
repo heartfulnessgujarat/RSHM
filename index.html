@@ -1711,7 +1711,7 @@ function renderTimesheetList() {
   }
 }
 
-
+    
 async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   // ⭐ Debugging: Print currentUser object to browser console to inspect its structure
   console.log("[DEBUG] Current Logged-in User Object:", currentUser);
@@ -1739,7 +1739,7 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
     const payload = {
       action: "sendLeaveCancellationEmail",
       employeeCode: empCode,
-      employeeName: empName, // ⭐ Passes resolved real name
+      employeeName: empName,
       leaveType: leaveType,
       leaveDate: leaveDate,
       previousStatus: currentStatus,
@@ -1761,10 +1761,18 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
       throw new Error(result.error || "Backend reported email failure.");
     }
 
-    await firebase.database().ref(`leave_requests/${empCode}/${leaveId}`).update({
+    // ⭐ 1. Update the leave request audit trail to 'Cancelled'
+    const leaveUpdateRequest = firebase.database().ref(`leave_requests/${empCode}/${leaveId}`).update({
       status: 'Cancelled',
       cancelled_at: new Date().toISOString()
     });
+
+    // ⭐ 2. Clean up / remove the entry from the attendance node so it's wiped out cleanly
+    // (Assuming leaveDate matches your attendance node key format, e.g., "10-AUG-2026")
+    const attendanceCleanupRequest = firebase.database().ref(`attendance/${empCode}/${leaveDate}`).remove();
+
+    // Execute both Firebase updates together
+    await Promise.all([leaveUpdateRequest, attendanceCleanupRequest]);
 
     if (typeof showCustomAlert === 'function') {
       await showCustomAlert(`Leave successfully cancelled and email sent to ${ricName}!`);
@@ -1780,8 +1788,6 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   }
 }
     
-    
-
     
 /**
  * REPLACEMENT FOR openLeaveModule() / loadLeaveBalances()
