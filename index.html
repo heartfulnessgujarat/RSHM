@@ -1712,26 +1712,24 @@ function renderTimesheetList() {
 }
 
 
-
 async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
   const empName = currentUser.name || currentUser.full_name || empCode;
   
-  // ⭐ Fetch the reporting incharge email directly from currentUser data
+  // ⭐ Safely define both ricEmail and ricName here
   const ricEmail = currentUser.reporting_incharge_email || currentUser.reportingInchargeEmail || "ric-email@example.com";
+  const ricName = currentUser.reporting_incharge_name || currentUser.reportingInchargeName || "RIC Team";
 
   let confirmCancel = false;
   try {
-    confirmCancel = await showCustomConfirm(`Are you sure you want to cancel your ${leaveType} on ${leaveDate}? This will notify your RIC (${ricEmail}).`);
+    confirmCancel = await showCustomConfirm(`Are you sure you want to cancel your ${leaveType} on ${leaveDate}? This will notify your RIC (${ricName}).`);
   } catch (err) {
-    confirmCancel = confirm(`Are you sure you want to cancel your ${leaveType} on ${leaveDate}? This will notify your RIC.`);
+    confirmCancel = confirm(`Are you sure you want to cancel your ${leaveType} on ${leaveDate}? This will notify your RIC (${ricName}).`);
   }
 
   if (!confirmCancel) return;
 
   try {
-
-    const ricName = currentUser.reporting_incharge_name || currentUser.reportingInchargeName || "RIC Team"; // ⭐ Get RIC name
     const payload = {
       action: "sendLeaveCancellationEmail",
       employeeCode: empCode,
@@ -1739,8 +1737,8 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
       leaveType: leaveType,
       leaveDate: leaveDate,
       previousStatus: currentStatus,
-      ricEmail: ricEmail, // ⭐ Pass the dynamic manager email here!
-      ricName: ricName, // ⭐ Pass RIC name to backend
+      ricEmail: ricEmail,
+      ricName: ricName, // ⭐ Included in payload
       timestamp: new Date().toLocaleString()
     };
 
@@ -1763,9 +1761,9 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
     });
 
     if (typeof showCustomAlert === 'function') {
-      await showCustomAlert(`Leave successfully cancelled and email sent to RIC (${ricEmail})!`);
+      await showCustomAlert(`Leave successfully cancelled and email sent to ${ricName}!`);
     } else {
-      alert(`Leave successfully cancelled and email sent to RIC (${ricEmail})!`);
+      alert(`Leave successfully cancelled and email sent to ${ricName}!`);
     }
 
     loadDashboardLeaveStatus();
@@ -1774,9 +1772,7 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
     console.error("Cancellation error:", err);
     alert("Error: " + (err.message || "Could not complete cancellation."));
   }
-}
-
-    
+}    
 
     
 /**
