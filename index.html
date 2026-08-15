@@ -1712,10 +1712,7 @@ function renderTimesheetList() {
 }
 
 
-
-
-
-    async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
+async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
   const empName = currentUser.name || currentUser.full_name || empCode;
 
@@ -1729,10 +1726,7 @@ function renderTimesheetList() {
   if (!confirmCancel) return;
 
   try {
-    // Show loading state or notice
-    if (typeof showCustomAlert === 'function') {
-      await showCustomAlert("Sending cancellation notice to RIC...");
-    }
+    console.log("[DEBUG 1] Preparing cancellation payload for:", empName);
 
     const payload = {
       action: "sendLeaveCancellationEmail",
@@ -1746,47 +1740,47 @@ function renderTimesheetList() {
 
     const appsScriptUrl = "https://script.google.com/macros/s/AKfycbxGlXrXS8XgFxKQOk7WMtie_kFlnydOFsngBVeV-eDP-qP7byBPxcVoBo27BbNXXqKtwA/exec"; 
 
-    // ⭐ FEEDBACK LOOP: Await response from Apps Script before doing anything else ⭐
+    console.log("[DEBUG 2] Sending fetch request to Apps Script...");
     const response = await fetch(appsScriptUrl, {
       method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" }, // Allows reading response text/JSON
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload)
     });
 
+    console.log("[DEBUG 3] Response received from Apps Script, parsing JSON...");
     const result = await response.json();
-    console.log("Apps Script Response:", result);
+    console.log("[DEBUG 4] Parsed Apps Script Result:", result);
 
     if (!result.success) {
-      throw new Error(result.error || "Failed to send email via backend.");
+      throw new Error(result.error || "Backend reported email failure.");
     }
 
-    // ⭐ ONLY IF EMAIL SUCCEEDED: Update Firebase to Cancelled ⭐
+    // Update Firebase only after successful email dispatch
     await firebase.database().ref(`leave_requests/${empCode}/${leaveId}`).update({
       status: 'Cancelled',
       cancelled_at: new Date().toISOString()
     });
 
-    // ⭐ SUCCESS FEEDBACK LOOP TRIGGERED ⭐
     if (typeof showCustomAlert === 'function') {
-      await showCustomAlert("Leave successfully cancelled and RIC has been notified via email!");
+      await showCustomAlert("Leave successfully cancelled and RIC notified via email!");
     } else {
-      alert("Leave successfully cancelled and RIC has been notified via email!");
+      alert("Leave successfully cancelled and RIC notified via email!");
     }
 
-    // Refresh dashboard list
     loadDashboardLeaveStatus();
 
   } catch (err) {
-    console.error("Error during cancellation flow:", err);
+    console.error("[DEBUG ERROR] Cancellation workflow failed:", err);
     if (typeof showCustomAlert === 'function') {
-      await showCustomAlert("Error: " + (err.message || "Could not complete cancellation. Please try again."));
+      await showCustomAlert("Error: " + (err.message || "Could not complete cancellation."));
     } else {
-      alert("Error: " + (err.message || "Could not complete cancellation. Please try again."));
+      alert("Error: " + (err.message || "Could not complete cancellation."));
     }
   }
 }
 
 
+    
 /**
  * REPLACEMENT FOR openLeaveModule() / loadLeaveBalances()
  * Fetches balances directly from masters/employees/${empId}
