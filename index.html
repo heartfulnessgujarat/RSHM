@@ -1738,6 +1738,7 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
       leaveDate: leaveDate,
       previousStatus: currentStatus,
       ricEmail: ricEmail, // ⭐ Pass the dynamic manager email here!
+      ricName: ricName, // ⭐ Pass RIC name to backend
       timestamp: new Date().toLocaleString()
     };
 
