@@ -287,25 +287,27 @@
   <!-- VIEW 2: OPERATIONAL DASHBOARD -->
   <div id="view-dashboard" class="hidden">
     <div class="card">
-
-
-      
-
-
-
       
       <h3 style="margin-bottom: 12px; font-size: 1.1rem;">Quick Actions</h3>
       <button onclick="openNewWorkLogForm()">Daily Work Entry</button>
       <button onclick="loadTimesheetHistory()" class="btn-secondary">My Timesheet History</button>
       <button onclick="openLeaveModule()" class="btn-secondary" style="margin-top: 8px; background: #2563eb; color: white;">Apply / Check Leave</button>
+
+
+
       
-      <!-- Pending Leave Status Box on Dashboard -->
+      <!-- Active & Pending Leave Status Box on Dashboard -->
       <div style="margin-top: 16px; padding: 12px; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb;">
-        <h3 style="font-size: 0.9rem; font-weight: 600; color: #374151; margin-bottom: 8px;">Pending Leave Requests</h3>
+        <h3 style="font-size: 0.9rem; font-weight: 600; color: #374151; margin-bottom: 8px;">My Active & Pending Leaves</h3>
         <div id="dashboardLeaveStatusContainer">
           <div style="font-size: 0.85rem; color: #9ca3af; font-style: italic;">Loading leave status...</div>
         </div>
       </div>
+
+
+
+
+      
     </div>
   </div>
 
@@ -1647,10 +1649,7 @@ function renderTimesheetList() {
 }
 
     
-    
-    
-    
-async function loadDashboardLeaveStatus() {
+  async function loadDashboardLeaveStatus() {
   const container = document.getElementById('dashboardLeaveStatusContainer');
   if (!container || !currentUser) return;
 
@@ -1658,7 +1657,6 @@ async function loadDashboardLeaveStatus() {
     const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
     if (!empCode) return;
 
-    // ⭐ DIRECT FIREBASE READ FROM THE NEW STRUCTURE ⭐
     const snapshot = await firebase.database().ref(`leave_requests/${empCode}`).once('value');
     const leavesData = snapshot.val();
 
@@ -1667,29 +1665,42 @@ async function loadDashboardLeaveStatus() {
       return;
     }
 
-    // Convert the object of leaves into an array
+    // Convert object to array and attach leaveId key for reference
     const requestsArray = [];
     for (const leaveId in leavesData) {
-      requestsArray.push(leavesData[leaveId]);
+      const item = leavesData[leaveId];
+      item.leaveId = leaveId;
+      requestsArray.push(item);
     }
 
-    const pending = requestsArray.filter(r => String(r.status).toLowerCase() === 'pending');
-    if (pending.length === 0) {
-      container.innerHTML = `<div style="font-size: 0.85rem; color: #16a34a; font-weight: 500;">All leave requests actioned!</div>`;
+    // Filter for both Pending and Approved leaves (ignore rejected or already cancelled)
+    const activeLeaves = requestsArray.filter(r => {
+      const s = String(r.status || '').toLowerCase();
+      return s === 'pending' || s === 'approved';
+    });
+
+    if (activeLeaves.length === 0) {
+      container.innerHTML = `<div style="font-size: 0.85rem; color: #16a34a; font-weight: 500;">No active or pending leaves to display.</div>`;
       return;
     }
 
     let html = "";
-    pending.forEach(r => {
-      // Support both property formats just in case (leave_type vs leaveType)
+    activeLeaves.forEach(r => {
       const lType = r.leave_type || r.leaveType || 'Leave';
       const lDate = r.leave_date || r.leaveDate || '';
+      const statusStr = String(r.status || '').toLowerCase();
+      const statusColor = statusStr === 'approved' ? '#16a34a' : '#d97706';
       
       html += `
-        <div style="font-size: 0.82rem; border-bottom: 1px dashed #e5e7eb; padding: 6px 0;">
-          <div><strong>${lType}</strong> (${lDate})</div>
-          <div style="color: #6b7280;">Reason: ${r.reason || 'N/A'}</div>
-          <div style="color: #d97706; font-weight: 600; margin-top: 2px;">Status: ${r.status}</div>
+        <div style="font-size: 0.82rem; border-bottom: 1px dashed #e5e7eb; padding: 8px 0; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div><strong>${lType}</strong> (${lDate})</div>
+            <div style="color: #6b7280;">Reason: ${r.reason || 'N/A'}</div>
+            <div style="color: ${statusColor}; font-weight: 600; margin-top: 2px;">Status: ${r.status}</div>
+          </div>
+          <div>
+            <button onclick="handleCancelLeave('${r.leaveId}', '${lType}', '${lDate}', '${r.status}')" style="background: #dc2626; color: white; border: none; padding: 4px 10px; font-size: 0.75rem; border-radius: 4px; cursor: pointer; font-weight: 600;">Cancel</button>
+          </div>
         </div>
       `;
     });
@@ -1699,6 +1710,65 @@ async function loadDashboardLeaveStatus() {
     container.innerHTML = `<div style="font-size: 0.82rem; color: #dc2626;">Unable to load status.</div>`;
   }
 }
+
+async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
+  const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
+  const empName = currentUser.name || currentUser.full_name || empCode;
+
+  let confirmCancel = false;
+  try {
+    confirmCancel = await showCustomConfirm(`Are you sure you want to cancel your ${leaveType} on ${leaveDate}? This will notify RIC.`);
+  } catch (err) {
+    confirmCancel = confirm(`Are you sure you want to cancel your ${leaveType} on ${leaveDate}? This will notify RIC.`);
+  }
+
+  if (!confirmCancel) return;
+
+  try {
+    // 1. Update status to Cancelled in Firebase
+    await firebase.database().ref(`leave_requests/${empCode}/${leaveId}`).update({
+      status: 'Cancelled',
+      cancelled_at: new Date().toISOString()
+    });
+
+    if (typeof showCustomAlert === 'function') {
+      await showCustomAlert("Leave successfully cancelled. Notifying RIC via email...");
+    } else {
+      alert("Leave successfully cancelled. Notifying RIC via email...");
+    }
+
+    // 2. Trigger Informative Email to RIC via your Apps Script backend
+    const payload = {
+      action: "sendLeaveCancellationEmail",
+      employeeCode: empCode,
+      employeeName: empName,
+      leaveType: leaveType,
+      leaveDate: leaveDate,
+      previousStatus: currentStatus,
+      timestamp: new Date().toLocaleString()
+    };
+
+    // Keep your existing working Apps Script deployment URL here
+    const appsScriptUrl = "YOUR_APPS_SCRIPT_WEB_APP_URL_HERE"; 
+    
+    if (appsScriptUrl && appsScriptUrl !== "YOUR_APPS_SCRIPT_WEB_APP_URL_HERE") {
+      fetch(appsScriptUrl, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }).catch(err => console.error("Email notification dispatch error:", err));
+    }
+
+    // 3. Refresh dashboard list
+    loadDashboardLeaveStatus();
+
+  } catch (err) {
+    console.error("Error cancelling leave:", err);
+    alert("Failed to cancel leave. Please try again.");
+  }
+}  
+    
 
 
 
