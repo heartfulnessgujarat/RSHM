@@ -1711,7 +1711,11 @@ function renderTimesheetList() {
   }
 }
 
-async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
+
+
+
+
+    async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
   const empName = currentUser.name || currentUser.full_name || empCode;
 
@@ -1725,19 +1729,11 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   if (!confirmCancel) return;
 
   try {
-    // 1. Update status to Cancelled in Firebase
-    await firebase.database().ref(`leave_requests/${empCode}/${leaveId}`).update({
-      status: 'Cancelled',
-      cancelled_at: new Date().toISOString()
-    });
-
+    // Show loading state or notice
     if (typeof showCustomAlert === 'function') {
-      await showCustomAlert("Leave successfully cancelled. Notifying RIC via email...");
-    } else {
-      alert("Leave successfully cancelled. Notifying RIC via email...");
+      await showCustomAlert("Sending cancellation notice to RIC...");
     }
 
-    // 2. Trigger Informative Email to RIC via your Apps Script backend
     const payload = {
       action: "sendLeaveCancellationEmail",
       employeeCode: empCode,
@@ -1748,28 +1744,47 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
       timestamp: new Date().toLocaleString()
     };
 
-    // Put your active working Apps Script deployment URL here directly
     const appsScriptUrl = "https://script.google.com/macros/s/AKfycbxGlXrXS8XgFxKQOk7WMtie_kFlnydOFsngBVeV-eDP-qP7byBPxcVoBo27BbNXXqKtwA/exec"; 
-    
-    if (appsScriptUrl) {
-      fetch(appsScriptUrl, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      }).catch(err => console.error("Email notification dispatch error:", err));
+
+    // ⭐ FEEDBACK LOOP: Await response from Apps Script before doing anything else ⭐
+    const response = await fetch(appsScriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // Allows reading response text/JSON
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+    console.log("Apps Script Response:", result);
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to send email via backend.");
     }
 
-    // 3. Refresh dashboard list
+    // ⭐ ONLY IF EMAIL SUCCEEDED: Update Firebase to Cancelled ⭐
+    await firebase.database().ref(`leave_requests/${empCode}/${leaveId}`).update({
+      status: 'Cancelled',
+      cancelled_at: new Date().toISOString()
+    });
+
+    // ⭐ SUCCESS FEEDBACK LOOP TRIGGERED ⭐
+    if (typeof showCustomAlert === 'function') {
+      await showCustomAlert("Leave successfully cancelled and RIC has been notified via email!");
+    } else {
+      alert("Leave successfully cancelled and RIC has been notified via email!");
+    }
+
+    // Refresh dashboard list
     loadDashboardLeaveStatus();
 
   } catch (err) {
-    console.error("Error cancelling leave:", err);
-    alert("Failed to cancel leave. Please try again.");
+    console.error("Error during cancellation flow:", err);
+    if (typeof showCustomAlert === 'function') {
+      await showCustomAlert("Error: " + (err.message || "Could not complete cancellation. Please try again."));
+    } else {
+      alert("Error: " + (err.message || "Could not complete cancellation. Please try again."));
+    }
   }
 }
-
-    
 
 
 /**
