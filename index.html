@@ -1711,20 +1711,27 @@ function renderTimesheetList() {
   }
 }
 
-    
-async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
-  // ⭐ Debugging: Print currentUser object to browser console to inspect its structure
+
+
+
+    async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   console.log("[DEBUG] Current Logged-in User Object:", currentUser);
 
   const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid || "N/A";
-  
-  // ⭐ Check all common property names where the employee name might live
   const empName = currentUser.employee_name || currentUser.name || currentUser.full_name || currentUser.userName || empCode;
   
   const ricEmail = currentUser.reporting_incharge_email || currentUser.reportingInchargeEmail || "ric-email@example.com";
   const ricName = currentUser.reporting_incharge_name || currentUser.reportingInchargeName || "RIC Team";
 
-  console.log("[DEBUG] Resolved Employee Name for Email:", empName);
+  // ⭐ Generate clean custom timestamp format: "DD-MMM-YYYY HH:MM" (e.g., "15-AUG-2026 22:51")
+  const now = new Date();
+  const day = String(now.getDate()).padStart(2, '0');
+  const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const month = months[now.getMonth()];
+  const year = now.getFullYear();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const formattedCancelTime = `${day}-${month}-${year} ${hours}:${minutes}`;
 
   let confirmCancel = false;
   try {
@@ -1745,7 +1752,7 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
       previousStatus: currentStatus,
       ricEmail: ricEmail,
       ricName: ricName,
-      timestamp: new Date().toLocaleString()
+      timestamp: formattedCancelTime
     };
 
     const appsScriptUrl = "https://script.google.com/macros/s/AKfycbxGlXrXS8XgFxKQOk7WMtie_kFlnydOFsngBVeV-eDP-qP7byBPxcVoBo27BbNXXqKtwA/exec"; 
@@ -1761,17 +1768,17 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
       throw new Error(result.error || "Backend reported email failure.");
     }
 
-    // ⭐ 1. Update the leave request audit trail to 'Cancelled'
+    // ⭐ 1. Update leave request with status 'Cancelled' and formatted 'cancelled_on' timestamp
     const leaveUpdateRequest = firebase.database().ref(`leave_requests/${empCode}/${leaveId}`).update({
       status: 'Cancelled',
-      cancelled_at: new Date().toISOString()
+      cancelled_on: formattedCancelTime, // Clean formatted timestamp field requested
+      cancelled_at: formattedCancelTime  // Overwriting/updating this for consistency as well
     });
 
-    // ⭐ 2. Clean up / remove the entry from the attendance node so it's wiped out cleanly
-    // (Assuming leaveDate matches your attendance node key format, e.g., "10-AUG-2026")
+    // ⭐ 2. Clean up / remove the entry from the attendance node using the exact leaveDate key
     const attendanceCleanupRequest = firebase.database().ref(`attendance/${empCode}/${leaveDate}`).remove();
 
-    // Execute both Firebase updates together
+    // Execute both Firebase updates concurrently
     await Promise.all([leaveUpdateRequest, attendanceCleanupRequest]);
 
     if (typeof showCustomAlert === 'function') {
@@ -1787,6 +1794,8 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
     alert("Error: Could not complete cancellation.");
   }
 }
+    
+    
     
     
 /**
