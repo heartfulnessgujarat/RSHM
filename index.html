@@ -1772,10 +1772,18 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
       cancelled_at: formattedCancelTime
     });
 
-    // Clean up attendance node entry
-    const attendanceCleanupRequest = firebase.database().ref(`attendance/${empCode}/${leaveDate}`).remove();
 
-    await Promise.all([leaveUpdateRequest, attendanceCleanupRequest]);
+
+
+    await leaveUpdateRequest;
+
+    // Recalculate attendance so it correctly restores hours or cleans up if no work was logged
+    if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
+      await recalculateAndSyncAttendanceFrontend(empCode, leaveDate);
+    }
+
+
+    
 
     if (typeof showCustomAlert === 'function') {
       await showCustomAlert(`Leave successfully cancelled and email sent to ${ricName}!`);
@@ -2811,12 +2819,6 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       } else if (totalHours > 0) {
         finalStatus = codeBelowThreshold;
 
-
-
-
-
-
-
         
     } else {
         // ZERO HOURS AND NO LEAVE: Explicitly remove the attendance node from Firebase so it gets completely deleted
@@ -2825,13 +2827,7 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
         return; 
       }
 
-
-
-
-
-
-
-      
+     
     }
 
     const now = new Date();
