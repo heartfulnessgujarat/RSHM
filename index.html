@@ -1713,13 +1713,18 @@ function renderTimesheetList() {
 
 
 async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
-  const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
+  // ⭐ Debugging: Print currentUser object to browser console to inspect its structure
+  console.log("[DEBUG] Current Logged-in User Object:", currentUser);
+
+  const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid || "N/A";
   
-  // ⭐ Properly fetch the actual Employee Name (e.g., Neeti, Vinay, etc.) instead of falling back to code
-  const empName = currentUser.employee_name || currentUser.name || currentUser.full_name || empCode;
+  // ⭐ Check all common property names where the employee name might live
+  const empName = currentUser.employee_name || currentUser.name || currentUser.full_name || currentUser.userName || empCode;
   
   const ricEmail = currentUser.reporting_incharge_email || currentUser.reportingInchargeEmail || "ric-email@example.com";
   const ricName = currentUser.reporting_incharge_name || currentUser.reportingInchargeName || "RIC Team";
+
+  console.log("[DEBUG] Resolved Employee Name for Email:", empName);
 
   let confirmCancel = false;
   try {
@@ -1734,7 +1739,7 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
     const payload = {
       action: "sendLeaveCancellationEmail",
       employeeCode: empCode,
-      employeeName: empName, // ⭐ Passes real name to backend
+      employeeName: empName, // ⭐ Passes resolved real name
       leaveType: leaveType,
       leaveDate: leaveDate,
       previousStatus: currentStatus,
@@ -1771,10 +1776,10 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
 
   } catch (err) {
     console.error("Cancellation error:", err);
-    alert("Error: Could not complete cancellation."); // ⭐ Clean error message without exposing technical internals
+    alert("Error: Could not complete cancellation.");
   }
 }
-
+    
     
 
     
