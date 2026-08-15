@@ -1712,9 +1712,7 @@ function renderTimesheetList() {
 }
 
 
-
-
-    async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
+async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   console.log("[DEBUG] Current Logged-in User Object:", currentUser);
 
   const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid || "N/A";
@@ -1723,7 +1721,7 @@ function renderTimesheetList() {
   const ricEmail = currentUser.reporting_incharge_email || currentUser.reportingInchargeEmail || "ric-email@example.com";
   const ricName = currentUser.reporting_incharge_name || currentUser.reportingInchargeName || "RIC Team";
 
-  // ⭐ Generate clean custom timestamp format: "DD-MMM-YYYY HH:MM" (e.g., "15-AUG-2026 22:51")
+  // Generate clean custom timestamp format: "DD-MMM-YYYY HH:MM"
   const now = new Date();
   const day = String(now.getDate()).padStart(2, '0');
   const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
@@ -1768,17 +1766,15 @@ function renderTimesheetList() {
       throw new Error(result.error || "Backend reported email failure.");
     }
 
-    // ⭐ 1. Update leave request with status 'Cancelled' and formatted 'cancelled_on' timestamp
+    // ⭐ Updated to write status 'Cancelled' and use 'cancelled_at' with clean formatted timestamp (omitting updated_at)
     const leaveUpdateRequest = firebase.database().ref(`leave_requests/${empCode}/${leaveId}`).update({
       status: 'Cancelled',
-      cancelled_on: formattedCancelTime, // Clean formatted timestamp field requested
-      cancelled_at: formattedCancelTime  // Overwriting/updating this for consistency as well
+      cancelled_at: formattedCancelTime
     });
 
-    // ⭐ 2. Clean up / remove the entry from the attendance node using the exact leaveDate key
+    // Clean up attendance node entry
     const attendanceCleanupRequest = firebase.database().ref(`attendance/${empCode}/${leaveDate}`).remove();
 
-    // Execute both Firebase updates concurrently
     await Promise.all([leaveUpdateRequest, attendanceCleanupRequest]);
 
     if (typeof showCustomAlert === 'function') {
@@ -1793,9 +1789,7 @@ function renderTimesheetList() {
     console.error("Cancellation error:", err);
     alert("Error: Could not complete cancellation.");
   }
-}
-    
-    
+}    
     
     
 /**
