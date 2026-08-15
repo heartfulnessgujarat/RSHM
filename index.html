@@ -1711,6 +1711,9 @@ function renderTimesheetList() {
   }
 }
 
+
+
+    
 async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
   const empName = currentUser.name || currentUser.full_name || empCode;
@@ -1751,7 +1754,7 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
     // Keep your existing working Apps Script deployment URL here
     const appsScriptUrl = "YOUR_APPS_SCRIPT_WEB_APP_URL_HERE"; 
     
-    if (appsScriptUrl && appsScriptUrl !== "YOUR_APPS_SCRIPT_WEB_APP_URL_HERE") {
+    if (appsScriptUrl && appsScriptUrl !== "https://script.google.com/macros/s/AKfycbxGlXrXS8XgFxKQOk7WMtie_kFlnydOFsngBVeV-eDP-qP7byBPxcVoBo27BbNXXqKtwA/exec") {
       fetch(appsScriptUrl, {
         method: "POST",
         mode: "no-cors",
