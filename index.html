@@ -1712,22 +1712,24 @@ function renderTimesheetList() {
 }
 
 
+
 async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
   const empName = currentUser.name || currentUser.full_name || empCode;
+  
+  // ⭐ Fetch the reporting incharge email directly from currentUser data
+  const ricEmail = currentUser.reporting_incharge_email || currentUser.reportingInchargeEmail || "ric-email@example.com";
 
   let confirmCancel = false;
   try {
-    confirmCancel = await showCustomConfirm(`Are you sure you want to cancel your ${leaveType} on ${leaveDate}? This will notify RIC.`);
+    confirmCancel = await showCustomConfirm(`Are you sure you want to cancel your ${leaveType} on ${leaveDate}? This will notify your RIC (${ricEmail}).`);
   } catch (err) {
-    confirmCancel = confirm(`Are you sure you want to cancel your ${leaveType} on ${leaveDate}? This will notify RIC.`);
+    confirmCancel = confirm(`Are you sure you want to cancel your ${leaveType} on ${leaveDate}? This will notify your RIC.`);
   }
 
   if (!confirmCancel) return;
 
   try {
-    console.log("[DEBUG 1] Preparing cancellation payload for:", empName);
-
     const payload = {
       action: "sendLeaveCancellationEmail",
       employeeCode: empCode,
@@ -1735,50 +1737,43 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
       leaveType: leaveType,
       leaveDate: leaveDate,
       previousStatus: currentStatus,
+      ricEmail: ricEmail, // ⭐ Pass the dynamic manager email here!
       timestamp: new Date().toLocaleString()
     };
 
     const appsScriptUrl = "https://script.google.com/macros/s/AKfycbxGlXrXS8XgFxKQOk7WMtie_kFlnydOFsngBVeV-eDP-qP7byBPxcVoBo27BbNXXqKtwA/exec"; 
 
-    console.log("[DEBUG 2] Sending fetch request to Apps Script...");
     const response = await fetch(appsScriptUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload)
     });
 
-    console.log("[DEBUG 3] Response received from Apps Script, parsing JSON...");
     const result = await response.json();
-    console.log("[DEBUG 4] Parsed Apps Script Result:", result);
-
     if (!result.success) {
       throw new Error(result.error || "Backend reported email failure.");
     }
 
-    // Update Firebase only after successful email dispatch
     await firebase.database().ref(`leave_requests/${empCode}/${leaveId}`).update({
       status: 'Cancelled',
       cancelled_at: new Date().toISOString()
     });
 
     if (typeof showCustomAlert === 'function') {
-      await showCustomAlert("Leave successfully cancelled and RIC notified via email!");
+      await showCustomAlert(`Leave successfully cancelled and email sent to RIC (${ricEmail})!`);
     } else {
-      alert("Leave successfully cancelled and RIC notified via email!");
+      alert(`Leave successfully cancelled and email sent to RIC (${ricEmail})!`);
     }
 
     loadDashboardLeaveStatus();
 
   } catch (err) {
-    console.error("[DEBUG ERROR] Cancellation workflow failed:", err);
-    if (typeof showCustomAlert === 'function') {
-      await showCustomAlert("Error: " + (err.message || "Could not complete cancellation."));
-    } else {
-      alert("Error: " + (err.message || "Could not complete cancellation."));
-    }
+    console.error("Cancellation error:", err);
+    alert("Error: " + (err.message || "Could not complete cancellation."));
   }
 }
 
+    
 
     
 /**
