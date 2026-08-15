@@ -1714,9 +1714,10 @@ function renderTimesheetList() {
 
 async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
-  const empName = currentUser.name || currentUser.full_name || empCode;
   
-  // ⭐ Safely define both ricEmail and ricName here
+  // ⭐ Properly fetch the actual Employee Name (e.g., Neeti, Vinay, etc.) instead of falling back to code
+  const empName = currentUser.employee_name || currentUser.name || currentUser.full_name || empCode;
+  
   const ricEmail = currentUser.reporting_incharge_email || currentUser.reportingInchargeEmail || "ric-email@example.com";
   const ricName = currentUser.reporting_incharge_name || currentUser.reportingInchargeName || "RIC Team";
 
@@ -1733,12 +1734,12 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
     const payload = {
       action: "sendLeaveCancellationEmail",
       employeeCode: empCode,
-      employeeName: empName,
+      employeeName: empName, // ⭐ Passes real name to backend
       leaveType: leaveType,
       leaveDate: leaveDate,
       previousStatus: currentStatus,
       ricEmail: ricEmail,
-      ricName: ricName, // ⭐ Included in payload
+      ricName: ricName,
       timestamp: new Date().toLocaleString()
     };
 
@@ -1770,9 +1771,11 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
 
   } catch (err) {
     console.error("Cancellation error:", err);
-    alert("Error: " + (err.message || "Could not complete cancellation."));
+    alert("Error: Could not complete cancellation."); // ⭐ Clean error message without exposing technical internals
   }
-}    
+}
+
+    
 
     
 /**
