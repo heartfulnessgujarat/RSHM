@@ -2755,33 +2755,20 @@ function formatDatetoDDMMMYYYY(dateStr) {
 }
 
 
-
-
-
-
 async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, overrideStatus = null) {
   try {
     const dbRef = firebase.database().ref();
-    
-    const formatDt = (d) => {
-      if (!d) return '';
-      if (typeof d === 'string' && d.includes('-') && d.split('-')[0].length === 2 && isNaN(d.split('-')[0])) {
-        return d.toUpperCase();
-      }
-      const dateObj = new Date(d);
-      if (isNaN(dateObj.getTime())) return d;
-      const day = String(dateObj.getDate()).padStart(2, '0');
-      const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-      return `${day}-${months[dateObj.getMonth()]-dateObj.getFullYear()}`.replace('--', '-'); // Safe formatting
-    };
-
-    const targetDateDisplay = formatDt(workDate);
+    const targetDateDisplay = formatSystemDate(workDate);
     const rawWorkDate = String(workDate).trim();
+
+    if (!targetDateDisplay || targetDateDisplay.includes('NaN')) {
+      console.warn("💥 Invalid date passed to recalculateAndSyncAttendanceFrontend:", workDate);
+      return;
+    }
 
     const dateObjCheck = new Date(workDate);
     const isSunday = !isNaN(dateObjCheck.getTime()) && dateObjCheck.getDay() === 0;
 
-    // 1. If it's Sunday, keep it Weekly Off
     if (isSunday) {
       const attendanceRecord = {
         emp_code: activeEmpCode,
@@ -2794,20 +2781,16 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       return;
     }
 
-    // 2. Fetch existing attendance record to see if a half-day leave or special status is already stamped there
     const existingAttSnap = await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).once('value');
     const existingAtt = existingAttSnap.exists() ? existingAttSnap.val() : null;
     const existingStatus = existingAtt ? String(existingAtt.status || '') : '';
 
-    // If the existing status is an approved leave code (like CL, SL, 1/2CL, etc.) and NOT a normal work status, 
-    // DO NOT let the daily work recalculator overwrite it! Leave application handles its own rows.
     const isLeaveStatus = existingStatus && existingStatus !== "P" && existingStatus !== "WL4H" && existingStatus !== "WO";
     if (isLeaveStatus && !overrideStatus) {
       console.log(`-> [RECALC SKIP] Attendance for ${targetDateDisplay} has leave status (${existingStatus}). Daily work recalculator will not overwrite leave.`);
       return;
     }
 
-    // 3. Fetch and calculate total work hours from daily_work logs
     let totalHours = 0;
     const allLogsSnap = await dbRef.child(`daily_work/${activeEmpCode}`).once('value');
     if (allLogsSnap.exists()) {
@@ -2843,21 +2826,17 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       } else if (totalHours > 0) {
         finalStatus = codeBelowThreshold;
       } else {
-        // No hours and no leave = remove attendance row
         await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).remove();
         return;
       }
     }
-
-    const now = new Date();
-    const formattedTimestamp = new Date().toLocaleString();
 
     const attendanceRecord = {
       emp_code: activeEmpCode,
       date: targetDateDisplay,
       hours: totalHours,
       status: finalStatus,
-      calculated_at: formattedTimestamp
+      calculated_at: new Date().toLocaleString()
     };
 
     await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).set(attendanceRecord);
@@ -2867,6 +2846,7 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     console.warn("💥 Error in recalculateAndSyncAttendanceFrontend:", err);
   }
 }
+
 
 
     
@@ -2972,7 +2952,21 @@ function showCustomAlert(message) {
   });
 }
 
-
+function formatSystemDate(d) {
+  if (!d) return '';
+  if (typeof d === 'string' && d.includes('-') && d.split('-')[0].length === 2 && isNaN(d.split('-')[0])) {
+    return d.toUpperCase();
+  }
+  const dateObj = typeof d === 'object' ? d : new Date(d);
+  if (isNaN(dateObj.getTime())) return String(d);
+  
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const month = months[dateObj.getMonth()];
+  const year = dateObj.getFullYear();
+  
+  return `${day}-${month}-${year}`;
+}
 
 
 
