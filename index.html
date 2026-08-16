@@ -2756,7 +2756,6 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     
     const formatDt = (d) => {
       if (!d) return '';
-      // If it's already in DD-MMM-YYYY format, keep it
       if (typeof d === 'string' && d.includes('-') && d.split('-')[0].length === 2 && isNaN(d.split('-')[0])) {
         return d.toUpperCase();
       }
@@ -2768,38 +2767,23 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     };
 
     const targetDateDisplay = formatDt(workDate);
-    const rawWorkDate = String(workDate).trim(); // Keep raw input (e.g., "2026-08-16") to check both formats
+    const rawWorkDate = String(workDate).trim();
 
     const dateObjCheck = new Date(workDate);
     const isSunday = !isNaN(dateObjCheck.getTime()) && dateObjCheck.getDay() === 0;
 
-    let totalHours = 0;
+    // 1. Fetch the existing attendance record first (so we know what hours/status already exist for this day!)
+    const existingAttSnap = await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).once('value');
+    const existingAtt = existingAttSnap.exists() ? existingAttSnap.val() : null;
+    
+    let existingHours = existingAtt ? parseFloat(existingAtt.hours) || 0 : 0;
+    let existingStatus = existingAtt ? String(existingAtt.status || '') : '';
+
     let finalStatus = null;
     let leaveTypeNameFound = overrideStatus;
-    let leaveStatusFound = 'Approved'; // default if overridden directly
+    let leaveStatusFound = 'Approved'; 
 
-    // 1. ALWAYS fetch daily work hours first so work logs are never lost! (Checks both DD-MMM-YYYY and YYYY-MM-DD)
-    const allLogsSnap = await dbRef.child(`daily_work/${activeEmpCode}`).once('value');
-    if (allLogsSnap.exists()) {
-      allLogsSnap.forEach(childSnap => {
-        const log = childSnap.val();
-        if (log && log.work_date) {
-          const logDateClean = String(log.work_date).trim();
-          if (logDateClean === targetDateDisplay || logDateClean === rawWorkDate) {
-            const dur = log.duration || "00:00";
-            if (typeof dur === 'string' && dur.includes(':')) {
-              const [h, m] = dur.split(':').map(Number);
-              totalHours += h + (m / 60);
-            } else {
-              totalHours += parseFloat(dur) || 0;
-            }
-          }
-        }
-      });
-    }
-    totalHours = parseFloat(totalHours.toFixed(2));
-
-    // 2. If overrideStatus wasn't passed, check active leave requests for this date
+    // 2. Check active leave requests for this date
     if (!overrideStatus) {
       const leaveSnap = await dbRef.child(`leave_requests/${activeEmpCode}`).once('value');
       if (leaveSnap.exists()) {
@@ -2824,10 +2808,11 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     const codePresent = config.attendance_code_present || "P";
     const codeBelowThreshold = config.attendance_code_below_threshold || "WL4H";
 
-    // 3. Handle Leave, Sunday, or Standard Work Hours
+    // 3. Determine Final Status and Handling
     if (isSunday) {
       finalStatus = "WO";
     } else if (leaveTypeNameFound) {
+      // Active leave found
       const mapEntry = window.APP_LEAVE_CODES_MAP && window.APP_LEAVE_CODES_MAP[leaveTypeNameFound];
       const isApproved = String(leaveStatusFound).toLowerCase().includes('approved');
 
@@ -2836,18 +2821,37 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       } else {
         finalStatus = isApproved ? leaveTypeNameFound.trim().toUpperCase().substring(0, 3) : leaveTypeNameFound.trim().toLowerCase().substring(0, 3);
       }
-      // Note: totalHours computed from daily_work is preserved!
     } else {
-      // Standard work log calculation flow (or after leave cancellation where leave is gone)
-      if (totalHours >= threshold) {
-        finalStatus = codePresent;
-      } else if (totalHours > 0) {
-        finalStatus = codeBelowThreshold;
+      // NO ACTIVE LEAVE FOUND (Could be a fresh day, or a *cancelled* leave)
+      const wasHalfDay = existingStatus.toLowerCase().includes('1/2') || existingStatus.toLowerCase().includes('half');
+
+      if (wasHalfDay) {
+        // IT WAS A HALF-DAY LEAVE CANCELLATION:
+        // Check if hours > 0 (meaning user made a work entry for the other half)
+        if (existingHours > 0) {
+          if (existingHours >= threshold) {
+            finalStatus = codePresent;
+          } else {
+            finalStatus = codeBelowThreshold;
+          }
+        } else {
+          // Hours are 0, so delete the row as per your rule for half-day with zero work
+          console.log(`-> [ATTENDANCE SYNC] Half-day leave cancelled with 0 hours for ${activeEmpCode} on ${targetDateDisplay}. Deleting record.`);
+          await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).remove();
+          return;
+        }
       } else {
-        // ZERO HOURS AND NO LEAVE: Explicitly remove the attendance node from Firebase
-        console.log(`-> [ATTENDANCE SYNC] Zero hours and no leave for ${activeEmpCode} on ${targetDateDisplay}. Deleting attendance record.`);
-        await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).remove();
-        return; 
+        // FULL-DAY LEAVE CANCELLATION (or standard entry with 0 hours):
+        // Delete the attendance row because full-day leave cancellation expects a fresh user work entry
+        if (existingHours >= threshold) {
+          finalStatus = codePresent;
+        } else if (existingHours > 0) {
+          finalStatus = codeBelowThreshold;
+        } else {
+          console.log(`-> [ATTENDANCE SYNC] Zero hours and full-day leave cancelled/no leave for ${activeEmpCode} on ${targetDateDisplay}. Deleting record.`);
+          await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).remove();
+          return;
+        }
       }
     }
 
@@ -2860,18 +2864,21 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     const attendanceRecord = {
       emp_code: activeEmpCode,
       date: targetDateDisplay,
-      hours: totalHours,
+      hours: existingHours, // Preserves whatever hours were already logged in the attendance node!
       status: finalStatus,
       calculated_at: formattedTimestamp
     };
 
     await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).set(attendanceRecord);
-    console.log("✅ Successfully synced attendance for " + activeEmpCode + " on " + targetDateDisplay + " with hours: " + totalHours + " and status: " + finalStatus);
+    console.log("✅ Successfully synced attendance for " + activeEmpCode + " on " + targetDateDisplay + " with hours: " + existingHours + " and status: " + finalStatus);
 
-  } catch (err) {
+-  } catch (err) {
     console.warn("💥 Error in recalculateAndSyncAttendanceFrontend:", err);
   }
-}    
+}
+
+
+
     
 
 function getLeaveCodeFromMaster(leaveTypeName, status) {
