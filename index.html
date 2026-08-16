@@ -1712,7 +1712,8 @@ function renderTimesheetList() {
 }
 
 
-async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
+
+    async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   console.log("[DEBUG] Current Logged-in User Object:", currentUser);
 
   const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid || "N/A";
@@ -1766,14 +1767,10 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
       throw new Error(result.error || "Backend reported email failure.");
     }
 
-    // ⭐ Updated to write status 'Cancelled' and use 'cancelled_at' with clean formatted timestamp (omitting updated_at)
     const leaveUpdateRequest = firebase.database().ref(`leave_requests/${empCode}/${leaveId}`).update({
       status: 'Cancelled',
       cancelled_at: formattedCancelTime
     });
-
-
-
 
     await leaveUpdateRequest;
 
@@ -1781,9 +1778,6 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
     if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
       await recalculateAndSyncAttendanceFrontend(empCode, leaveDate);
     }
-
-
-    
 
     if (typeof showCustomAlert === 'function') {
       await showCustomAlert(`Leave successfully cancelled and email sent to ${ricName}!`);
@@ -1797,7 +1791,9 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
     console.error("Cancellation error:", err);
     alert("Error: Could not complete cancellation.");
   }
-}    
+}
+    
+ 
     
     
 /**
@@ -2075,6 +2071,8 @@ function calculateRequestedDays() {
   if (badge) badge.classList.remove('hidden');
 }
 
+
+
 async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -2120,6 +2118,7 @@ async function handleLeaveSubmit(e) {
 
     const isPh = leaveTypeVal.toUpperCase().includes('PH') || leaveTypeVal.toUpperCase().includes('PAID HOLIDAY');
     const isCo = leaveTypeVal.toUpperCase().includes('CO') || leaveTypeVal.toUpperCase().includes('COMPENSATORY');
+    const isHalfDay = leaveTypeVal.toLowerCase().includes('half day');
 
     let fromDate = '';
     let toDate = '';
@@ -2151,9 +2150,6 @@ async function handleLeaveSubmit(e) {
       if (!fromDate) throw new Error('Please select a From Date.');
       if (!toDate || toDate === '') toDate = fromDate;
 
-      // ==========================================
-      // ⭐ SL FUTURE DATE VALIDATION CHECK ⭐
-      // ==========================================
       const cleanType = finalLeaveType.toLowerCase();
       if (cleanType.includes('sl') || cleanType.includes('sick')) {
         const todayObj = new Date();
@@ -2209,11 +2205,10 @@ async function handleLeaveSubmit(e) {
 
           if (conflictingLog) {
             const formattedDate = formatDatetoDDMMMYYYY(conflictingLog.work_date);
-            const isHalfDayLeave = finalLeaveType.toLowerCase().includes('half day');
 
-            // If user is applying for a Full-Day leave while a work log exists, block it
-            if (!isHalfDayLeave) {
-              const errorMsg = `Conflict: You have already logged work on ${formattedDate} (${conflictingLog.duration} hrs). You cannot apply for a Full-Day leave unless you delete your work log first.`;
+            // If Full-Day leave, warn that hours vanish / block unless deleted
+            if (!isHalfDay) {
+              const errorMsg = `Conflict: You have already logged work on ${formattedDate} (${conflictingLog.duration} hrs). The work done by you will vanish and hours will become zero if you apply for a Full-Day leave. Please delete your work log first.`;
               
               await showCustomAlert(errorMsg);
 
@@ -2225,8 +2220,8 @@ async function handleLeaveSubmit(e) {
               return;
             }
 
-            // If it IS a Half-Day leave, allow it with a prompt/confirmation
-            const confirmMsg = `You have already entered work on ${formattedDate} (${conflictingLog.duration} hrs). Since you selected a Half-Day leave (${finalLeaveType}), do you wish to proceed?`;
+            // If Half-Day leave, prompt confirmation
+            const confirmMsg = `You have already entered work on ${formattedDate} (${conflictingLog.duration} hrs). Since you selected a Half-Day leave (${finalLeaveType}), your existing work hours will be preserved. Do you wish to proceed?`;
             
             let proceedWithLeave = false;
             try {
@@ -2241,7 +2236,6 @@ async function handleLeaveSubmit(e) {
               return;
             }
           }
-          
         }
       } catch (workCheckErr) {
         console.warn("Non-critical: Work log conflict check during leave submission skipped:", workCheckErr);
@@ -2358,11 +2352,34 @@ async function handleLeaveSubmit(e) {
           const dayStatus = isSunday ? 'WO' : standardizedCode;
 
           if (loopDateFormatted) {
+            let hoursToSet = 0;
+
+            // If it's a half-day leave, check if work hours exist and preserve them instead of resetting to 0
+            if (isHalfDay) {
+              const allLogsSnap = await dbRef.child(`daily_work/${empCode}`).once('value');
+              let existingHours = 0;
+              if (allLogsSnap.exists()) {
+                allLogsSnap.forEach(childSnap => {
+                  const log = childSnap.val();
+                  if (log && String(log.work_date).trim() === loopDateFormatted) {
+                    const dur = log.duration || "00:00";
+                    if (typeof dur === 'string' && dur.includes(':')) {
+                      const [h, m] = dur.split(':').map(Number);
+                      existingHours += h + (m / 60);
+                    } else {
+                      existingHours += parseFloat(dur) || 0;
+                    }
+                  }
+                });
+              }
+              hoursToSet = parseFloat(existingHours.toFixed(2));
+            }
+
             const attendanceRowRef = dbRef.child(`attendance/${empCode}/${loopDateFormatted}`);
             await attendanceRowRef.set({
               emp_code: empCode,
               date: loopDateFormatted,
-              hours: 0,
+              hours: hoursToSet,
               status: dayStatus,
               calculated_at: new Date().toLocaleString()
             });
@@ -2405,6 +2422,9 @@ async function handleLeaveSubmit(e) {
     if (submitBtn) submitBtn.disabled = false;
   }
 }
+
+
+    
 
     
   async function loadLeaveMasterOptions() {
@@ -2730,6 +2750,7 @@ function formatDatetoDDMMMYYYY(dateStr) {
 }
 
 
+
 async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, overrideStatus = null) {
   try {
     const dbRef = firebase.database().ref();
@@ -2757,7 +2778,7 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     if (allLogsSnap.exists()) {
       allLogsSnap.forEach(childSnap => {
         const log = childSnap.val();
-        if (log && String(log.work_date).trim() === workDate) {
+        if (log && String(log.work_date).trim() === targetDateDisplay) {
           const dur = log.duration || "00:00";
           if (typeof dur === 'string' && dur.includes(':')) {
             const [h, m] = dur.split(':').map(Number);
@@ -2797,25 +2818,23 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     if (isSunday) {
       finalStatus = "WO";
     } else if (leaveTypeNameFound) {
-      // Dynamically look up from our global cache populated by loadLeaveMasterOptions()
       const mapEntry = window.APP_LEAVE_CODES_MAP && window.APP_LEAVE_CODES_MAP[leaveTypeNameFound];
       const isApproved = String(leaveStatusFound).toLowerCase().includes('approved');
 
       if (mapEntry) {
         finalStatus = isApproved ? mapEntry.approved : mapEntry.unapproved;
       } else {
-        // Fallback if cache isn't ready yet
         finalStatus = isApproved ? leaveTypeNameFound.trim().toUpperCase().substring(0, 3) : leaveTypeNameFound.trim().toLowerCase().substring(0, 3);
       }
-      // Note: We retain totalHours computed from daily_work instead of overwriting it to 0!
+      // Note: totalHours computed from daily_work is preserved!
     } else {
-      // Standard work log calculation flow
+      // Standard work log calculation flow (or after leave cancellation where leave is gone)
       if (totalHours >= threshold) {
         finalStatus = codePresent;
       } else if (totalHours > 0) {
         finalStatus = codeBelowThreshold;
       } else {
-        // ZERO HOURS AND NO LEAVE: Explicitly remove the attendance node from Firebase so it gets completely deleted
+        // ZERO HOURS AND NO LEAVE: Explicitly remove the attendance node from Firebase
         console.log(`-> [ATTENDANCE SYNC] Zero hours and no leave for ${activeEmpCode} on ${targetDateDisplay}. Deleting attendance record.`);
         await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).remove();
         return; 
@@ -2845,6 +2864,7 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
 }
 
 
+    
     
     
 
