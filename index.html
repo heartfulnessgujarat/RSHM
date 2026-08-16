@@ -2280,17 +2280,8 @@ async function handleLeaveSubmit(e) {
     const formattedTimestamp = window.formatTimestamp(timestamp);
     const leaveId = "LV" + timestamp.getTime();
     
-    const formatDt = (d) => {
-      if (!d) return '';
-      const dateObj = new Date(d);
-      if (isNaN(dateObj.getTime())) return d;
-      const day = String(dateObj.getDate()).padStart(2, '0');
-      const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-      return `${day}-${months[dateObj.getMonth()]}--${dateObj.getFullYear()}`.replace('--', '-');
-    };
-
-    const startDateStr = formatDt(fromDate);
-    const endDateStr = formatDt(toDate);
+    const startDateStr = formatSystemDate(fromDate);
+    const endDateStr = formatSystemDate(toDate);
     const dateDisplay = startDateStr + (endDateStr && endDateStr !== startDateStr ? " to " + endDateStr : "");
 
     const isAutoApproved = isCo || finalLeaveType.toUpperCase().includes('PH') || finalLeaveType.toUpperCase().includes('PAID HOLIDAY');
@@ -2357,10 +2348,10 @@ async function handleLeaveSubmit(e) {
         const lastDate = new Date(toDate);
 
         while (currDate <= lastDate) {
-          const loopDateFormatted = formatDt(currDate);
+          const loopDateFormatted = formatSystemDate(currDate);
           const isSunday = currDate.getDay() === 0;
 
-          if (loopDateFormatted) {
+          if (loopDateFormatted && !loopDateFormatted.includes('NaN')) {
             const attendanceRowRef = dbRef.child(`attendance/${empCode}/${loopDateFormatted}`);
 
             if (isSunday) {
@@ -2429,8 +2420,11 @@ async function handleLeaveSubmit(e) {
     if (submitBtn) submitBtn.disabled = false;
   }
 }
-    
 
+
+
+
+    
     
   async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
