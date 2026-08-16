@@ -1315,6 +1315,8 @@ if (activeLeave) {
       console.warn("Non-critical: CO balance calculation skipped on frontend:", coErr);
     }
 
+
+    
     await recalculateAndSyncAttendanceFrontend(activeEmpCode, work_date);
 
     document.getElementById('work-form').reset();
@@ -2791,7 +2793,6 @@ function formatDatetoDDMMMYYYY(dateStr) {
   return dateStr;
 }
 
-
 async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, overrideStatus = null) {
   try {
     const dbRef = firebase.database().ref();
@@ -2889,7 +2890,57 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
   }
 }
 
-    
+async function recalculateAndSyncLeaveFrontend(activeEmpCode, leaveDate, isCancelled = false, leaveType = '') {
+  try {
+    const dbRef = firebase.database().ref();
+    const targetDateDisplay = formatSystemDate(leaveDate);
+
+    if (!targetDateDisplay || targetDateDisplay.includes('NaN')) {
+      console.warn("💥 Invalid date passed to recalculateAndSyncLeaveFrontend:", leaveDate);
+      return;
+    }
+
+    const attendanceRowRef = dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`);
+
+    if (isCancelled) {
+      // LEAVE CANCELLED: Check if there are preserved hours on the attendance row (e.g. from half-day leave)
+      const attSnap = await attendanceRowRef.once('value');
+      const attData = attSnap.exists() ? attSnap.val() : {};
+      const preservedHours = parseFloat(attData.hours) || 0;
+
+      if (preservedHours > 0) {
+        // If half-day leave preserved hours exist, re-evaluate them into standard P or WL4H status
+        const configSnap = await dbRef.child('config').once('value');
+        const config = configSnap.val() || {};
+        const threshold = parseFloat(config.attendance_hours_threshold || config.threshold_hours) || 4.0;
+        const codePresent = config.attendance_code_present || "P";
+        const codeBelowThreshold = config.attendance_code_below_threshold || "WL4H";
+        const newStatus = preservedHours >= threshold ? codePresent : codeBelowThreshold;
+
+        await attendanceRowRef.set({
+          emp_code: activeEmpCode,
+          date: targetDateDisplay,
+          hours: preservedHours,
+          status: newStatus,
+          calculated_at: new Date().toLocaleString()
+        });
+        console.log(`-> [LEAVE CANCEL SYNC] Converted cancelled leave to work status ${newStatus} with ${preservedHours} hrs for ${targetDateDisplay}`);
+      } else {
+        // If it was a full-day leave (no preserved hours), remove the placeholder row and fallback to daily work check
+        await attendanceRowRef.remove();
+        if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
+          await recalculateAndSyncAttendanceFrontend(activeEmpCode, leaveDate);
+        }
+        console.log(`-> [LEAVE CANCEL SYNC] Full-day leave cancelled. Cleared row and checked daily work for ${targetDateDisplay}`);
+      }
+    } else {
+      console.log(`-> [LEAVE APPLY SYNC] Leave successfully processed for ${targetDateDisplay}`);
+    }
+
+  } catch (err) {
+    console.warn("💥 Error in recalculateAndSyncLeaveFrontend:", err);
+  }
+}    
 
     
 
@@ -3009,6 +3060,62 @@ function formatSystemDate(d) {
   
   return `${day}-${month}-${year}`;
 }
+
+
+
+    
+async function recalculateAndSyncLeaveFrontend(activeEmpCode, leaveDate, isCancelled = false, leaveType = '') {
+  try {
+    const dbRef = firebase.database().ref();
+    const targetDateDisplay = formatSystemDate(leaveDate);
+
+    if (!targetDateDisplay || targetDateDisplay.includes('NaN')) {
+      console.warn("💥 Invalid date passed to recalculateAndSyncLeaveFrontend:", leaveDate);
+      return;
+    }
+
+    const attendanceRowRef = dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`);
+
+    if (isCancelled) {
+      // LEAVE CANCELLED: Check if there are preserved hours on the attendance row (e.g. from half-day leave)
+      const attSnap = await attendanceRowRef.once('value');
+      const attData = attSnap.exists() ? attSnap.val() : {};
+      const preservedHours = parseFloat(attData.hours) || 0;
+
+      if (preservedHours > 0) {
+        // If half-day leave preserved hours exist, re-evaluate them into standard P or WL4H status
+        const configSnap = await dbRef.child('config').once('value');
+        const config = configSnap.val() || {};
+        const threshold = parseFloat(config.attendance_hours_threshold || config.threshold_hours) || 4.0;
+        const codePresent = config.attendance_code_present || "P";
+        const codeBelowThreshold = config.attendance_code_below_threshold || "WL4H";
+        const newStatus = preservedHours >= threshold ? codePresent : codeBelowThreshold;
+
+        await attendanceRowRef.set({
+          emp_code: activeEmpCode,
+          date: targetDateDisplay,
+          hours: preservedHours,
+          status: newStatus,
+          calculated_at: new Date().toLocaleString()
+        });
+        console.log(`-> [LEAVE CANCEL SYNC] Converted cancelled leave to work status ${newStatus} with ${preservedHours} hrs for ${targetDateDisplay}`);
+      } else {
+        // If it was a full-day leave (no preserved hours), remove the placeholder row and fallback to daily work check
+        await attendanceRowRef.remove();
+        if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
+          await recalculateAndSyncAttendanceFrontend(activeEmpCode, leaveDate);
+        }
+        console.log(`-> [LEAVE CANCEL SYNC] Full-day leave cancelled. Cleared row and checked daily work for ${targetDateDisplay}`);
+      }
+    } else {
+      console.log(`-> [LEAVE APPLY SYNC] Leave successfully processed for ${targetDateDisplay}`);
+    }
+
+  } catch (err) {
+    console.warn("💥 Error in recalculateAndSyncLeaveFrontend:", err);
+  }
+}
+
 
 
 
