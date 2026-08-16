@@ -1711,8 +1711,6 @@ function renderTimesheetList() {
   }
 }
 
-
-
 async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   console.log("[DEBUG] Current Logged-in User Object:", currentUser);
 
@@ -1766,28 +1764,75 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
       throw new Error(result.error || "Backend reported email failure.");
     }
 
-    const leaveUpdateRequest = firebase.database().ref(`leave_requests/${empCode}/${leaveId}`).update({
+    const dbRef = firebase.database().ref();
+
+    // 1. Fetch leave record to check total days for balance refund if it was approved/auto-approved
+    const leaveItemRef = dbRef.child(`leave_requests/${empCode}/${leaveId}`);
+    const leaveSnap = await leaveItemRef.once('value');
+    const leaveData = leaveSnap.exists() ? leaveSnap.val() : {};
+    const totalDays = parseFloat(leaveData.total_days) || 0;
+    const leaveStatus = String(leaveData.status || '');
+
+    // 2. Update leave request status to Cancelled
+    await leaveItemRef.update({
       status: 'Cancelled',
       cancelled_at: formattedCancelTime
     });
 
-    await leaveUpdateRequest;
+    // 3. Restore balance if the leave was already approved or auto-approved
+    if ((leaveStatus.includes('Approved') || leaveStatus.includes('Auto Approved')) && totalDays > 0) {
+      try {
+        const cleanType = String(leaveType).toLowerCase();
+        let targetPrefix = 'cl';
+        if (cleanType.includes('ph') || cleanType.includes('holiday')) {
+          targetPrefix = 'ph';
+        } else if (cleanType.includes('sl') || cleanType.includes('sick')) {
+          targetPrefix = 'sl';
+        } else if (cleanType.includes('co') || cleanType.includes('comp')) {
+          targetPrefix = 'co';
+        } else if (cleanType.includes('el') || cleanType.includes('earned')) {
+          targetPrefix = 'el';
+        }
+
+        const empNodeRef = dbRef.child(`masters/employees/${empCode}`);
+        const empSnapshot = await empNodeRef.once('value');
+        const empMasterData = empSnapshot.val() || {};
+        const balanceField = `${targetPrefix}_balance`;
+        const currentBal = parseFloat(String(empMasterData[balanceField] || "0").replace(/"/g, '')) || 0;
+        
+        const restoredBal = currentBal + totalDays;
+        await empNodeRef.child(balanceField).set(parseFloat(restoredBal.toFixed(2)));
+        console.log(`-> [BALANCE RESTORE] Refunded ${totalDays} days to ${balanceField}. New balance: ${restoredBal}`);
+      } catch (balRestErr) {
+        console.error("Error restoring leave balance on cancellation:", balRestErr);
+      }
+    }
 
     // ==========================================
-    // ⭐ CLEAN ATTENDANCE SYNC ON CANCELLATION ⭐
+    // ⭐ ATTENDANCE RECALCULATION & SYNC ⭐
     // ==========================================
-    const isHalfDayCancel = String(leaveType).toLowerCase().includes('half');
+    const targetDateDisplay = formatSystemDate(leaveDate);
 
-    if (!isHalfDayCancel) {
-      // FULL-DAY LEAVE CANCELLATION: Let recalculate handle checking if work logs exist
-      if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
-        await recalculateAndSyncAttendanceFrontend(empCode, leaveDate);
+    if (targetDateDisplay && !targetDateDisplay.includes('NaN')) {
+      const attendanceRowRef = dbRef.child(`attendance/${empCode}/${targetDateDisplay}`);
+      const attSnap = await attendanceRowRef.once('value');
+
+      if (attSnap.exists()) {
+        const attData = attSnap.val();
+        const preservedHours = parseFloat(attData.hours) || 0;
+
+        // If hours were preserved (e.g. half-day leave), clear the leave status code first 
+        // so the recalculation function doesn't skip it due to a leave guard check.
+        if (preservedHours > 0) {
+          await attendanceRowRef.update({ status: "", calculated_at: new Date().toLocaleString() });
+        }
       }
-    } else {
-      // HALF-DAY LEAVE CANCELLATION: Re-evaluate preserved work hours into standard status
-      if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
-        await recalculateAndSyncAttendanceFrontend(empCode, leaveDate);
-      }
+    }
+
+    // Now trigger the main recalculation/sync function to correctly re-evaluate the date
+    if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
+      await recalculateAndSyncAttendanceFrontend(empCode, leaveDate);
+      console.log(`-> [CANCELLATION SYNC] Triggered recalculateAndSyncAttendanceFrontend for ${leaveDate}`);
     }
 
     if (typeof showCustomAlert === 'function') {
@@ -1802,9 +1847,7 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
     console.error("Cancellation error:", err);
     alert("Error: Could not complete cancellation.");
   }
-}
- 
-    
+}    
     
 /**
  * REPLACEMENT FOR openLeaveModule() / loadLeaveBalances()
