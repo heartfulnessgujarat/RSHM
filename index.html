@@ -2818,16 +2818,13 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       return;
     }
 
+    // 1. Fetch existing attendance record to preserve existing hours if present
     const existingAttSnap = await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).once('value');
     const existingAtt = existingAttSnap.exists() ? existingAttSnap.val() : null;
     const existingStatus = existingAtt ? String(existingAtt.status || '') : '';
+    const existingHours = existingAtt ? parseFloat(existingAtt.hours) || 0 : 0;
 
-    const isLeaveStatus = existingStatus && existingStatus !== "P" && existingStatus !== "WL4H" && existingStatus !== "WO";
-    if (isLeaveStatus && !overrideStatus) {
-      console.log(`-> [RECALC SKIP] Attendance for ${targetDateDisplay} has leave status (${existingStatus}). Daily work recalculator will not overwrite leave.`);
-      return;
-    }
-
+    // 2. Calculate total hours from daily_work logs
     let totalHours = 0;
     const allLogsSnap = await dbRef.child(`daily_work/${activeEmpCode}`).once('value');
     if (allLogsSnap.exists()) {
@@ -2849,6 +2846,12 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     }
     totalHours = parseFloat(totalHours.toFixed(2));
 
+    // ⭐ FALLBACK: If daily_work hours are 0, use existing preserved attendance hours
+    if (totalHours === 0 && existingHours > 0) {
+      totalHours = existingHours;
+      console.log(`-> [RECALC FALLBACK] Using preserved attendance hours: ${totalHours}`);
+    }
+
     const configSnap = await dbRef.child('config').once('value');
     const config = configSnap.val() || {};
     const threshold = parseFloat(config.attendance_hours_threshold || config.threshold_hours) || 4.0;
@@ -2863,7 +2866,9 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       } else if (totalHours > 0) {
         finalStatus = codeBelowThreshold;
       } else {
+        // True zero hours from both logs AND existing record -> remove attendance row
         await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).remove();
+        console.log(`-> [RECALC REMOVE] 0 hours found. Removed attendance row for ${targetDateDisplay}`);
         return;
       }
     }
@@ -2877,14 +2882,14 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     };
 
     await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).set(attendanceRecord);
-    console.log("✅ Successfully synced attendance for " + activeEmpCode + " on " + targetDateDisplay + " with hours: " + totalHours + " and status: " + finalStatus);
+    console.log(`✅ Successfully synced attendance for ${activeEmpCode} on ${targetDateDisplay} | Hours: ${totalHours} | Status: ${finalStatus}`);
 
   } catch (err) {
     console.warn("💥 Error in recalculateAndSyncAttendanceFrontend:", err);
   }
 }
 
-
+    
 
     
 
