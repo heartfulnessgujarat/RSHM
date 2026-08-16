@@ -950,6 +950,7 @@ async function setupWorkFormDropdowns() {
 }
 
 
+
 async function executeWorkSubmit(e) {
   if (e) {
     if (typeof e.preventDefault === 'function') e.preventDefault();
@@ -1040,7 +1041,7 @@ async function executeWorkSubmit(e) {
   }  
 
 
-// ==========================================
+  // ==========================================
   // 1.5. LEAVE CONFLICT CHECK FOR WORK ENTRY ⭐
   // ==========================================
   if (work_date && activeEmpCode) {
@@ -1054,7 +1055,10 @@ async function executeWorkSubmit(e) {
         let activeLeave = null;
         leavesSnap.forEach(childSnap => {
           const leave = childSnap.val();
-          if (leave.status && leave.status.toLowerCase().includes('reject')) return; // Ignore rejected leaves
+          const leaveStatus = String(leave.status || '').toLowerCase();
+          
+          // Ignore rejected or cancelled leaves
+          if (leaveStatus.includes('reject') || leaveStatus.includes('cancel')) return; 
 
           const leaveDateStr = leave.leave_date || '';
           if (leaveDateStr.includes(' to ')) {
@@ -1072,12 +1076,7 @@ async function executeWorkSubmit(e) {
           }
         });
 
-
-
-
-
-
-if (activeLeave) {
+        if (activeLeave) {
           const formattedDate = formatDatetoDDMMMYYYY(work_date);
           const leaveType = activeLeave.leave_type || 'Leave';
           const isHalfDayLeave = leaveType.toLowerCase().includes('half day');
@@ -1106,25 +1105,11 @@ if (activeLeave) {
             return;
           }
         }
-
-
-
-
-
-
-
-
-
-      
       }
     } catch (leaveCheckErr) {
       console.warn("Non-critical: Leave conflict check skipped:", leaveCheckErr);
     }
   }
-
-    
-      
-   
 
   // ==========================================
   // 2. TIME OVERLAP INTERLOCK VALIDATION CHECK
@@ -1229,9 +1214,15 @@ if (activeLeave) {
       const oldSnap = await logRef.once('value');
       if (oldSnap.exists()) {
         const oldLog = oldSnap.val();
-        if (oldLog.duration) {
-          const [oh, om] = oldLog.duration.split(':').map(Number);
-          oldDurationHours = (oh || 0) + ((om || 0) / 60);
+        if (oldLog.duration !== undefined && oldLog.duration !== null) {
+          // Safely handle duration whether stored as a number or string
+          const rawDuration = String(oldLog.duration);
+          if (rawDuration.includes(':')) {
+            const [oh, om] = rawDuration.split(':').map(Number);
+            oldDurationHours = (oh || 0) + ((om || 0) / 60);
+          } else {
+            oldDurationHours = parseFloat(rawDuration) || 0;
+          }
         }
       }
 
@@ -1315,8 +1306,6 @@ if (activeLeave) {
       console.warn("Non-critical: CO balance calculation skipped on frontend:", coErr);
     }
 
-
-    
     await recalculateAndSyncAttendanceFrontend(activeEmpCode, work_date);
 
     document.getElementById('work-form').reset();
@@ -1325,7 +1314,6 @@ if (activeLeave) {
 
     switchView('view-dashboard');
 
-   
   } catch(err) {
     console.error("Save error caught:", err);
     if (typeof showToast === 'function') showToast(err.message || String(err));
@@ -1337,6 +1325,9 @@ if (activeLeave) {
   }
 }
 
+
+
+    
 // Helper utility for parsing stored DD-MMM-YYYY strings back into Date objects
 function parseFormattedDateToObj(dateStr) {
   if (!dateStr) return null;
