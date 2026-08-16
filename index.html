@@ -1713,6 +1713,7 @@ function renderTimesheetList() {
   }
 }
 
+
 async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   console.log("[DEBUG] Current Logged-in User Object:", currentUser);
 
@@ -1811,30 +1812,13 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
     }
 
     // ==========================================
-    // ⭐ ATTENDANCE RECALCULATION & SYNC ⭐
+    // ⭐ SEPARATE LEAVE RECALCULATION & SYNC ⭐
     // ==========================================
-    const targetDateDisplay = formatSystemDate(leaveDate);
-
-    if (targetDateDisplay && !targetDateDisplay.includes('NaN')) {
-      const attendanceRowRef = dbRef.child(`attendance/${empCode}/${targetDateDisplay}`);
-      const attSnap = await attendanceRowRef.once('value');
-
-      if (attSnap.exists()) {
-        const attData = attSnap.val();
-        const preservedHours = parseFloat(attData.hours) || 0;
-
-        // If hours were preserved (e.g. half-day leave), clear the leave status code first 
-        // so the recalculation function doesn't skip it due to a leave guard check.
-        if (preservedHours > 0) {
-          await attendanceRowRef.update({ status: "", calculated_at: new Date().toLocaleString() });
-        }
-      }
-    }
-
-    // Now trigger the main recalculation/sync function to correctly re-evaluate the date
-    if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
-      await recalculateAndSyncAttendanceFrontend(empCode, leaveDate);
-      console.log(`-> [CANCELLATION SYNC] Triggered recalculateAndSyncAttendanceFrontend for ${leaveDate}`);
+    if (typeof recalculateAndSyncLeaveFrontend === 'function') {
+      await recalculateAndSyncLeaveFrontend(empCode, leaveDate, true, leaveType);
+      console.log(`-> [CANCELLATION SYNC] Triggered recalculateAndSyncLeaveFrontend for ${leaveDate}`);
+    } else {
+      console.warn("⚠️ recalculateAndSyncLeaveFrontend function not found!");
     }
 
     if (typeof showCustomAlert === 'function') {
@@ -1849,7 +1833,10 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
     console.error("Cancellation error:", err);
     alert("Error: Could not complete cancellation.");
   }
-}    
+}
+
+    
+
     
 /**
  * REPLACEMENT FOR openLeaveModule() / loadLeaveBalances()
