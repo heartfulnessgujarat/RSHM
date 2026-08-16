@@ -1713,7 +1713,7 @@ function renderTimesheetList() {
 
 
 
-    async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
+async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   console.log("[DEBUG] Current Logged-in User Object:", currentUser);
 
   const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid || "N/A";
@@ -1722,7 +1722,6 @@ function renderTimesheetList() {
   const ricEmail = currentUser.reporting_incharge_email || currentUser.reportingInchargeEmail || "ric-email@example.com";
   const ricName = currentUser.reporting_incharge_name || currentUser.reportingInchargeName || "RIC Team";
 
-  // Generate clean custom timestamp format: "DD-MMM-YYYY HH:MM"
   const now = new Date();
   const day = String(now.getDate()).padStart(2, '0');
   const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
@@ -1774,9 +1773,21 @@ function renderTimesheetList() {
 
     await leaveUpdateRequest;
 
-    // Recalculate attendance so it correctly restores hours or cleans up if no work was logged
-    if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
-      await recalculateAndSyncAttendanceFrontend(empCode, leaveDate);
+    // ==========================================
+    // ⭐ CLEAN ATTENDANCE SYNC ON CANCELLATION ⭐
+    // ==========================================
+    const isHalfDayCancel = String(leaveType).toLowerCase().includes('half');
+
+    if (!isHalfDayCancel) {
+      // FULL-DAY LEAVE CANCELLATION: Let recalculate handle checking if work logs exist
+      if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
+        await recalculateAndSyncAttendanceFrontend(empCode, leaveDate);
+      }
+    } else {
+      // HALF-DAY LEAVE CANCELLATION: Re-evaluate preserved work hours into standard status
+      if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
+        await recalculateAndSyncAttendanceFrontend(empCode, leaveDate);
+      }
     }
 
     if (typeof showCustomAlert === 'function') {
@@ -1792,7 +1803,6 @@ function renderTimesheetList() {
     alert("Error: Could not complete cancellation.");
   }
 }
-    
  
     
     
@@ -2072,7 +2082,6 @@ function calculateRequestedDays() {
 }
 
 
-
 async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -2206,7 +2215,6 @@ async function handleLeaveSubmit(e) {
           if (conflictingLog) {
             const formattedDate = formatDatetoDDMMMYYYY(conflictingLog.work_date);
 
-            // If Full-Day leave, warn that hours vanish / block unless deleted
             if (!isHalfDay) {
               const errorMsg = `Conflict: You have already logged work on ${formattedDate} (${conflictingLog.duration} hrs). The work done by you will vanish and hours will become zero if you apply for a Full-Day leave. Please delete your work log first.`;
               
@@ -2220,7 +2228,6 @@ async function handleLeaveSubmit(e) {
               return;
             }
 
-            // If Half-Day leave, prompt confirmation
             const confirmMsg = `You have already entered work on ${formattedDate} (${conflictingLog.duration} hrs). Since you selected a Half-Day leave (${finalLeaveType}), your existing work hours will be preserved. Do you wish to proceed?`;
             
             let proceedWithLeave = false;
@@ -2243,7 +2250,7 @@ async function handleLeaveSubmit(e) {
     }
 
     // ==========================================
-    // ⭐ BALANCE VALIDATION CHECK BEFORE SUBMITTING ⭐
+    // ⭐ BALANCE VALIDATION CHECK ⭐
     // ==========================================
     const dbRef = firebase.database().ref();
     const empNodeRef = dbRef.child(`masters/employees/${empCode}`);
@@ -2329,6 +2336,9 @@ async function handleLeaveSubmit(e) {
       }
     }
     
+    // ==========================================
+    // ⭐ CLEAN SEPARATE LEAVE ATTENDANCE HANDLER ⭐
+    // ==========================================
     try {
       const selectedLeaveTypeName = finalLeaveType; 
       const isApprovedNow = (initialStatus === 'Auto Approved' || initialStatus === 'Approved'); 
@@ -2349,40 +2359,37 @@ async function handleLeaveSubmit(e) {
         while (currDate <= lastDate) {
           const loopDateFormatted = formatDt(currDate);
           const isSunday = currDate.getDay() === 0;
-          const dayStatus = isSunday ? 'WO' : standardizedCode;
 
           if (loopDateFormatted) {
-            let hoursToSet = 0;
-
-            // If it's a half-day leave, check if work hours exist and preserve them instead of resetting to 0
-            if (isHalfDay) {
-              const allLogsSnap = await dbRef.child(`daily_work/${empCode}`).once('value');
-              let existingHours = 0;
-              if (allLogsSnap.exists()) {
-                allLogsSnap.forEach(childSnap => {
-                  const log = childSnap.val();
-                  if (log && String(log.work_date).trim() === loopDateFormatted) {
-                    const dur = log.duration || "00:00";
-                    if (typeof dur === 'string' && dur.includes(':')) {
-                      const [h, m] = dur.split(':').map(Number);
-                      existingHours += h + (m / 60);
-                    } else {
-                      existingHours += parseFloat(dur) || 0;
-                    }
-                  }
-                });
-              }
-              hoursToSet = parseFloat(existingHours.toFixed(2));
-            }
-
             const attendanceRowRef = dbRef.child(`attendance/${empCode}/${loopDateFormatted}`);
-            await attendanceRowRef.set({
-              emp_code: empCode,
-              date: loopDateFormatted,
-              hours: hoursToSet,
-              status: dayStatus,
-              calculated_at: new Date().toLocaleString()
-            });
+
+            if (isSunday) {
+              await attendanceRowRef.set({
+                emp_code: empCode,
+                date: loopDateFormatted,
+                hours: 0,
+                status: "WO",
+                calculated_at: new Date().toLocaleString()
+              });
+            } else if (!isHalfDay) {
+              // FULL-DAY LEAVE: Delete attendance row entirely
+              await attendanceRowRef.remove();
+              console.log(`-> [LEAVE SYNC] Full-day leave applied. Deleted attendance record for ${loopDateFormatted}`);
+            } else {
+              // HALF-DAY LEAVE: Preserve existing hours and update status code
+              const existingAttSnap = await attendanceRowRef.once('value');
+              const existingAtt = existingAttSnap.exists() ? existingAttSnap.val() : {};
+              const preservedHours = parseFloat(existingAtt.hours) || 0;
+
+              await attendanceRowRef.set({
+                emp_code: empCode,
+                date: loopDateFormatted,
+                hours: preservedHours,
+                status: standardizedCode,
+                calculated_at: new Date().toLocaleString()
+              });
+              console.log(`-> [LEAVE SYNC] Half-day leave applied. Preserved ${preservedHours} hrs for ${loopDateFormatted}`);
+            }
           }
           currDate.setDate(currDate.getDate() + 1);
         }
@@ -2422,8 +2429,6 @@ async function handleLeaveSubmit(e) {
     if (submitBtn) submitBtn.disabled = false;
   }
 }
-
-
     
 
     
