@@ -2754,6 +2754,11 @@ function formatDatetoDDMMMYYYY(dateStr) {
   return dateStr;
 }
 
+
+
+
+
+
 async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, overrideStatus = null) {
   try {
     const dbRef = firebase.database().ref();
@@ -2767,7 +2772,7 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       if (isNaN(dateObj.getTime())) return d;
       const day = String(dateObj.getDate()).padStart(2, '0');
       const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-      return `${day}-${months[dateObj.getMonth()]}-${dateObj.getFullYear()}`;
+      return `${day}-${months[dateObj.getMonth()]-dateObj.getFullYear()}`.replace('--', '-'); // Safe formatting
     };
 
     const targetDateDisplay = formatDt(workDate);
@@ -2776,12 +2781,33 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     const dateObjCheck = new Date(workDate);
     const isSunday = !isNaN(dateObjCheck.getTime()) && dateObjCheck.getDay() === 0;
 
-    // 1. Fetch existing attendance record to check for previous status (like half-day leaves)
+    // 1. If it's Sunday, keep it Weekly Off
+    if (isSunday) {
+      const attendanceRecord = {
+        emp_code: activeEmpCode,
+        date: targetDateDisplay,
+        hours: 0,
+        status: "WO",
+        calculated_at: new Date().toLocaleString()
+      };
+      await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).set(attendanceRecord);
+      return;
+    }
+
+    // 2. Fetch existing attendance record to see if a half-day leave or special status is already stamped there
     const existingAttSnap = await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).once('value');
     const existingAtt = existingAttSnap.exists() ? existingAttSnap.val() : null;
-    let existingStatus = existingAtt ? String(existingAtt.status || '') : '';
+    const existingStatus = existingAtt ? String(existingAtt.status || '') : '';
 
-    // 2. ALWAYS fetch and calculate total work hours from daily_work logs first!
+    // If the existing status is an approved leave code (like CL, SL, 1/2CL, etc.) and NOT a normal work status, 
+    // DO NOT let the daily work recalculator overwrite it! Leave application handles its own rows.
+    const isLeaveStatus = existingStatus && existingStatus !== "P" && existingStatus !== "WL4H" && existingStatus !== "WO";
+    if (isLeaveStatus && !overrideStatus) {
+      console.log(`-> [RECALC SKIP] Attendance for ${targetDateDisplay} has leave status (${existingStatus}). Daily work recalculator will not overwrite leave.`);
+      return;
+    }
+
+    // 3. Fetch and calculate total work hours from daily_work logs
     let totalHours = 0;
     const allLogsSnap = await dbRef.child(`daily_work/${activeEmpCode}`).once('value');
     if (allLogsSnap.exists()) {
@@ -2803,90 +2829,28 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     }
     totalHours = parseFloat(totalHours.toFixed(2));
 
-    // If no daily_work hours found, fallback to existing attendance hours if they exist
-    if (totalHours === 0 && existingAtt && existingAtt.hours) {
-      totalHours = parseFloat(existingAtt.hours) || 0;
-    }
-
-    let finalStatus = null;
-    let leaveTypeNameFound = overrideStatus;
-    let leaveStatusFound = 'Approved'; 
-
-    // 3. Check active leave requests for this date
-    if (!overrideStatus) {
-      const leaveSnap = await dbRef.child(`leave_requests/${activeEmpCode}`).once('value');
-      if (leaveSnap.exists()) {
-        leaveSnap.forEach(child => {
-          const leave = child.val();
-          if (leave && leave.leave_date) {
-            const lStatus = String(leave.status || '').toLowerCase();
-            if (lStatus !== 'cancelled' && lStatus !== 'rejected') {
-              if (String(leave.leave_date).includes(targetDateDisplay) || String(leave.leave_date).includes(rawWorkDate)) {
-                leaveTypeNameFound = leave.leave_type; 
-                leaveStatusFound = leave.status || 'Pending';
-              }
-            }
-          }
-        });
-      }
-    }
-
     const configSnap = await dbRef.child('config').once('value');
     const config = configSnap.val() || {};
     const threshold = parseFloat(config.attendance_hours_threshold || config.threshold_hours) || 4.0;
     const codePresent = config.attendance_code_present || "P";
     const codeBelowThreshold = config.attendance_code_below_threshold || "WL4H";
 
-    // 4. Handle Leave, Sunday, or Standard Work Hours
-    if (isSunday) {
-      finalStatus = "WO";
-      totalHours = 0;
-    } else if (leaveTypeNameFound) {
-      const mapEntry = window.APP_LEAVE_CODES_MAP && window.APP_LEAVE_CODES_MAP[leaveTypeNameFound];
-      const isApproved = String(leaveStatusFound).toLowerCase().includes('approved');
+    let finalStatus = overrideStatus;
 
-      if (mapEntry) {
-        finalStatus = isApproved ? mapEntry.approved : mapEntry.unapproved;
+    if (!finalStatus) {
+      if (totalHours >= threshold) {
+        finalStatus = codePresent;
+      } else if (totalHours > 0) {
+        finalStatus = codeBelowThreshold;
       } else {
-        finalStatus = isApproved ? leaveTypeNameFound.trim().toUpperCase().substring(0, 3) : leaveTypeNameFound.trim().toLowerCase().substring(0, 3);
-      }
-
-      // Check if it's a half-day vs full-day leave
-      const isHalfDayLeave = String(leaveTypeNameFound).toLowerCase().includes('half') || String(finalStatus).toLowerCase().includes('1/2');
-
-      if (!isHalfDayLeave) {
-        // FULL-DAY LEAVE: Force hours to 0
-        totalHours = 0;
-      }
-      // HALF-DAY LEAVE: totalHours from daily work are preserved!
-    } else {
-      // NO ACTIVE LEAVE FOUND (Standard work days or cancelled leaves)
-      const wasHalfDay = existingStatus.toLowerCase().includes('1/2') || existingStatus.toLowerCase().includes('half');
-
-      if (wasHalfDay) {
-        if (totalHours > 0) {
-          finalStatus = totalHours >= threshold ? codePresent : codeBelowThreshold;
-        } else {
-          await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).remove();
-          return;
-        }
-      } else {
-        if (totalHours >= threshold) {
-          finalStatus = codePresent;
-        } else if (totalHours > 0) {
-          finalStatus = codeBelowThreshold;
-        } else {
-          await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).remove();
-          return;
-        }
+        // No hours and no leave = remove attendance row
+        await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).remove();
+        return;
       }
     }
 
     const now = new Date();
-    const displayDatePart = formatDt(now);
-    const hoursPart = String(now.getHours()).padStart(2, '0');
-    const minsPart = String(now.getMinutes()).padStart(2, '0');
-    const formattedTimestamp = `${displayDatePart} ${hoursPart}:${minsPart}`;
+    const formattedTimestamp = new Date().toLocaleString();
 
     const attendanceRecord = {
       emp_code: activeEmpCode,
@@ -2903,8 +2867,6 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     console.warn("💥 Error in recalculateAndSyncAttendanceFrontend:", err);
   }
 }
-
-
 
 
     
