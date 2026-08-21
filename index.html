@@ -2017,23 +2017,33 @@ function toggleLeaveFields() {
     }
   }
 
-  // ⭐ ADDED: Half-Day UI Adjustments (Label rename & To Date hiding)
-  const fromDateLabel = document.querySelector('label[for="leaveFromDate"]');
+
+
+// ⭐ UPDATED: Half-Day UI Adjustments (Label rename & To Date hiding)
+  const fromDateLabel = document.getElementById('fromDateLabel');
   const fromInput = document.getElementById('leaveFromDate');
   const toInput = document.getElementById('leaveToDate');
 
   if (isHalfDay) {
-    if (fromDateLabel) fromDateLabel.innerText = "Date";
-    if (toDateContainer) toDateContainer.classList.add('hidden'); // Hide To Date box
+    if (fromDateLabel) {
+      fromDateLabel.textContent = "Date";
+    }
+    if (toDateContainer) {
+      toDateContainer.classList.add('hidden'); // Hide To Date box
+    }
     
     // Auto-sync To Date to match From Date so backend calculations don't break
     if (toInput && fromInput) {
       toInput.value = fromInput.value;
     }
   } else {
-    if (fromDateLabel) fromDateLabel.innerText = "From Date";
-    // ToDate container visibility is already handled by the logic above for normal states
+    if (fromDateLabel) {
+      fromDateLabel.textContent = "From Date";
+    }
   }
+
+
+ 
 
   // Calculate dates for standard leave types
   const today = new Date();
