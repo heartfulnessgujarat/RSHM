@@ -1751,7 +1751,7 @@ function renderTimesheetList() {
 }
 
 
-async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
+ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   console.log("[DEBUG] Current Logged-in User Object:", currentUser);
 
   const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid || "N/A";
@@ -1779,41 +1779,16 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   if (!confirmCancel) return;
 
   try {
-    const payload = {
-      action: "sendLeaveCancellationEmail",
-      employeeCode: empCode,
-      employeeName: empName,
-      leaveType: leaveType,
-      leaveDate: leaveDate,
-      previousStatus: currentStatus,
-      ricEmail: ricEmail,
-      ricName: ricName,
-      timestamp: formattedCancelTime
-    };
-
-    const appsScriptUrl = "https://script.google.com/macros/s/AKfycbxGlXrXS8XgFxKQOk7WMtie_kFlnydOFsngBVeV-eDP-qP7byBPxcVoBo27BbNXXqKtwA/exec"; 
-
-    const response = await fetch(appsScriptUrl, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload)
-    });
-
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.error || "Backend reported email failure.");
-    }
-
     const dbRef = firebase.database().ref();
 
-    // 1. Fetch leave record to check total days for balance refund if it was approved/auto-approved
+    // 1. Fetch leave record first to check total days for balance refund if it was approved/auto-approved
     const leaveItemRef = dbRef.child(`leave_requests/${empCode}/${leaveId}`);
     const leaveSnap = await leaveItemRef.once('value');
     const leaveData = leaveSnap.exists() ? leaveSnap.val() : {};
     const totalDays = parseFloat(leaveData.total_days) || 0;
     const leaveStatus = String(leaveData.status || '');
 
-    // 2. Update leave request status to Cancelled
+    // 2. Update leave request status to Cancelled in Firebase immediately
     await leaveItemRef.update({
       status: 'Cancelled',
       cancelled_at: formattedCancelTime
@@ -1848,9 +1823,7 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
       }
     }
 
-    // ==========================================
-    // ⭐ SEPARATE LEAVE RECALCULATION & SYNC ⭐
-    // ==========================================
+    // 4. Trigger frontend attendance/leave sync for the cancelled date
     if (typeof recalculateAndSyncLeaveFrontend === 'function') {
       await recalculateAndSyncLeaveFrontend(empCode, leaveDate, true, leaveType);
       console.log(`-> [CANCELLATION SYNC] Triggered recalculateAndSyncLeaveFrontend for ${leaveDate}`);
@@ -1858,20 +1831,42 @@ async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
       console.warn("⚠️ recalculateAndSyncLeaveFrontend function not found!");
     }
 
-    if (typeof showCustomAlert === 'function') {
-      await showCustomAlert(`Leave successfully cancelled and email sent to ${ricName}!`);
-    } else {
-      alert(`Leave successfully cancelled and email sent to ${ricName}!`);
+    // 5. Send cancellation email via background backend call (Non-blocking)
+    if (ricEmail && typeof callBackend === 'function') {
+      callBackend("sendLeaveCancellationEmail", {
+        employeeCode: empCode,
+        employeeName: empName,
+        leaveType: leaveType,
+        leaveDate: leaveDate,
+        previousStatus: currentStatus,
+        ricEmail: ricEmail,
+        ricName: ricName,
+        timestamp: formattedCancelTime
+      }).then(() => {
+        console.log("-> [DIAGNOSTIC] Cancellation background email dispatch completed.");
+      }).catch(emailErr => {
+        console.warn("Background cancellation email notification trigger failed:", emailErr);
+      });
     }
 
-    loadDashboardLeaveStatus();
+    // Use custom alert exclusively (No default browser alerts)
+    if (typeof showCustomAlert === 'function') {
+      await showCustomAlert(`Leave successfully cancelled and notification sent to ${ricName}!`);
+    } else {
+      console.log(`Leave successfully cancelled and notification sent to ${ricName}!`);
+    }
+
+    if (typeof loadDashboardLeaveStatus === 'function') {
+      loadDashboardLeaveStatus();
+    }
 
   } catch (err) {
     console.error("Cancellation error:", err);
-    alert("Error: Could not complete cancellation.");
+    if (typeof showCustomAlert === 'function') {
+      await showCustomAlert("Error: Could not complete cancellation.");
+    }
   }
-}
-
+}   
     
 
     
