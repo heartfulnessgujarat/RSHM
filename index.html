@@ -2239,7 +2239,9 @@ async function handleLeaveSubmit(e) {
         }
       }
       finalLeaveType = 'Paid Holiday';
-    } else {
+
+
+} else {
       const fromDateEl = document.getElementById('leaveFromDate');
       fromDate = fromDateEl ? fromDateEl.value : '';
       toDate = document.getElementById('leaveToDate')?.value;
@@ -2247,12 +2249,20 @@ async function handleLeaveSubmit(e) {
       if (!fromDate) throw new Error('Please select a From Date.');
       if (!toDate || toDate === '') toDate = fromDate;
 
+      // ⭐ Force 0.5 days for half-day leaves so validation passes
+      if (isHalfDay) {
+        toDate = fromDate;
+        totalDays = 0.5;
+      }
+      
+      const cleanType = finalLeaveType.toLowerCase();
+
+
 
 
 
 
       
-      const cleanType = finalLeaveType.toLowerCase();
       if (cleanType.includes('sl') || cleanType.includes('sick')) {
         const todayObj = new Date();
         const year = todayObj.getFullYear();
@@ -2265,12 +2275,7 @@ async function handleLeaveSubmit(e) {
         }
       }
 
-
-
-
-
-
-      
+    
 
       const effectiveDaysEl = document.getElementById('effectiveDaysCount');
       const calculatedDaysEl = document.getElementById('calculatedDaysCount');
