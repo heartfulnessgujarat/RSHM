@@ -3254,6 +3254,29 @@ function updateLeaveDateRestrictions() {
     }
   }
 }
+
+// Add this block at the bottom of your JavaScript file
+document.addEventListener('DOMContentLoaded', () => {
+  const fromInput = document.getElementById('leaveFromDate');
+  if (fromInput) {
+    fromInput.addEventListener('change', () => {
+      const typeSelect = document.getElementById('leaveTypeSelect');
+      const type = typeSelect ? typeSelect.value.toUpperCase() : '';
+      const isHalfDay = type.includes('HALF DAY') || type.includes('1/2');
+      
+      if (isHalfDay) {
+        const toInput = document.getElementById('leaveToDate');
+        if (toInput) {
+          toInput.value = fromInput.value;
+        }
+      }
+    });
+  }
+});
+
+
+
+
     
 
 
