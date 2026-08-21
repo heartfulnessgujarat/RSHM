@@ -2970,10 +2970,41 @@ async function recalculateAndSyncLeaveFrontend(activeEmpCode, leaveDate, isCance
         }
         console.log(`-> [LEAVE CANCEL SYNC] Full-day leave cancelled. Cleared row and checked daily work for ${targetDateDisplay}`);
       }
-    } else {
-      console.log(`-> [LEAVE APPLY SYNC] Leave successfully processed for ${targetDateDisplay}`);
+
+
+
+} else {
+      // LEAVE APPLIED: Determine if full-day or half-day and sync to attendance node
+      const isHalfDay = String(leaveType).toLowerCase().includes('half') || String(leaveType).toLowerCase().includes('1/2');
+      const attendanceSnap = await attendanceRowRef.once('value');
+      const existingAtt = attendanceSnap.exists() ? attendanceSnap.val() : {};
+      const existingHours = parseFloat(existingAtt.hours) || 0;
+      
+      let finalHours = 0;
+      let finalStatus = String(leaveType || 'L').toLowerCase();
+
+      if (isHalfDay) {
+        // Half-day leave: Preserve existing work hours if present, otherwise 0
+        finalHours = existingHours > 0 ? existingHours : 0;
+        finalStatus = `1/2${finalStatus.replace('1/2', '').trim()}`;
+      } else {
+        // Full-day leave: Wipe hours to 0 even if work entries existed, and set full leave status code
+        finalHours = 0;
+      }
+
+      await attendanceRowRef.set({
+        emp_code: activeEmpCode,
+        date: targetDateDisplay,
+        hours: finalHours,
+        status: finalStatus,
+        calculated_at: new Date().toLocaleString()
+      });
+      console.log(`-> [LEAVE APPLY SYNC] Successfully wrote leave status '${finalStatus}' with ${finalHours} hrs for ${targetDateDisplay}`);
     }
 
+
+
+    
   } catch (err) {
     console.warn("💥 Error in recalculateAndSyncLeaveFrontend:", err);
   }
@@ -3099,62 +3130,7 @@ function formatSystemDate(d) {
 }
 
 
-
     
-async function recalculateAndSyncLeaveFrontend(activeEmpCode, leaveDate, isCancelled = false, leaveType = '') {
-  try {
-    const dbRef = firebase.database().ref();
-    const targetDateDisplay = formatSystemDate(leaveDate);
-
-    if (!targetDateDisplay || targetDateDisplay.includes('NaN')) {
-      console.warn("💥 Invalid date passed to recalculateAndSyncLeaveFrontend:", leaveDate);
-      return;
-    }
-
-    const attendanceRowRef = dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`);
-
-    if (isCancelled) {
-      // LEAVE CANCELLED: Check if there are preserved hours on the attendance row (e.g. from half-day leave)
-      const attSnap = await attendanceRowRef.once('value');
-      const attData = attSnap.exists() ? attSnap.val() : {};
-      const preservedHours = parseFloat(attData.hours) || 0;
-
-      if (preservedHours > 0) {
-        // If half-day leave preserved hours exist, re-evaluate them into standard P or WL4H status
-        const configSnap = await dbRef.child('config').once('value');
-        const config = configSnap.val() || {};
-        const threshold = parseFloat(config.attendance_hours_threshold || config.threshold_hours) || 4.0;
-        const codePresent = config.attendance_code_present || "P";
-        const codeBelowThreshold = config.attendance_code_below_threshold || "WL4H";
-        const newStatus = preservedHours >= threshold ? codePresent : codeBelowThreshold;
-
-        await attendanceRowRef.set({
-          emp_code: activeEmpCode,
-          date: targetDateDisplay,
-          hours: preservedHours,
-          status: newStatus,
-          calculated_at: new Date().toLocaleString()
-        });
-        console.log(`-> [LEAVE CANCEL SYNC] Converted cancelled leave to work status ${newStatus} with ${preservedHours} hrs for ${targetDateDisplay}`);
-      } else {
-        // If it was a full-day leave (no preserved hours), remove the placeholder row and fallback to daily work check
-        await attendanceRowRef.remove();
-        if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
-          await recalculateAndSyncAttendanceFrontend(activeEmpCode, leaveDate);
-        }
-        console.log(`-> [LEAVE CANCEL SYNC] Full-day leave cancelled. Cleared row and checked daily work for ${targetDateDisplay}`);
-      }
-    } else {
-      console.log(`-> [LEAVE APPLY SYNC] Leave successfully processed for ${targetDateDisplay}`);
-    }
-
-  } catch (err) {
-    console.warn("💥 Error in recalculateAndSyncLeaveFrontend:", err);
-  }
-}
-
-
-
 
 
     
