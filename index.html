@@ -2923,28 +2923,49 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
 
     let finalStatus = overrideStatus;
 
-    // 3. Intelligent status evaluation (Preserve Leaves / Manual overrides if no new hours logged)
+
+
+
+
+
+
+// 3. Intelligent status evaluation (Preserve Leaves / Half-Day leaves / Manual overrides)
     if (!finalStatus) {
-      // List of statuses that should NOT be automatically overwritten by hour calculations (e.g., Leaves, Holidays)
+      // List of exact statuses that should NOT be automatically overwritten by hour calculations
       const protectedStatuses = ["L", "AL", "SL", "CL", "ML", "PL", "HO", "OD"]; 
+      const isHalfDayStatus = existingStatus.toLowerCase().startsWith('1/2');
 
       if (totalHours === 0) {
-        if (protectedStatuses.includes(existingStatus)) {
-          // Keep the existing special status (like Leave) and don't wipe the row
+        if (protectedStatuses.includes(existingStatus) || isHalfDayStatus) {
           finalStatus = existingStatus;
-          console.log(`-> [RECALC PROTECTED] Preserving manual status '${existingStatus}' for ${targetDateDisplay}`);
+          console.log(`-> [RECALC PROTECTED] Preserving manual/half-day status '${existingStatus}' for ${targetDateDisplay}`);
         } else {
           // True zero hours from both logs AND existing record -> remove attendance row
           await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).remove();
           console.log(`-> [RECALC REMOVE] 0 hours found. Removed attendance row for ${targetDateDisplay}`);
           return;
         }
-      } else if (totalHours >= threshold) {
-        finalStatus = codePresent;
       } else {
-        finalStatus = codeBelowThreshold;
+        // ⭐ CRITICAL FIX: If a half-day leave status already exists, KEEP IT regardless of hours worked (<4 or >=4)
+        if (isHalfDayStatus) {
+          finalStatus = existingStatus;
+          console.log(`-> [HALF-DAY PRESERVED] Retaining half-day status '${existingStatus}' while updating hours to ${totalHours}`);
+        } else if (protectedStatuses.includes(existingStatus)) {
+          finalStatus = existingStatus;
+        } else if (totalHours >= threshold) {
+          finalStatus = codePresent;
+        } else {
+          finalStatus = codeBelowThreshold;
+        }
       }
     }
+
+
+
+
+
+
+    
 
     const attendanceRecord = {
       emp_code: activeEmpCode,
