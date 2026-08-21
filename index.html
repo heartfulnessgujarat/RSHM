@@ -2417,11 +2417,23 @@ async function handleLeaveSubmit(e) {
                 status: "WO",
                 calculated_at: new Date().toLocaleString()
               });
-            } else if (!isHalfDay) {
-              // FULL-DAY LEAVE: Delete attendance row entirely
-              await attendanceRowRef.remove();
-              console.log(`-> [LEAVE SYNC] Full-day leave applied. Deleted attendance record for ${loopDateFormatted}`);
+
+
+
+            
+
+} else if (!isHalfDay) {
+              // FULL-DAY LEAVE: Write lowercase unapproved leave code with 0 hours instead of deleting
+              await attendanceRowRef.set({
+                emp_code: empCode,
+                date: loopDateFormatted,
+                hours: 0,
+                status: standardizedCode,
+                calculated_at: new Date().toLocaleString()
+              });
+              console.log(`-> [LEAVE SYNC] Full-day leave applied. Set attendance record for ${loopDateFormatted} to '${standardizedCode}' with 0 hrs.`);
             } else {
+              
               // HALF-DAY LEAVE: Preserve existing hours and update status code
               const existingAttSnap = await attendanceRowRef.once('value');
               const existingAtt = existingAttSnap.exists() ? existingAttSnap.val() : {};
