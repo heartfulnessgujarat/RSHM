@@ -2859,11 +2859,23 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
     }
     totalHours = parseFloat(totalHours.toFixed(2));
 
-    // ⭐ FALLBACK: If daily_work hours are 0, use existing preserved attendance hours
+
+
+
+   // ⭐ FALLBACK WITH LEAVE CHECK: Only use preserved hours if an active leave exists for this date
     if (totalHours === 0 && existingHours > 0) {
-      totalHours = existingHours;
-      console.log(`-> [RECALC FALLBACK] Using preserved attendance hours: ${totalHours}`);
+      const leaveSnap = await dbRef.child(`leaves/${activeEmpCode}`).orderByChild('date').equalTo(targetDateDisplay).once('value');
+      const hasActiveLeave = leaveSnap.exists();
+
+      if (hasActiveLeave) {
+        totalHours = existingHours;
+        console.log(`-> [RECALC FALLBACK] Active leave found. Using preserved attendance hours: ${totalHours}`);
+      } else {
+        console.log(`-> [RECALC NO LEAVE] Work logs deleted and no active leave found. Proceeding with 0 hours to clear attendance.`);
+      }
     }
+
+    
 
     const configSnap = await dbRef.child('config').once('value');
     const config = configSnap.val() || {};
