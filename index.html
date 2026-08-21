@@ -2223,6 +2223,11 @@ async function handleLeaveSubmit(e) {
       if (!fromDate) throw new Error('Please select a From Date.');
       if (!toDate || toDate === '') toDate = fromDate;
 
+
+
+
+
+      
       const cleanType = finalLeaveType.toLowerCase();
       if (cleanType.includes('sl') || cleanType.includes('sick')) {
         const todayObj = new Date();
@@ -2235,6 +2240,13 @@ async function handleLeaveSubmit(e) {
           throw new Error('Sick Leave (SL) cannot be applied for future dates.');
         }
       }
+
+
+
+
+
+
+      
 
       const effectiveDaysEl = document.getElementById('effectiveDaysCount');
       const calculatedDaysEl = document.getElementById('calculatedDaysCount');
