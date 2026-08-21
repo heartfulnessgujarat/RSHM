@@ -674,7 +674,8 @@ function showCustomConfirm(message) {
       }
     }
 
-async function executeLogin() {
+
+    async function executeLogin() {
     const empCode = document.getElementById('login-emp-code').value.trim();
     const password = document.getElementById('login-password').value;
     if(!empCode || !password) return showToast("Please input credentials explicitly.");
@@ -701,7 +702,8 @@ async function executeLogin() {
 
         currentUser = { empCode, ...userData };
 
-        if (currentUser.requires_email_registration) {
+        // Automatically enforce email registration if the email is blank/missing or explicitly flagged
+        if (!userData.employee_email || userData.employee_email.trim() === "" || currentUser.requires_email_registration) {
             switchView('view-register-email');
             showToast("Please register your email address to proceed.", false);
             return;
@@ -722,7 +724,6 @@ async function executeLogin() {
         showToast(e.message);
     }
 }
-
 
 
 
