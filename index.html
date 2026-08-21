@@ -891,13 +891,44 @@ async function executeResetPassword() {
       }
     }
 
-    function executeLogout() {
-      currentUser = null;
-      document.getElementById('login-password').value = "";
-      switchView('view-login');
+
+function executeLogout() {
+    currentUser = null;
+    
+    // Clear login password field
+    const passwordInput = document.getElementById('login-password');
+    if (passwordInput) passwordInput.value = "";
+    
+    // Clear email registration screen state for the next user
+    const emailInput = document.getElementById('reg-user-email');
+    const vcodeInput = document.getElementById('reg-vcode');
+    if (emailInput) emailInput.value = "";
+    if (vcodeInput) vcodeInput.value = "";
+
+    const vcodeSection = document.getElementById('vcode-step-section');
+    if (vcodeSection) vcodeSection.classList.add('hidden');
+
+    const sendBtn = document.getElementById('btn-send-vcode');
+    if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.style.cursor = "pointer";
+        sendBtn.style.opacity = "1";
+        sendBtn.innerText = "Send Verification Code";
     }
 
+    if (typeof resendTimer !== 'undefined' && resendTimer) {
+        clearInterval(resendTimer);
+        resendTimer = null;
+    }
 
+    // Switch back to the login view
+    switchView('view-login');
+}
+
+
+
+
+    
 
     async function openDashboard() {
       // 1. Instantly display user info and switch view with zero network delay
