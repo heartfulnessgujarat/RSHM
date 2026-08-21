@@ -3200,7 +3200,46 @@ function formatSystemDate(d) {
   return `${day}-${month}-${year}`;
 }
 
+function updateLeaveDateRestrictions() {
+  const leaveTypeEl = document.getElementById('leaveTypeSelect');
+  if (!leaveTypeEl) return;
 
+  const leaveTypeVal = leaveTypeEl.value.toLowerCase();
+  const isHalfDay = leaveTypeVal.includes('half day') || leaveTypeVal.includes('1/2');
+
+  // Find the label for From Date and the container/wrapper for To Date
+  // (Adjust the selectors below if your HTML IDs/classes differ slightly)
+  const fromDateLabel = document.querySelector('label[for="leaveFromDate"]') || document.getElementById('from-date-label');
+  const toDateContainer = document.getElementById('leaveToDateContainer') || document.getElementById('to-date-group') || document.getElementById('leaveToDate')?.closest('.mb-3, .form-group, div');
+  const toDateInput = document.getElementById('leaveToDate');
+  const fromDateInput = document.getElementById('leaveFromDate');
+
+  if (isHalfDay) {
+    // 1. Rename From Date label to "Date"
+    if (fromDateLabel) {
+      fromDateLabel.innerText = "Date";
+    }
+    
+    // 2. Hide To Date container
+    if (toDateContainer) {
+      toDateContainer.style.display = 'none';
+    }
+
+    // 3. Sync To Date value to match From Date in the background
+    if (toDateInput && fromDateInput) {
+      toDateInput.value = fromDateInput.value;
+    }
+  } else {
+    // Restore back to standard range fields for Full-Day leaves
+    if (fromDateLabel) {
+      fromDateLabel.innerText = "From Date";
+    }
+    
+    if (toDateContainer) {
+      toDateContainer.style.display = ''; // Reset to default display
+    }
+  }
+}
     
 
 
