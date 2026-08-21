@@ -2267,11 +2267,13 @@ async function handleLeaveSubmit(e) {
             }
           });
 
-          if (conflictingLog) {
+
+
+if (conflictingLog) {
             const formattedDate = formatDatetoDDMMMYYYY(conflictingLog.work_date);
 
             if (!isHalfDay) {
-              const errorMsg = `Conflict: You have already logged work on ${formattedDate} (${conflictingLog.duration} hrs). The work done by you will vanish and hours will become zero if you apply for a Full-Day leave. Please delete your work log first.`;
+              const errorMsg = `Action Blocked: You have already logged work on ${formattedDate} (${conflictingLog.duration} hrs). Please delete your daily work entry first before applying for a Full-Day leave.`;
               
               await showCustomAlert(errorMsg);
 
@@ -2283,6 +2285,21 @@ async function handleLeaveSubmit(e) {
               return;
             }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            
             const confirmMsg = `You have already entered work on ${formattedDate} (${conflictingLog.duration} hrs). Since you selected a Half-Day leave (${finalLeaveType}), your existing work hours will be preserved. Do you wish to proceed?`;
             
             let proceedWithLeave = false;
