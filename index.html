@@ -1975,6 +1975,7 @@ function renderLeaveBalances(balances) {
 }
 
 
+
 function toggleLeaveFields() {
   const typeSelect = document.getElementById('leaveTypeSelect');
   const type = typeSelect ? typeSelect.value.toUpperCase() : '';
@@ -1987,6 +1988,9 @@ function toggleLeaveFields() {
 
   // Check if Paid Holiday is selected (supports "PH" or "PAID HOLIDAY")
   const isPh = type.includes('PH') || type.includes('PAID HOLIDAY');
+  
+  // ⭐ ADDED: Check if Half Day is selected
+  const isHalfDay = type.includes('HALF DAY') || type.includes('1/2');
 
   // Handle visibility based on leave type
   if (isPh) {
@@ -1995,10 +1999,9 @@ function toggleLeaveFields() {
     if (toDateContainer) toDateContainer.classList.add('hidden');
     if (reasonContainer) reasonContainer.classList.add('hidden'); 
     
-    // Remove 'required' so hidden textarea doesn't block form submission
     if (reasonTextarea) {
       reasonTextarea.removeAttribute('required');
-      reasonTextarea.value = 'Paid Holiday Application'; // Set a default value for backend payload
+      reasonTextarea.value = 'Paid Holiday Application'; 
     }
   } else {
     if (phGroup) phGroup.classList.add('hidden');
@@ -2006,13 +2009,30 @@ function toggleLeaveFields() {
     if (toDateContainer) toDateContainer.classList.remove('hidden');
     if (reasonContainer) reasonContainer.classList.remove('hidden'); 
     
-    // Restore 'required' for standard leaves
     if (reasonTextarea) {
       reasonTextarea.setAttribute('required', 'true');
       if (reasonTextarea.value === 'Paid Holiday Application') {
         reasonTextarea.value = '';
       }
     }
+  }
+
+  // ⭐ ADDED: Half-Day UI Adjustments (Label rename & To Date hiding)
+  const fromDateLabel = document.querySelector('label[for="leaveFromDate"]');
+  const fromInput = document.getElementById('leaveFromDate');
+  const toInput = document.getElementById('leaveToDate');
+
+  if (isHalfDay) {
+    if (fromDateLabel) fromDateLabel.innerText = "Date";
+    if (toDateContainer) toDateContainer.classList.add('hidden'); // Hide To Date box
+    
+    // Auto-sync To Date to match From Date so backend calculations don't break
+    if (toInput && fromInput) {
+      toInput.value = fromInput.value;
+    }
+  } else {
+    if (fromDateLabel) fromDateLabel.innerText = "From Date";
+    // ToDate container visibility is already handled by the logic above for normal states
   }
 
   // Calculate dates for standard leave types
@@ -2026,15 +2046,6 @@ function toggleLeaveFields() {
   const minDate = new Date();
   minDate.setDate(minDate.getDate() - editWindowDays);
   const minDateStr = minDate.toISOString().split('T')[0];
-
-
-
-
-
-  
-
-  const fromInput = document.getElementById('leaveFromDate');
-  const toInput = document.getElementById('leaveToDate');
 
   if (fromInput && toInput) {
     // Apply 7-day back-date limit ONLY if it's NOT Sick Leave
@@ -2053,14 +2064,17 @@ function toggleLeaveFields() {
     }
   }
 
-
-
-
-  
   if (typeof calculateRequestedDays === 'function') {
     calculateRequestedDays();
   }
 }
+
+
+
+
+
+
+
 
     
 
