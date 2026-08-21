@@ -2803,6 +2803,8 @@ function formatDatetoDDMMMYYYY(dateStr) {
   return dateStr;
 }
 
+
+
 async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, overrideStatus = null) {
   try {
     const dbRef = firebase.database().ref();
@@ -2829,7 +2831,7 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       return;
     }
 
-    // 1. Fetch existing attendance record to preserve existing hours if present
+    // 1. Fetch existing attendance record to preserve hours and manual statuses if present
     const existingAttSnap = await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).once('value');
     const existingAtt = existingAttSnap.exists() ? existingAttSnap.val() : null;
     const existingStatus = existingAtt ? String(existingAtt.status || '') : '';
@@ -2871,16 +2873,26 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
 
     let finalStatus = overrideStatus;
 
+    // 3. Intelligent status evaluation (Preserve Leaves / Manual overrides if no new hours logged)
     if (!finalStatus) {
-      if (totalHours >= threshold) {
+      // List of statuses that should NOT be automatically overwritten by hour calculations (e.g., Leaves, Holidays)
+      const protectedStatuses = ["L", "AL", "SL", "CL", "ML", "PL", "HO", "OD"]; 
+
+      if (totalHours === 0) {
+        if (protectedStatuses.includes(existingStatus)) {
+          // Keep the existing special status (like Leave) and don't wipe the row
+          finalStatus = existingStatus;
+          console.log(`-> [RECALC PROTECTED] Preserving manual status '${existingStatus}' for ${targetDateDisplay}`);
+        } else {
+          // True zero hours from both logs AND existing record -> remove attendance row
+          await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).remove();
+          console.log(`-> [RECALC REMOVE] 0 hours found. Removed attendance row for ${targetDateDisplay}`);
+          return;
+        }
+      } else if (totalHours >= threshold) {
         finalStatus = codePresent;
-      } else if (totalHours > 0) {
-        finalStatus = codeBelowThreshold;
       } else {
-        // True zero hours from both logs AND existing record -> remove attendance row
-        await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).remove();
-        console.log(`-> [RECALC REMOVE] 0 hours found. Removed attendance row for ${targetDateDisplay}`);
-        return;
+        finalStatus = codeBelowThreshold;
       }
     }
 
@@ -2900,6 +2912,9 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
   }
 }
 
+
+
+    
 async function recalculateAndSyncLeaveFrontend(activeEmpCode, leaveDate, isCancelled = false, leaveType = '') {
   try {
     const dbRef = firebase.database().ref();
