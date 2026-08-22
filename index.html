@@ -1041,14 +1041,39 @@ async function openDashboard() {
             cachedProjects = metaData.projects || [];
         }
         setupWorkFormDropdowns();
+        
+        // 3. Load State Master options into the profile state dropdown
+        loadProfileStatesDropdown();
       } catch (e) {
         console.warn("Background metadata fetch failed, using defaults:", e);
       }
     }
 
+    // Helper function to populate the profile state dropdown from Firebase masters/states.json
+    async function loadProfileStatesDropdown() {
+      try {
+        const statesData = await callBackend("getFirebaseData", { path: "masters/states.json" });
+        const selectEl = document.getElementById('profile-state-select');
+        if (!selectEl) return;
 
-    
+        // Keep default placeholder
+        selectEl.innerHTML = '<option value="">-- Choose State --</option>';
 
+        if (statesData) {
+          Object.values(statesData).forEach(s => {
+            const stateName = s.state || s.state_name;
+            if (stateName) {
+              const opt = document.createElement('option');
+              opt.value = stateName;
+              opt.textContent = stateName;
+              selectEl.appendChild(opt);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn("Could not load profile state dropdown:", e);
+      }
+    }
 
     
 
