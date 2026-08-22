@@ -3382,6 +3382,9 @@ function toggleProfileDrawer() {
   }
 }
 
+
+
+    
 // Load profile data into the fields from Firebase or current session
 async function loadEmployeeProfileData() {
   const userObj = JSON.parse(localStorage.getItem('currentUser') || localStorage.getItem('user') || '{}');
@@ -3418,6 +3421,11 @@ async function loadEmployeeProfileData() {
     console.error("Error loading employee profile:", err);
   }
 }
+
+
+
+
+    
 
 // Fetch states from Firebase master list
 async function loadStatesDropdown(selectedState) {
@@ -3527,7 +3535,12 @@ function toggleFieldEdit(field) {
 // Save field update to Firebase database
 async function saveProfileFieldUpdate(field, value) {
   const userObj = JSON.parse(localStorage.getItem('currentUser') || localStorage.getItem('user') || '{}');
-  const empCode = document.getElementById('dash-user-code')?.innerText?.replace('ID: ', '') || userObj.emp_code;
+
+  
+  const empCode = userObj.emp_code || document.getElementById('prof-emp-code')?.innerText;
+
+
+  
   if (!empCode) return;
 
   const dbFieldMap = {
