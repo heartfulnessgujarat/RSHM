@@ -329,21 +329,23 @@
           </div>
           <button id="btn-edit-email" onclick="toggleProfileEdit('email')" style="width: auto; padding: 3px 10px; font-size: 0.75rem;" class="btn-secondary">Edit</button>
         </div>
+
+
+        
         <!-- OTP Box Container -->
         <div id="email-otp-container" class="hidden" style="margin-top: 6px; padding: 8px; background: #f9fafb; border-radius: 6px; border: 1px dashed #d1d5db;">
-          <div style="display: flex; gap: 8px; align-items: center;">
-            
+          <div style="display: flex; gap: 8px; align-items: center;"> 
            
-
            <input type="text" id="email-otp-input" placeholder="Enter Verification Code" style="padding: 4px 8px; font-size: 0.85rem; flex-grow: 1;" onpaste="return true;">
-
-            
+           
             <button onclick="verifyEmailOtp()" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">Verify Code</button>
           </div>
           <small id="email-otp-timer" style="color: #dc2626; display: block; margin-top: 4px; font-weight: 500;"></small>
         </div>
       </div>
 
+
+      
       <!-- 4. Centre -->
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; align-items: center; gap: 8px;">
@@ -3551,6 +3553,9 @@ async function saveProfileField(field) {
                 btn.innerText = "Sending Code...";
             }
 
+
+
+          
             try {
                 const msg = await callBackend("sendVerificationCode", { empCode: empCode, email: val });
                 
@@ -3560,13 +3565,15 @@ async function saveProfileField(field) {
                 showCustomModal(msg || "Verification code sent successfully. Please check your email.");
 
                 if (otpContainer) otpContainer.classList.remove('hidden');
-                
-                // Start the countdown timer display immediately
-                if (typeof startResendCountdown === 'function') {
-                    startResendCountdown(600);
-                } else if (typeof startEmailVerificationTimer === 'function') {
+
+
+              
+              // Start the email verification countdown timer directly
+                if (typeof startEmailVerificationTimer === 'function') {
                     startEmailVerificationTimer();
                 }
+
+              
 
                 if (btn) {
                     btn.innerText = "Send Verification Code";
