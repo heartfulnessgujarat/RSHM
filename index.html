@@ -3395,17 +3395,17 @@ document.addEventListener('DOMContentLoaded', () => {
     
 // Function to safely update both old and new profile elements from currentUser
 
- function populateEmployeeProfileUI() {
+function populateEmployeeProfileUI() {
     if (!window.currentUser) return;
 
-    // Populate Employee Profile Header (Name & ID without duplicate prefixes)
+    // 1. Top Row Elements (Employee ID on left, Name on right)
     const nameEl = document.getElementById('dash-user-name');
     const codeEl = document.getElementById('dash-user-code');
     
     if (nameEl) nameEl.innerText = window.currentUser.employee_name || "Welcome User";
     if (codeEl) codeEl.innerText = window.currentUser.emp_code || window.currentUser.empCode || "";
 
-    // Populate all 7 profile fields
+    // 2. Expanded Profile Card Elements
     const setFieldValue = (id, value) => {
         const el = document.getElementById(id);
         if (el) el.innerText = value || "-";
@@ -3418,8 +3418,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setFieldValue('profile-centre-text', window.currentUser.employee_centre);
     setFieldValue('profile-zone-text', window.currentUser.employee_zone);
     setFieldValue('profile-state-text', window.currentUser.employee_state);
-}
-    
+}    
     
   </script>
 </body>
