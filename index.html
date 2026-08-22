@@ -979,40 +979,27 @@ async function executeResetPassword() {
     }
 
 
+
+    
+// Ensure logout fully cleans up session data and returns to login view
 function executeLogout() {
-    currentUser = null;
-    
-    // Clear login password field
-    const passwordInput = document.getElementById('login-password');
-    if (passwordInput) passwordInput.value = "";
-    
-    // Clear email registration screen state for the next user
-    const emailInput = document.getElementById('reg-user-email');
-    const vcodeInput = document.getElementById('reg-vcode');
-    if (emailInput) emailInput.value = "";
-    if (vcodeInput) vcodeInput.value = "";
-
-    const vcodeSection = document.getElementById('vcode-step-section');
-    if (vcodeSection) vcodeSection.classList.add('hidden');
-
-    const sendBtn = document.getElementById('btn-send-vcode');
-    if (sendBtn) {
-        sendBtn.disabled = false;
-        sendBtn.style.cursor = "pointer";
-        sendBtn.style.opacity = "1";
-        sendBtn.innerText = "Send Verification Code";
-    }
-
-    if (typeof resendTimer !== 'undefined' && resendTimer) {
-        clearInterval(resendTimer);
-        resendTimer = null;
-    }
-
-    // Switch back to the login view
-    switchView('view-login');
+  localStorage.removeItem('currentUser');
+  localStorage.removeItem('user');
+  // Hide dashboard/header and show login view (adjust function/view names based on your app structure)
+  document.getElementById('global-header').classList.add('hidden');
+  document.getElementById('view-dashboard').classList.add('hidden');
+  
+  // If you have a specific login view container, show it here:
+  const loginView = document.getElementById('view-login') || document.getElementById('login-container');
+  if (loginView) {
+    loginView.classList.remove('hidden');
+  } else {
+    location.reload(); // Fallback to refresh page completely
+  }
 }
 
 
+   
 
 
     
