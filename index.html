@@ -982,23 +982,29 @@ async function executeResetPassword() {
 
     
 // Ensure logout fully cleans up session data and returns to login view
-function executeLogout() {
+
+    function executeLogout() {
+  // Clear session storage / local storage keys
   localStorage.removeItem('currentUser');
   localStorage.removeItem('user');
-  // Hide dashboard/header and show login view (adjust function/view names based on your app structure)
+  
+  // Clear login form fields so they don't linger
+  const empCodeInput = document.getElementById('login-emp-code');
+  const passwordInput = document.getElementById('login-password');
+  if (empCodeInput) empCodeInput.value = '';
+  if (passwordInput) passwordInput.value = '';
+
+  // Hide dashboard / header and show login view
   document.getElementById('global-header').classList.add('hidden');
   document.getElementById('view-dashboard').classList.add('hidden');
   
-  // If you have a specific login view container, show it here:
   const loginView = document.getElementById('view-login') || document.getElementById('login-container');
   if (loginView) {
     loginView.classList.remove('hidden');
   } else {
-    location.reload(); // Fallback to refresh page completely
+    location.reload(); // Safe fallback to completely fresh state
   }
 }
-
-
    
 
 
