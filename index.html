@@ -290,7 +290,6 @@
 
 
 
-
 <!-- GLOBAL PERSISTENT HEADER (Employee Profile Layout) -->
 <div id="global-header" class="hidden" style="max-width: 600px; margin: 0 auto 15px auto; padding: 0 10px;">
   <div class="card" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
@@ -301,12 +300,12 @@
       <button onclick="executeLogout()" style="width: auto; padding: 6px 12px; font-size: 0.85rem;" class="btn-secondary">Logout</button>
     </div>
 
-    <!-- Profile Details Stack -->
-    <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.95rem;">
+    <!-- Profile Details Stack (Uniform gap of 15px) -->
+    <div style="display: flex; flex-direction: column; gap: 15px; font-size: 0.95rem;">
       
-      <!-- 1. Employee Code -->
+      <!-- 1. Employee ID -->
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div><span style="color: #4b5563; font-weight: 600;">Employee Code:</span> <span id="dash-user-code" style="font-weight: 500; color: #111827;">-</span></div>
+        <div><span style="color: #4b5563; font-weight: 600;">Employee ID:</span> <span id="dash-user-code" style="font-weight: 500; color: #111827;">-</span></div>
       </div>
 
       <!-- 2. Name -->
@@ -379,8 +378,6 @@
     </div>
   </div>
 </div>
-
-
 
   
 
