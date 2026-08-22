@@ -636,10 +636,6 @@ function switchView(viewId) {
   }
 }
 
-
-
-    
-
     
     function togglePasswordVisibility(inputId) {
       const input = document.getElementById(inputId);
@@ -740,6 +736,7 @@ function showCustomConfirm(message) {
       }
     }
 
+
 async function executeLogin() {
     const empCode = document.getElementById('login-emp-code').value.trim();
     const password = document.getElementById('login-password').value;
@@ -771,13 +768,6 @@ async function executeLogin() {
         // --- POPULATE ALL PROFILE DATA (Name, Code, Mob, Email, Centre, Zone, State) ---
         populateEmployeeProfileUI();
         // ------------------------------------------------------------------------------
-
-        // Automatically enforce email registration if the email is blank/missing or explicitly flagged
-        if (!userData.employee_email || userData.employee_email.trim() === "" || currentUser.requires_email_registration) {
-            switchView('view-register-email');
-            showToast("Please register your email address to proceed.", false);
-            return;
-        }
         
         // --- Assign cached data from Firebase ---
         if (masterSnapshot && masterSnapshot.exists()) {
@@ -795,8 +785,10 @@ async function executeLogin() {
     }
 }
 
-    
 
+
+
+    
 async function executeChangePassword() {
     const empCodeInput = document.getElementById('change-emp-code');
     const empCode = empCodeInput ? empCodeInput.value.trim() : "";
