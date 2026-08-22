@@ -3508,8 +3508,8 @@ function cancelProfileEdit(field) {
     }
 }
 
-    
-// Save Profile Field with Strict Validation & Firebase Persistence
+
+// Save Profile Field with Strict Validation & Direct Firebase Persistence
 async function saveProfileField(field) {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
@@ -3522,7 +3522,7 @@ async function saveProfileField(field) {
     if (field === 'mob') {
         const mobileRegex = /^[6-9]\d{9}$/;
         if (!mobileRegex.test(val)) {
-            alert("Please check your mobile number: Must be exactly 10 digits and start with 6, 7, 8, or 9.");
+            showCustomModal("Please check your mobile number: Must be exactly 10 digits and start with 6, 7, 8, or 9.", true);
             return;
         }
     }
@@ -3531,7 +3531,7 @@ async function saveProfileField(field) {
     if (field === 'email') {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(val)) {
-            alert("Please check your email id format. Enter a valid email address.");
+            showCustomModal("Please check your email id format. Enter a valid email address.", true);
             return;
         }
 
@@ -3543,29 +3543,29 @@ async function saveProfileField(field) {
             emailVerificationState.pendingEmail = val;
             emailVerificationState.verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
             
-            console.log("Verification Code for " + val + ": " + emailVerificationState.verificationCode); // For testing debug
+            console.log("Verification Code for " + val + ": " + emailVerificationState.verificationCode); // For debugging
             
-            // Trigger backend to send email (simulate or call backend mailer)
             try {
+                // You can keep backend mailer call here if needed, or simulate
                 await callBackend("sendVerificationEmail", { email: val, code: emailVerificationState.verificationCode });
             } catch (e) {
-                console.warn("Backend mailer notice (simulated success for debug):", e);
+                console.warn("Backend mailer notice:", e);
             }
 
             if (otpContainer) otpContainer.classList.remove('hidden');
             startEmailVerificationTimer();
-            alert("Verification code has been sent to " + val + ". Please enter it below to complete update.");
+            showCustomModal("Verification code has been sent to " + val + ". Please enter it below to complete update.");
             return;
         }
     }
 
     // 3. Centre, Zone, State non-empty checks
     if ((field === 'centre' || field === 'zone' || field === 'state') && !val) {
-        alert("This field cannot be empty.");
+        showCustomModal("This field cannot be empty.", true);
         return;
     }
 
-    // Update Firebase Database
+    // Map UI field to database column key
     const dbKeyMap = {
         'mob': 'employee_mob',
         'email': 'employee_email',
@@ -3578,25 +3578,29 @@ async function saveProfileField(field) {
     if (!dbField) return;
 
     try {
-        await callBackend("updateEmployeeProfileField", {
-            empCode: empCode,
-            field: dbField,
-            value: val
-        });
+        // DIRECT FIREBASE FRONTEND UPDATE (Instant performance!)
+        if (typeof firebase !== 'undefined' && firebase.database) {
+            await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(val);
+        } else {
+            // Fallback to backend if firebase SDK isn't globally scoped this way
+            await callBackend("updateEmployeeProfileField", { empCode: empCode, field: dbField, value: val });
+        }
 
         // Update local session state
         window.currentUser[dbField] = val;
 
-        // Update UI text display
+        // Update UI text display instantly
         const textSpan = document.getElementById(`profile-${field}-text`);
         if (textSpan) textSpan.innerText = val;
 
         cancelProfileEdit(field);
-        alert("Profile successfully updated!");
+        showCustomModal("Profile successfully updated!");
     } catch (e) {
-        alert("Failed to update profile: " + e.message);
+        showCustomModal("Failed to update profile: " + e.message, true);
     }
 }
+
+    
 
 // Email Verification Code Timer (5 minutes)
 function startEmailVerificationTimer() {
