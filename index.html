@@ -3624,30 +3624,43 @@ async function saveProfileField(field) {
     }
 }    
 
-
-
-    
 // Email Verification Code Timer (5 minutes)
-
-    function startEmailVerificationTimer() {
+function startEmailVerificationTimer() {
     let timeLeft = 300; // 5 minutes in seconds
     const timerEl = document.getElementById('email-otp-timer');
-    if (emailVerificationState.timerInterval) clearInterval(emailVerificationState.timerInterval);
+    
+    if (emailVerificationState.timerInterval) {
+        clearInterval(emailVerificationState.timerInterval);
+    }
+
+    if (timerEl) {
+        timerEl.style.display = 'block';
+    }
 
     emailVerificationState.timerInterval = setInterval(() => {
         let minutes = Math.floor(timeLeft / 60);
         let seconds = timeLeft % 60;
+        
         if (timerEl) {
             timerEl.innerText = `Code expires in: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
         }
+        
         if (timeLeft <= 0) {
             clearInterval(emailVerificationState.timerInterval);
-            if (timerEl) timerEl.innerText = "Verification code expired. Please save again to resend.";
+            if (timerEl) {
+                timerEl.innerText = "Verification code expired. Please save again to resend.";
+            }
         }
         timeLeft--;
     }, 1000);
 }
 
+
+
+
+    
+
+    
 // Verify Email Code instantly and finish update with zero lag
 async function verifyEmailOtp() {
     if (!window.currentUser) return;
