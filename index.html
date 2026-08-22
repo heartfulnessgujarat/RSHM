@@ -3383,46 +3383,65 @@ function toggleProfileDrawer() {
 }
 
 
-// Load profile data into the fields from Firebase or current session
-async function loadEmployeeProfileData() {
-  const codeEl = document.getElementById('prof-emp-code');
-  if (!codeEl) return; // Exit safely if the profile card is not visible on screen yet
 
+    // Load profile data into the fields from Firebase or current session
+async function loadEmployeeProfileData() {
+  console.log("=== DEBUG: loadEmployeeProfileData started ===");
+  
   const userObj = JSON.parse(localStorage.getItem('currentUser') || localStorage.getItem('user') || '{}');
+  console.log("DEBUG: userObj:", userObj);
+
+  const codeEl = document.getElementById('prof-emp-code');
+  console.log("DEBUG: prof-emp-code element:", codeEl);
+  if (!codeEl) {
+    console.log("DEBUG: Exit early because prof-emp-code element is null (likely on login screen).");
+    return;
+  }
+
   const empCode = userObj.emp_code;
+  console.log("DEBUG: empCode:", empCode);
   if (!empCode) return;
 
   try {
     const empSnap = await firebase.database().ref(`masters/employees/${empCode}`).once('value');
     const data = empSnap.exists() ? empSnap.val() : {};
+    console.log("DEBUG: Firebase data fetched:", data);
 
     // Populate display text
+    console.log("DEBUG: Setting prof-emp-code");
     codeEl.innerText = data.emp_code || empCode;
+
+    console.log("DEBUG: Setting prof-emp-name");
     document.getElementById('prof-emp-name').innerText = data.emp_name || userObj.employee_name || '-';
     
+    console.log("DEBUG: Setting mob");
     document.getElementById('val-emp-mob').innerText = data.employee_mob || '-';
     document.getElementById('edit-emp-mob').value = data.employee_mob || '';
 
+    console.log("DEBUG: Setting email");
     document.getElementById('val-emp-email').innerText = data.employee_email || '-';
     document.getElementById('edit-emp-email').value = data.employee_email || '';
 
+    console.log("DEBUG: Setting centre");
     document.getElementById('val-emp-centre').innerText = data.employee_centre || '-';
     document.getElementById('edit-emp-centre').value = data.employee_centre || '';
 
+    console.log("DEBUG: Setting zone");
     document.getElementById('val-emp-zone').innerText = data.employee_zone || '-';
     document.getElementById('edit-emp-zone').value = data.employee_zone || '';
 
     const currentState = data.employee_state || '';
+    console.log("DEBUG: Setting state", currentState);
     document.getElementById('val-emp-state').innerText = currentState || '-';
     
     // Load states dropdown from master_list_states
     await loadStatesDropdown(currentState);
+    console.log("=== DEBUG: loadEmployeeProfileData finished successfully ===");
 
   } catch (err) {
     console.error("Error loading employee profile:", err);
   }
 }
-
     
 
 // Fetch states from Firebase master list
