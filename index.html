@@ -3367,6 +3367,297 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
+
+    
+
+// --- EMPLOYEE PROFILE MODULE ---
+
+// Toggle the profile drawer open/closed
+function toggleProfileDrawer() {
+  const drawer = document.getElementById('profile-drawer');
+  const btn = document.getElementById('btnToggleProfile');
+  if (!drawer) return;
+
+  if (drawer.classList.contains('hidden')) {
+    drawer.classList.remove('hidden');
+    btn.textContent = "My Profile ▴";
+    loadEmployeeProfileData(); // Fetch fresh data when opened
+  } else {
+    drawer.classList.add('hidden');
+    btn.textContent = "My Profile ▾";
+  }
+}
+
+// Load profile data into the fields from Firebase or current session
+async function loadEmployeeProfileData() {
+  const userObj = JSON.parse(localStorage.getItem('currentUser') || localStorage.getItem('user') || '{}');
+  const empCode = document.getElementById('dash-user-code')?.innerText?.replace('ID: ', '') || userObj.emp_code;
+  if (!empCode) return;
+
+  try {
+    const empSnap = await firebase.database().ref(`masters/employees/${empCode}`).once('value');
+    const data = empSnap.exists() ? empSnap.val() : {};
+
+    // Populate display text
+    document.getElementById('prof-emp-code').innerText = data.emp_code || empCode;
+    document.getElementById('prof-emp-name').innerText = data.emp_name || userObj.employee_name || '-';
+    
+    document.getElementById('val-emp-mob').innerText = data.employee_mob || '-';
+    document.getElementById('edit-emp-mob').value = data.employee_mob || '';
+
+    document.getElementById('val-emp-email').innerText = data.employee_email || '-';
+    document.getElementById('edit-emp-email').value = data.employee_email || '';
+
+    document.getElementById('val-emp-centre').innerText = data.employee_centre || '-';
+    document.getElementById('edit-emp-centre').value = data.employee_centre || '';
+
+    document.getElementById('val-emp-zone').innerText = data.employee_zone || '-';
+    document.getElementById('edit-emp-zone').value = data.employee_zone || '';
+
+    const currentState = data.employee_state || '';
+    document.getElementById('val-emp-state').innerText = currentState || '-';
+    
+    // Load states dropdown from master_list_states
+    await loadStatesDropdown(currentState);
+
+  } catch (err) {
+    console.error("Error loading employee profile:", err);
+  }
+}
+
+// Fetch states from Firebase master list
+async function loadStatesDropdown(selectedState) {
+  const selectEl = document.getElementById('edit-emp-state');
+  if (!selectEl) return;
+
+  selectEl.innerHTML = '<option value="">Select State</option>';
+  try {
+    const statesSnap = await firebase.database().ref('masters/master_list_states').once('value');
+    if (statesSnap.exists()) {
+      statesSnap.forEach(child => {
+        const stateName = child.val().state_name || child.val();
+        const opt = document.createElement('option');
+        opt.value = stateName;
+        opt.textContent = stateName;
+        if (stateName === selectedState) opt.selected = true;
+        selectEl.appendChild(opt);
+      });
+    }
+  } catch (err) {
+    console.error("Error loading states list:", err);
+  }
+}
+
+// Toggle inline edit for individual fields (mob, centre, zone, state)
+function toggleFieldEdit(field) {
+  const valSpan = document.getElementById(`val-emp-${field}`);
+  const inputEl = document.getElementById(`edit-emp-${field}`);
+  const btn = document.getElementById(`btn-edit-${field}`);
+  if (!valSpan || !inputEl || !btn) return;
+
+  if (inputEl.classList.contains('hidden')) {
+    // Switch to Edit mode
+    inputEl.classList.remove('hidden');
+    valSpan.classList.add('hidden');
+    btn.textContent = "Done/Save";
+    btn.style.background = "#16a34a"; // Green for save
+    btn.style.color = "white";
+  } else {
+    // Validate and Save mode
+    const newValue = inputEl.value.trim();
+    
+    // Validate Mobile format: 10 digits starting with 6-9
+    if (field === 'mob') {
+      const mobRegex = /^[6-9]\d{9}$/;
+      if (!mobRegex.test(newValue)) {
+        alert("Invalid Mobile Number! Must be 10 digits and start with 6, 7, 8, or 9.");
+        return;
+      }
+    }
+
+    // Save changes to Firebase
+    saveProfileFieldUpdate(field, newValue);
+  }
+}
+
+// Special separate flow for Email because of OTP verification
+function toggleFieldEdit(field) {
+  if (field === 'email') {
+    const inputEl = document.getElementById('edit-emp-email');
+    const valSpan = document.getElementById('val-emp-email');
+    const btn = document.getElementById('btn-edit-email');
+    const otpContainer = document.getElementById('email-otp-container');
+
+    if (inputEl.classList.contains('hidden')) {
+      inputEl.classList.remove('hidden');
+      valSpan.classList.add('hidden');
+      btn.textContent = "Send OTP";
+    } else {
+      // Trigger OTP sending logic
+      const newEmail = inputEl.value.trim();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newEmail)) {
+        alert("Please enter a valid email address.");
+        return;
+      }
+      sendEmailVerificationOtp(newEmail);
+    }
+    return;
+  }
+
+  // General field toggle logic for mob, centre, zone, state
+  const valSpan = document.getElementById(`val-emp-${field}`);
+  const inputEl = document.getElementById(`edit-emp-${field}`);
+  const btn = document.getElementById(`btn-edit-${field}`);
+  if (!valSpan || !inputEl || !btn) return;
+
+  if (inputEl.classList.contains('hidden')) {
+    inputEl.classList.remove('hidden');
+    valSpan.classList.add('hidden');
+    btn.textContent = "Done/Save";
+    btn.style.background = "#16a34a";
+    btn.style.color = "white";
+  } else {
+    const newValue = inputEl.value.trim();
+    if (field === 'mob') {
+      const mobRegex = /^[6-9]\d{9}$/;
+      if (!mobRegex.test(newValue)) {
+        alert("Invalid Mobile Number! Must be 10 digits and start with 6 to 9.");
+        return;
+      }
+    }
+    saveProfileFieldUpdate(field, newValue);
+  }
+}
+
+// Save field update to Firebase database
+async function saveProfileFieldUpdate(field, value) {
+  const userObj = JSON.parse(localStorage.getItem('currentUser') || localStorage.getItem('user') || '{}');
+  const empCode = document.getElementById('dash-user-code')?.innerText?.replace('ID: ', '') || userObj.emp_code;
+  if (!empCode) return;
+
+  const dbFieldMap = {
+    'mob': 'employee_mob',
+    'centre': 'employee_centre',
+    'zone': 'employee_zone',
+    'state': 'employee_state'
+  };
+
+  const firebaseKey = dbFieldMap[field];
+  if (!firebaseKey) return;
+
+  try {
+    await firebase.database().ref(`masters/employees/${empCode}`).update({
+      [firebaseKey]: value
+    });
+
+    // Revert UI to display mode
+    document.getElementById(`val-emp-${field}`).innerText = value || '-';
+    document.getElementById(`edit-emp-${field}`).classList.add('hidden');
+    document.getElementById(`val-emp-${field}`).classList.remove('hidden');
+    
+    const btn = document.getElementById(`btn-edit-${field}`);
+    btn.textContent = "Edit";
+    btn.style.background = "";
+    btn.style.color = "";
+
+    alert("Profile updated successfully!");
+  } catch (err) {
+    console.error("Error updating profile field:", err);
+    alert("Failed to update profile. Please try again.");
+  }
+}
+
+// --- EMAIL OTP VERIFICATION & TIMER VARIABLES ---
+let currentGeneratedOtp = null;
+let otpTimerInterval = null;
+
+function sendEmailVerificationOtp(newEmail) {
+  // Generate 6-digit random OTP
+  currentGeneratedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  // TODO: Trigger backend call or email sender to send 'currentGeneratedOtp' to 'newEmail'
+  console.log("-> [DEBUG OTP] Verification Code for " + newEmail + " is: " + currentGeneratedOtp);
+  
+  alert("Verification code has been sent to " + newEmail + " (Check console log for debug)");
+
+  // Show OTP input box & start 5-minute countdown timer
+  document.getElementById('email-otp-container').classList.remove('hidden');
+  document.getElementById('btn-edit-email').textContent = "Verify Code";
+  
+  startOtpCountdown(300); // 300 seconds = 5 minutes
+}
+
+function startOtpCountdown(durationSeconds) {
+  let timer = durationSeconds;
+  const timerDisplay = document.getElementById('otp-timer');
+  if (otpTimerInterval) clearInterval(otpTimerInterval);
+
+  otpTimerInterval = setInterval(() => {
+    let minutes = parseInt(timer / 60, 10);
+    let seconds = parseInt(timer % 60, 10);
+
+    minutes = minutes < 10 ? "0" + minutes : minutes;
+    seconds = seconds < 10 ? "0" + seconds : seconds;
+
+    if (timerDisplay) {
+      timerDisplay.textContent = `Code expires in: ${minutes}:${seconds}`;
+    }
+
+    if (--timer < 0) {
+      clearInterval(otpTimerInterval);
+      if (timerDisplay) timerDisplay.textContent = "OTP expired. Please try editing email again.";
+      currentGeneratedOtp = null;
+    }
+  }, 1000);
+}
+
+async function verifyAndSaveEmail() {
+  const enteredOtp = document.getElementById('email-otp-input').value.trim();
+  const newEmail = document.getElementById('edit-emp-email').value.trim();
+
+  if (!currentGeneratedOtp) {
+    alert("OTP has expired. Please request a new code.");
+    return;
+  }
+
+  if (enteredOtp !== currentGeneratedOtp) {
+    alert("Invalid verification code. Please try again.");
+    return;
+  }
+
+  // OTP matched! Save new email to Firebase
+  const userObj = JSON.parse(localStorage.getItem('currentUser') || localStorage.getItem('user') || '{}');
+  const empCode = document.getElementById('dash-user-code')?.innerText?.replace('ID: ', '') || userObj.emp_code;
+  if (!empCode) return;
+
+  try {
+    await firebase.database().ref(`masters/employees/${empCode}`).update({
+      employee_email: newEmail
+    });
+
+    // Clean up UI
+    clearInterval(otpTimerInterval);
+    document.getElementById('val-emp-email').innerText = newEmail;
+    document.getElementById('edit-emp-email').classList.add('hidden');
+    document.getElementById('val-emp-email').classList.remove('hidden');
+    document.getElementById('email-otp-container').classList.add('hidden');
+    
+    const btn = document.getElementById('btn-edit-email');
+    btn.textContent = "Edit";
+
+    alert("Email updated and verified successfully!");
+  } catch (err) {
+    console.error("Error saving verified email:", err);
+    alert("Failed to save email.");
+  }
+}
+    
+
+
+
+
+    
     
     
   </script>
