@@ -1009,14 +1009,26 @@ async function executeResetPassword() {
   }
 }
    
-
-
-    
-
-    async function openDashboard() {
+async function openDashboard() {
       // 1. Instantly display user info and switch view with zero network delay
       document.getElementById('dash-user-name').innerText = currentUser.employee_name || currentUser.employeeName || currentUser.name || "Welcome User";
       document.getElementById('dash-user-code').innerText = `ID: ${currentUser.emp_code || currentUser.empCode || ''}`;
+      
+      // --- Safely populate the new Employee Profile Card fields ---
+      const setElementText = (id, value) => {
+          const el = document.getElementById(id);
+          if (el) el.innerText = value || '-';
+      };
+
+      setElementText('prof-emp-code', currentUser.empCode || currentUser.emp_code);
+      setElementText('prof-emp-name', currentUser.employee_name || currentUser.employeeName || currentUser.name);
+      setElementText('val-emp-mob', currentUser.mobile || currentUser.employee_mobile);
+      setElementText('val-emp-email', currentUser.employee_email);
+      setElementText('val-emp-centre', currentUser.centre);
+      setElementText('val-emp-zone', currentUser.zone);
+      setElementText('val-emp-state', currentUser.state);
+      // -----------------------------------------------------------
+
       switchView('view-dashboard');
 
       // 2. Load metadata instantly from session cache if available, or fetch in background
@@ -1036,6 +1048,7 @@ async function executeResetPassword() {
       }
     }
 
+    
 
 async function setupWorkFormDropdowns() {
   try {
