@@ -271,23 +271,27 @@
     <button type="button" onclick="executeLogout()" class="btn-link" style="margin-top: 15px;">Back to Login</button>
   </div>
 
-<!-- GLOBAL PERSISTENT HEADER (Visible across all operational views) -->
+
+
+
+
+
+  <!-- GLOBAL PERSISTENT HEADER (Permanent Employee Profile Card) -->
 <div id="global-header" class="hidden" style="max-width: 600px; margin: 0 auto 15px auto; padding: 0 10px;">
-  <div class="nav-header" style="background: white; padding: 12px 16px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
+  <div class="nav-header" style="background: white; padding: 16px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    
+    <!-- Top Row: Name, ID, Logout -->
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px; margin-bottom: 12px;">
       <div>
         <h4 id="dash-user-name" style="margin: 0; font-size: 1rem;">Welcome User</h4>
         <small id="dash-user-code" style="color:#6b7280;"></small>
       </div>
-      <div style="display: flex; gap: 8px;">
-        <button onclick="toggleProfileDrawer()" id="btnToggleProfile" style="width:auto; padding: 6px 12px; font-size:0.85rem;" class="btn-secondary">My Profile ▾</button>
-        <button onclick="executeLogout()" style="width:auto; padding: 6px 12px; font-size:0.85rem;" class="btn-secondary">Logout</button>
-      </div>
+      <button onclick="executeLogout()" style="width:auto; padding: 6px 12px; font-size:0.85rem;" class="btn-secondary">Logout</button>
     </div>
 
-    <!-- EXPANDABLE EMPLOYEE PROFILE SECTION -->
-    <div id="profile-drawer" class="hidden" style="margin-top: 15px; border-top: 1px solid #e5e7eb; padding-top: 12px;">
-      <h5 style="margin: 0 0 10px 0; font-size: 0.95rem; color: #374151;">Employee Profile</h5>
+    <!-- Permanent Profile Details Section -->
+    <div>
+      <h5 style="margin: 0 0 10px 0; font-size: 0.9rem; color: #374151; font-weight: 600;">Employee Profile</h5>
       
       <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem;">
         
@@ -356,10 +360,16 @@
 
       </div>
     </div>
+
   </div>
 </div>
 
 
+
+
+
+
+  
 
   <!-- VIEW 2: OPERATIONAL DASHBOARD -->
   <div id="view-dashboard" class="hidden">
