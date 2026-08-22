@@ -3650,21 +3650,23 @@ async function verifyEmailOtp() {
         return;
     }
 
+    if (!pendingEmail) {
+        showCustomModal("Pending email address not found. Please click save again.", true);
+        return;
+    }
+
     try {
-        // Call your backend to verify the code for this email/employee
-        // (Uses your existing backend verification router handler)
+        // Pass empCode, email, and code to match backend expectations exactly
         await callBackend("verifyAndRegisterEmail", { 
             empCode: empCode, 
             email: pendingEmail, 
             code: userEnteredCode 
         });
 
-        // If verification succeeds on the backend, update Firebase directly from frontend for speed
+        // Update Firebase directly from frontend for instant performance
         const dbField = 'employee_email';
         if (typeof firebase !== 'undefined' && firebase.database) {
             await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
-        } else {
-            await callBackend("updateEmployeeProfileField", { empCode: empCode, field: dbField, value: pendingEmail });
         }
 
         // Update local session state
@@ -3682,12 +3684,9 @@ async function verifyEmailOtp() {
         cancelProfileEdit('email');
         showCustomModal("Email successfully verified and updated!");
     } catch (e) {
-        showCustomModal("Invalid Verification Code: " + e.message, true);
+        showCustomModal("Verification Failed: " + e.message, true);
     }
 }
-
-
-
     
     
 
