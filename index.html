@@ -778,8 +778,7 @@ function showCustomConfirm(message) {
       }
     }
 
-
-    async function executeLogin() {
+async function executeLogin() {
     const empCode = document.getElementById('login-emp-code').value.trim();
     const password = document.getElementById('login-password').value;
     if(!empCode || !password) return showToast("Please input credentials explicitly.");
@@ -805,6 +804,11 @@ function showCustomConfirm(message) {
         }
 
         currentUser = { empCode, ...userData };
+        window.currentUser = currentUser; // Ensure global accessibility
+
+        // --- POPULATE ALL PROFILE DATA (Name, Code, Mob, Email, Centre, Zone, State) ---
+        populateEmployeeProfileUI();
+        // ------------------------------------------------------------------------------
 
         // Automatically enforce email registration if the email is blank/missing or explicitly flagged
         if (!userData.employee_email || userData.employee_email.trim() === "" || currentUser.requires_email_registration) {
@@ -829,7 +833,7 @@ function showCustomConfirm(message) {
     }
 }
 
-
+    
 
 async function executeChangePassword() {
     const empCodeInput = document.getElementById('change-emp-code');
@@ -3393,7 +3397,31 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// Function to safely update both old and new profile elements from currentUser
+function populateEmployeeProfileUI() {
+    if (!window.currentUser) return;
 
+    // 1. Existing elements (Name and Code) - Kept fully intact!
+    const nameEl = document.getElementById('dash-user-name');
+    const codeEl = document.getElementById('dash-user-code');
+    
+    if (nameEl) nameEl.innerText = window.currentUser.employee_name || "Welcome User";
+    if (codeEl) codeEl.innerText = "ID: " + (window.currentUser.emp_code || "");
+
+    // 2. New expanded profile elements (Mobile, Email, Centre, Zone, State)
+    const setFieldValue = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = value || "-";
+    };
+
+    setFieldValue('profile-emp-code', window.currentUser.emp_code);
+    setFieldValue('profile-name', window.currentUser.employee_name);
+    setFieldValue('profile-mob-text', window.currentUser.employee_mob);
+    setFieldValue('profile-email-text', window.currentUser.employee_email);
+    setFieldValue('profile-centre-text', window.currentUser.employee_centre);
+    setFieldValue('profile-zone-text', window.currentUser.employee_zone);
+    setFieldValue('profile-state-text', window.currentUser.employee_state);
+}
     
     
   </script>
