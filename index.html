@@ -598,19 +598,22 @@ const BACKEND_API = "https://script.google.com/macros/s/AKfycbxGlXrXS8XgFxKQOk7W
 
 
 function showToast(msg, isError = true) {
-      const container = document.getElementById('toast-container');
-      container.className = `toast ${isError ? 'toast-error' : 'toast-success'}`;
-      container.innerText = msg;
-      
-      // Add text alignment and padding for a clean left-aligned look
-      container.style.textAlign = 'left';
-      container.style.paddingLeft = '20px'; // Optional: gives breathing room from the left edge
-      
-      container.classList.remove('hidden');
-      window.scrollTo(0, 0);
-      setTimeout(() => container.classList.add('hidden'), 4000);
-    }
+    const container = document.getElementById('toast-container');
+    if (!container) return; // Exit safely if toast container isn't rendered yet
+    
+    container.className = `toast ${isError ? 'toast-error' : 'toast-success'}`;
+    container.innerText = msg;
+    
+    // Add text alignment and padding for a clean left-aligned look
+    container.style.textAlign = 'left';
+    container.style.paddingLeft = '20px';
+    
+    container.classList.remove('hidden');
+    window.scrollTo(0, 0);
+    setTimeout(() => container.classList.add('hidden'), 4000);
+}
 
+    
 
 // 1. Rolled-back switchView function (without the added view-work-entry dropdown hooks)
 function switchView(viewId) {
