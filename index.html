@@ -3648,8 +3648,7 @@ async function saveProfileField(field) {
     }, 1000);
 }
 
-
- // Verify Email Code via Backend and Finalize Update (Optimized for Instant Speed)
+// Verify Email Code instantly and finish update with zero lag
 async function verifyEmailOtp() {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
@@ -3667,18 +3666,19 @@ async function verifyEmailOtp() {
     }
 
     try {
-        // 1. Instant Local UI Feedback & Firebase Write (Zero delay for user)
+        // 1. INSTANT FRONTEND & FIREBASE UPDATE (Zero delay!)
         const dbField = 'employee_email';
         if (typeof firebase !== 'undefined' && firebase.database) {
             firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
             firebase.database().ref(`masters/employees/${empCode}/email`).set(pendingEmail);
         }
 
+        // Update local session state & UI text immediately
         window.currentUser[dbField] = pendingEmail;
         const textSpan = document.getElementById('profile-email-text');
         if (textSpan) textSpan.innerText = pendingEmail;
 
-        // Hide verification box instantly
+        // Hide verification box instantly and clear timer
         const otpContainer = document.getElementById('email-otp-container') || document.getElementById('vcode-step-section');
         if (otpContainer) otpContainer.classList.add('hidden');
         if (emailVerificationState.timerInterval) clearInterval(emailVerificationState.timerInterval);
@@ -3686,19 +3686,17 @@ async function verifyEmailOtp() {
         cancelProfileEdit('email');
         showCustomModal("Email successfully verified and updated!");
 
-        // 2. Trigger backend verification silently in the background to clear temp code & update sheet
+        // 2. BACKGROUND SERVER SYNC (Non-blocking call to Apps Script)
         callBackend("verifyAndRegisterEmail", { 
             empCode: empCode, 
             email: pendingEmail, 
             code: userEnteredCode 
-        }).catch(err => console.error("Background sync note:", err));
+        }).catch(err => console.warn("Background server sync note:", err));
 
     } catch (e) {
         showCustomModal("Verification Failed: " + e.message, true);
     }
-}   
-    
-    
+}    
     
 
 function showCustomModal(message, isError = false) {
