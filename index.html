@@ -3383,12 +3383,13 @@ function toggleProfileDrawer() {
 }
 
 
-
-    
 // Load profile data into the fields from Firebase or current session
 async function loadEmployeeProfileData() {
+  const codeEl = document.getElementById('prof-emp-code');
+  if (!codeEl) return; // Exit safely if the profile card is not visible on screen yet
+
   const userObj = JSON.parse(localStorage.getItem('currentUser') || localStorage.getItem('user') || '{}');
-  const empCode = document.getElementById('dash-user-code')?.innerText?.replace('ID: ', '') || userObj.emp_code;
+  const empCode = userObj.emp_code;
   if (!empCode) return;
 
   try {
@@ -3396,7 +3397,7 @@ async function loadEmployeeProfileData() {
     const data = empSnap.exists() ? empSnap.val() : {};
 
     // Populate display text
-    document.getElementById('prof-emp-code').innerText = data.emp_code || empCode;
+    codeEl.innerText = data.emp_code || empCode;
     document.getElementById('prof-emp-name').innerText = data.emp_name || userObj.employee_name || '-';
     
     document.getElementById('val-emp-mob').innerText = data.employee_mob || '-';
@@ -3421,9 +3422,6 @@ async function loadEmployeeProfileData() {
     console.error("Error loading employee profile:", err);
   }
 }
-
-
-
 
     
 
