@@ -273,101 +273,90 @@
 
 
 
-
-
-
-  <!-- GLOBAL PERSISTENT HEADER (Permanent Employee Profile Card) -->
+ 
+<!-- GLOBAL PERSISTENT HEADER (Employee Profile Card) -->
 <div id="global-header" class="hidden" style="max-width: 600px; margin: 0 auto 15px auto; padding: 0 10px;">
-  <div class="nav-header" style="background: white; padding: 16px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+  <div class="nav-header" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
     
-    <!-- Top Row: Name, ID, Logout -->
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px; margin-bottom: 12px;">
-      <div>
-        <h4 id="dash-user-name" style="margin: 0; font-size: 1rem;">Welcome User</h4>
-        <small id="dash-user-code" style="color:#6b7280;"></small>
-      </div>
-      <button onclick="executeLogout()" style="width:auto; padding: 6px 12px; font-size:0.85rem;" class="btn-secondary">Logout</button>
-    </div>
-
-    <!-- Permanent Profile Details Section -->
-    <div>
-      <h5 style="margin: 0 0 10px 0; font-size: 0.9rem; color: #374151; font-weight: 600;">Employee Profile</h5>
+    <!-- Centered Header Title -->
+    <h4 style="margin: 0 0 16px 0; font-size: 1.1rem; text-align: center; color: #111827; font-weight: 700;">Employee Profile</h4>
+    
+    <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem;">
       
-      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem;">
-        
-        <!-- a. Employee Code (Read-Only) -->
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
-          <span><strong>Employee Code:</strong> <span id="prof-emp-code">-</span></span>
-          <span style="color: #9ca3af; font-size: 0.75rem;">(Locked)</span>
-        </div>
-
-        <!-- b. Name (Read-Only) -->
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
-          <span><strong>Name:</strong> <span id="prof-emp-name">-</span></span>
-          <span style="color: #9ca3af; font-size: 0.75rem;">(Locked)</span>
-        </div>
-
-        <!-- c. Mobile Number (Editable) -->
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
-          <span style="flex-grow: 1;"><strong>Mobile Number:</strong> <span id="val-emp-mob">-</span>
-            <input type="text" id="edit-emp-mob" class="hidden" style="width: 130px; padding: 2px 4px; font-size: 0.8rem;" maxlength="10">
-          </span>
-          <button onclick="toggleFieldEdit('mob')" id="btn-edit-mob" style="width: auto; padding: 2px 8px; font-size: 0.75rem;" class="btn-secondary">Edit</button>
-        </div>
-
-        <!-- d. Email (Editable with OTP flow) -->
-        <div style="display: flex; flex-direction: column; padding: 4px 0; gap: 4px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="flex-grow: 1;"><strong>Email:</strong> <span id="val-emp-email">-</span>
-              <input type="email" id="edit-emp-email" class="hidden" style="width: 160px; padding: 2px 4px; font-size: 0.8rem;" placeholder="New email">
-            </span>
-            <button onclick="toggleFieldEdit('email')" id="btn-edit-email" style="width: auto; padding: 2px 8px; font-size: 0.75rem;" class="btn-secondary">Edit</button>
-          </div>
-          <!-- OTP Verification Container (Hidden by default) -->
-          <div id="email-otp-container" class="hidden" style="background: #f9fafb; padding: 8px; border-radius: 4px; margin-top: 4px;">
-            <small style="color: #4b5563; display: block; margin-bottom: 4px;">Enter verification code sent to new email:</small>
-            <div style="display: flex; gap: 6px;">
-              <input type="text" id="email-otp-input" placeholder="Enter OTP" style="flex-grow: 1; padding: 2px 6px; font-size: 0.8rem;">
-              <button onclick="verifyAndSaveEmail()" style="width: auto; padding: 2px 8px; font-size: 0.75rem;">Verify & Save</button>
-            </div>
-            <small id="otp-timer" style="color: #d93025; font-size: 0.75rem; display: block; margin-top: 4px;"></small>
-          </div>
-        </div>
-
-        <!-- e. Centre (Editable - Free text) -->
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
-          <span style="flex-grow: 1;"><strong>Centre:</strong> <span id="val-emp-centre">-</span>
-            <input type="text" id="edit-emp-centre" class="hidden" style="width: 140px; padding: 2px 4px; font-size: 0.8rem;">
-          </span>
-          <button onclick="toggleFieldEdit('centre')" id="btn-edit-centre" style="width: auto; padding: 2px 8px; font-size: 0.75rem;" class="btn-secondary">Edit</button>
-        </div>
-
-        <!-- f. Zone (Editable - Free text) -->
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
-          <span style="flex-grow: 1;"><strong>Zone:</strong> <span id="val-emp-zone">-</span>
-            <input type="text" id="edit-emp-zone" class="hidden" style="width: 140px; padding: 2px 4px; font-size: 0.8rem;">
-          </span>
-          <button onclick="toggleFieldEdit('zone')" id="btn-edit-zone" style="width: auto; padding: 2px 8px; font-size: 0.75rem;" class="btn-secondary">Edit</button>
-        </div>
-
-        <!-- g. State (Editable - Dropdown from master_list_states) -->
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
-          <span style="flex-grow: 1;"><strong>State:</strong> <span id="val-emp-state">-</span>
-            <select id="edit-emp-state" class="hidden" style="width: 140px; padding: 2px 4px; font-size: 0.8rem;"></select>
-          </span>
-          <button onclick="toggleFieldEdit('state')" id="btn-edit-state" style="width: auto; padding: 2px 8px; font-size: 0.75rem;" class="btn-secondary">Edit</button>
-        </div>
-
+      <!-- a. Employee Code (Read-Only) + Logout Button on the right -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+        <span><strong>Employee Code:</strong> <span id="prof-emp-code">-</span></span>
+        <button onclick="executeLogout()" style="width:auto; padding: 4px 10px; font-size:0.8rem;" class="btn-secondary">Logout</button>
       </div>
+
+      <!-- b. Name (Read-Only) -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+        <span><strong>Name:</strong> <span id="prof-emp-name">-</span></span>
+      </div>
+
+      <!-- c. Mobile Number (Editable) -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+        <span style="flex-grow: 1;"><strong>Mobile Number:</strong> <span id="val-emp-mob">-</span>
+          <input type="text" id="edit-emp-mob" class="hidden" style="width: 140px; padding: 2px 4px; font-size: 0.85rem;" maxlength="10">
+        </span>
+        <button onclick="toggleFieldEdit('mob')" id="btn-edit-mob" style="width: auto; padding: 2px 10px; font-size: 0.8rem;" class="btn-secondary">Edit</button>
+      </div>
+
+      <!-- d. Email (Editable with OTP flow) -->
+      <div style="display: flex; flex-direction: column; padding: 4px 0; gap: 6px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="flex-grow: 1;"><strong>Email:</strong> <span id="val-emp-email">-</span>
+            <input type="email" id="edit-emp-email" class="hidden" style="width: 160px; padding: 2px 4px; font-size: 0.85rem;" placeholder="New email">
+          </span>
+          <button onclick="toggleFieldEdit('email')" id="btn-edit-email" style="width: auto; padding: 2px 10px; font-size: 0.8rem;" class="btn-secondary">Edit</button>
+        </div>
+        <!-- OTP Verification Container (Hidden by default) -->
+        <div id="email-otp-container" class="hidden" style="background: #f9fafb; padding: 8px; border-radius: 4px; margin-top: 4px;">
+          <small style="color: #4b5563; display: block; margin-bottom: 4px;">Enter verification code sent to new email:</small>
+          <div style="display: flex; gap: 6px;">
+            <input type="text" id="email-otp-input" placeholder="Enter OTP" style="flex-grow: 1; padding: 4px 6px; font-size: 0.85rem;">
+            <button onclick="verifyAndSaveEmail()" style="width: auto; padding: 4px 10px; font-size: 0.8rem;">Verify & Save</button>
+          </div>
+          <small id="otp-timer" style="color: #d93025; font-size: 0.75rem; display: block; margin-top: 4px;"></small>
+        </div>
+      </div>
+
+      <!-- e. Centre (Editable - Free text) -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+        <span style="flex-grow: 1;"><strong>Centre:</strong> <span id="val-emp-centre">-</span>
+          <input type="text" id="edit-emp-centre" class="hidden" style="width: 150px; padding: 2px 4px; font-size: 0.85rem;">
+        </span>
+        <button onclick="toggleFieldEdit('centre')" id="btn-edit-centre" style="width: auto; padding: 2px 10px; font-size: 0.8rem;" class="btn-secondary">Edit</button>
+      </div>
+
+      <!-- f. Zone (Editable - Free text) -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+        <span style="flex-grow: 1;"><strong>Zone:</strong> <span id="val-emp-zone">-</span>
+          <input type="text" id="edit-emp-zone" class="hidden" style="width: 150px; padding: 2px 4px; font-size: 0.85rem;">
+        </span>
+        <button onclick="toggleFieldEdit('zone')" id="btn-edit-zone" style="width: auto; padding: 2px 10px; font-size: 0.8rem;" class="btn-secondary">Edit</button>
+      </div>
+
+      <!-- g. State (Editable - Dropdown from master_list_states) -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+        <span style="flex-grow: 1;"><strong>State:</strong> <span id="val-emp-state">-</span>
+          <select id="edit-emp-state" class="hidden" style="width: 150px; padding: 2px 4px; font-size: 0.85rem;"></select>
+        </span>
+        <button onclick="toggleFieldEdit('state')" id="btn-edit-state" style="width: auto; padding: 2px 10px; font-size: 0.8rem;" class="btn-secondary">Edit</button>
+      </div>
+
     </div>
 
   </div>
 </div>
+   
 
 
 
 
 
+
+  
 
   
 
