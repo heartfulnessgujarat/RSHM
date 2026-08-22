@@ -3510,6 +3510,8 @@ function cancelProfileEdit(field) {
 
 
 // Save Profile Field with Strict Validation & Direct Firebase Persistence
+
+    // Save Profile Field with Strict Validation & Direct Firebase / Backend Integration
 async function saveProfileField(field) {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
@@ -3527,7 +3529,7 @@ async function saveProfileField(field) {
         }
     }
 
-    // 2. Email Validation & Verification Flow
+    // 2. Email Validation & Verification Code Flow
     if (field === 'email') {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(val)) {
@@ -3535,26 +3537,34 @@ async function saveProfileField(field) {
             return;
         }
 
-        const otpContainer = document.getElementById('email-otp-container');
+        const otpContainer = document.getElementById('email-otp-container') || document.getElementById('vcode-step-section');
         const isOtpVisible = otpContainer && !otpContainer.classList.contains('hidden');
 
         if (!isOtpVisible) {
-            // Layer 2: Send Verification Code
-            emailVerificationState.pendingEmail = val;
-            emailVerificationState.verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
-            
-            console.log("Verification Code for " + val + ": " + emailVerificationState.verificationCode); // For debugging
-            
-            try {
-                // You can keep backend mailer call here if needed, or simulate
-                await callBackend("sendVerificationEmail", { email: val, code: emailVerificationState.verificationCode });
-            } catch (e) {
-                console.warn("Backend mailer notice:", e);
+            // Trigger your existing backend verification code sender
+            const btn = document.getElementById('btn-send-vcode');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = "Sending Code...";
             }
 
-            if (otpContainer) otpContainer.classList.remove('hidden');
-            startEmailVerificationTimer();
-            showCustomModal("Verification code has been sent to " + val + ". Please enter it below to complete update.");
+            try {
+                const msg = await callBackend("sendVerificationCode", { empCode: empCode, email: val });
+                showCustomModal(msg || "Verification code sent successfully. Please check your email.");
+
+                if (otpContainer) otpContainer.classList.remove('hidden');
+                if (typeof startResendCountdown === 'function') {
+                    startResendCountdown(600);
+                } else if (typeof startEmailVerificationTimer === 'function') {
+                    startEmailVerificationTimer();
+                }
+            } catch (e) {
+                showCustomModal("Failed to send verification code: " + e.message, true);
+                if (btn) {
+                    btn.innerText = "Send Verification Code";
+                    btn.disabled = false;
+                }
+            }
             return;
         }
     }
@@ -3578,11 +3588,11 @@ async function saveProfileField(field) {
     if (!dbField) return;
 
     try {
-        // DIRECT FIREBASE FRONTEND UPDATE (Instant performance!)
+        // DIRECT FIREBASE FRONTEND UPDATE for immediate performance
         if (typeof firebase !== 'undefined' && firebase.database) {
             await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(val);
         } else {
-            // Fallback to backend if firebase SDK isn't globally scoped this way
+            // Fallback to backend if needed
             await callBackend("updateEmployeeProfileField", { empCode: empCode, field: dbField, value: val });
         }
 
@@ -3599,7 +3609,7 @@ async function saveProfileField(field) {
         showCustomModal("Failed to update profile: " + e.message, true);
     }
 }
-
+    
     
 
 // Email Verification Code Timer (5 minutes)
