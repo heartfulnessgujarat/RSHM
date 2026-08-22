@@ -3624,8 +3624,12 @@ async function saveProfileField(field) {
     }
 }    
 
+
+
+    
 // Email Verification Code Timer (5 minutes)
-function startEmailVerificationTimer() {
+
+    function startEmailVerificationTimer() {
     let timeLeft = 300; // 5 minutes in seconds
     const timerEl = document.getElementById('email-otp-timer');
     if (emailVerificationState.timerInterval) clearInterval(emailVerificationState.timerInterval);
@@ -3643,7 +3647,6 @@ function startEmailVerificationTimer() {
         timeLeft--;
     }, 1000);
 }
-
 
 
  // Verify Email Code via Backend and Finalize Update (Optimized for Instant Speed)
