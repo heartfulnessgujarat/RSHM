@@ -332,7 +332,12 @@
         <!-- OTP Box Container -->
         <div id="email-otp-container" class="hidden" style="margin-top: 6px; padding: 8px; background: #f9fafb; border-radius: 6px; border: 1px dashed #d1d5db;">
           <div style="display: flex; gap: 8px; align-items: center;">
-            <input type="text" id="email-otp-input" placeholder="Enter OTP Code" style="padding: 4px 8px; font-size: 0.85rem; flex-grow: 1;">
+            
+           
+
+            <input type="text" id="email-otp-input" placeholder="Enter Verification Code" style="padding: 4px 8px; font-size: 0.85rem; flex-grow: 1;">
+
+            
             <button onclick="verifyEmailOtp()" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">Verify Code</button>
           </div>
           <small id="email-otp-timer" style="color: #dc2626; display: block; margin-top: 4px; font-weight: 500;"></small>
@@ -3632,18 +3637,59 @@ function startEmailVerificationTimer() {
     }, 1000);
 }
 
-// Verify Email Code and Finalize Update
+
+// Verify Email Code via Backend and Finalize Update
 async function verifyEmailOtp() {
+    if (!window.currentUser) return;
+    const empCode = window.currentUser.emp_code || window.currentUser.empCode;
     const userEnteredCode = document.getElementById('email-otp-input').value.trim();
-    if (userEnteredCode !== emailVerificationState.verificationCode) {
-        alert("Invalid Verification Code. Please try again.");
+    const pendingEmail = emailVerificationState.pendingEmail;
+
+    if (!userEnteredCode) {
+        showCustomModal("Please enter the verification code.", true);
         return;
     }
 
-    // Code matches, now save email permanently
-    document.getElementById('profile-email-input').value = emailVerificationState.pendingEmail;
-    await saveProfileField('email');
+    try {
+        // Call your backend to verify the code for this email/employee
+        // (Uses your existing backend verification router handler)
+        await callBackend("verifyAndRegisterEmail", { 
+            empCode: empCode, 
+            email: pendingEmail, 
+            code: userEnteredCode 
+        });
+
+        // If verification succeeds on the backend, update Firebase directly from frontend for speed
+        const dbField = 'employee_email';
+        if (typeof firebase !== 'undefined' && firebase.database) {
+            await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
+        } else {
+            await callBackend("updateEmployeeProfileField", { empCode: empCode, field: dbField, value: pendingEmail });
+        }
+
+        // Update local session state
+        window.currentUser[dbField] = pendingEmail;
+
+        // Update UI text display
+        const textSpan = document.getElementById('profile-email-text');
+        if (textSpan) textSpan.innerText = pendingEmail;
+
+        // Hide verification code section and reset
+        const otpContainer = document.getElementById('email-otp-container') || document.getElementById('vcode-step-section');
+        if (otpContainer) otpContainer.classList.add('hidden');
+        if (emailVerificationState.timerInterval) clearInterval(emailVerificationState.timerInterval);
+
+        cancelProfileEdit('email');
+        showCustomModal("Email successfully verified and updated!");
+    } catch (e) {
+        showCustomModal("Invalid Verification Code: " + e.message, true);
+    }
 }
+
+
+
+    
+    
 
 function showCustomModal(message, isError = false) {
     // Check if modal container already exists, if not create it
