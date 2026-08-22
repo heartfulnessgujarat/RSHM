@@ -3643,7 +3643,9 @@ async function verifyEmailOtp() {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
     const userEnteredCode = document.getElementById('email-otp-input').value.trim();
-    const pendingEmail = emailVerificationState.pendingEmail;
+    
+    // Fallback: get pending email from state or directly from the email input field
+    const pendingEmail = emailVerificationState.pendingEmail || document.getElementById('profile-email-input').value.trim();
 
     if (!userEnteredCode) {
         showCustomModal("Please enter the verification code.", true);
@@ -3667,6 +3669,7 @@ async function verifyEmailOtp() {
         const dbField = 'employee_email';
         if (typeof firebase !== 'undefined' && firebase.database) {
             await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
+            await firebase.database().ref(`masters/employees/${empCode}/email`).set(pendingEmail);
         }
 
         // Update local session state
@@ -3687,6 +3690,8 @@ async function verifyEmailOtp() {
         showCustomModal("Verification Failed: " + e.message, true);
     }
 }
+
+    
     
     
 
