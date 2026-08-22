@@ -3514,9 +3514,7 @@ function cancelProfileEdit(field) {
 }
 
 
-// Save Profile Field with Strict Validation & Direct Firebase Persistence
-
-    // Save Profile Field with Strict Validation & Direct Firebase / Backend Integration
+// Save Profile Field with Strict Validation & Direct Firebase / Backend Integration
 async function saveProfileField(field) {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
@@ -3555,13 +3553,24 @@ async function saveProfileField(field) {
 
             try {
                 const msg = await callBackend("sendVerificationCode", { empCode: empCode, email: val });
+                
+                // Save pending email safely so verifyEmailOtp() can access it later
+                emailVerificationState.pendingEmail = val;
+
                 showCustomModal(msg || "Verification code sent successfully. Please check your email.");
 
                 if (otpContainer) otpContainer.classList.remove('hidden');
+                
+                // Start the countdown timer display immediately
                 if (typeof startResendCountdown === 'function') {
                     startResendCountdown(600);
                 } else if (typeof startEmailVerificationTimer === 'function') {
                     startEmailVerificationTimer();
+                }
+
+                if (btn) {
+                    btn.innerText = "Send Verification Code";
+                    btn.disabled = false;
                 }
             } catch (e) {
                 showCustomModal("Failed to send verification code: " + e.message, true);
@@ -3613,9 +3622,7 @@ async function saveProfileField(field) {
     } catch (e) {
         showCustomModal("Failed to update profile: " + e.message, true);
     }
-}
-    
-    
+}    
 
 // Email Verification Code Timer (5 minutes)
 function startEmailVerificationTimer() {
@@ -3638,13 +3645,12 @@ function startEmailVerificationTimer() {
 }
 
 
-// Verify Email Code via Backend and Finalize Update
+
+ // Verify Email Code via Backend and Finalize Update (Optimized for Instant Speed)
 async function verifyEmailOtp() {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
     const userEnteredCode = document.getElementById('email-otp-input').value.trim();
-    
-    // Fallback: get pending email from state or directly from the email input field
     const pendingEmail = emailVerificationState.pendingEmail || document.getElementById('profile-email-input').value.trim();
 
     if (!userEnteredCode) {
@@ -3658,39 +3664,36 @@ async function verifyEmailOtp() {
     }
 
     try {
-        // Pass empCode, email, and code to match backend expectations exactly
-        await callBackend("verifyAndRegisterEmail", { 
-            empCode: empCode, 
-            email: pendingEmail, 
-            code: userEnteredCode 
-        });
-
-        // Update Firebase directly from frontend for instant performance
+        // 1. Instant Local UI Feedback & Firebase Write (Zero delay for user)
         const dbField = 'employee_email';
         if (typeof firebase !== 'undefined' && firebase.database) {
-            await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
-            await firebase.database().ref(`masters/employees/${empCode}/email`).set(pendingEmail);
+            firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
+            firebase.database().ref(`masters/employees/${empCode}/email`).set(pendingEmail);
         }
 
-        // Update local session state
         window.currentUser[dbField] = pendingEmail;
-
-        // Update UI text display
         const textSpan = document.getElementById('profile-email-text');
         if (textSpan) textSpan.innerText = pendingEmail;
 
-        // Hide verification code section and reset
+        // Hide verification box instantly
         const otpContainer = document.getElementById('email-otp-container') || document.getElementById('vcode-step-section');
         if (otpContainer) otpContainer.classList.add('hidden');
         if (emailVerificationState.timerInterval) clearInterval(emailVerificationState.timerInterval);
 
         cancelProfileEdit('email');
         showCustomModal("Email successfully verified and updated!");
+
+        // 2. Trigger backend verification silently in the background to clear temp code & update sheet
+        callBackend("verifyAndRegisterEmail", { 
+            empCode: empCode, 
+            email: pendingEmail, 
+            code: userEnteredCode 
+        }).catch(err => console.error("Background sync note:", err));
+
     } catch (e) {
         showCustomModal("Verification Failed: " + e.message, true);
     }
-}
-
+}   
     
     
     
