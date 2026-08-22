@@ -17,6 +17,15 @@
 
   
   <script>
+
+
+window.onerror = function(message, source, lineno, colno, error) {
+  console.error("GLOBAL ERROR CAPTURED -> Message:", message, "At Line:", lineno, "Source:", source);
+};
+
+
+
+    
     const firebaseConfig = {
       apiKey: "AIzaSyA8BOhsXUmhe9ipp4mAzf2ymjV3zBy0ctY",
       authDomain: "rshm-portal.firebaseapp.com",
