@@ -3402,15 +3402,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
 // Function to safely update both old and new profile elements from currentUser
 
-    function populateEmployeeProfileUI() {
+  function populateEmployeeProfileUI() {
     if (!window.currentUser) return;
 
-    // 1. Top Header Elements (Name & ID)
+    // 1. Top Header Elements (Name & ID - Clean direct value without duplicate 'ID:')
     const nameEl = document.getElementById('dash-user-name');
     const codeEl = document.getElementById('dash-user-code');
     
     if (nameEl) nameEl.innerText = window.currentUser.employee_name || "Welcome User";
-    if (codeEl) codeEl.innerText = window.currentUser.emp_code || "";
+    if (codeEl) codeEl.innerText = window.currentUser.emp_code || window.currentUser.empCode || "";
 
     // 2. Expanded Profile Card Elements
     const setFieldValue = (id, value) => {
@@ -3418,7 +3418,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el) el.innerText = value || "-";
     };
 
-    setFieldValue('profile-emp-code', window.currentUser.emp_code);
+    setFieldValue('profile-emp-code', window.currentUser.emp_code || window.currentUser.empCode);
     setFieldValue('profile-name', window.currentUser.employee_name);
     setFieldValue('profile-mob-text', window.currentUser.employee_mob);
     setFieldValue('profile-email-text', window.currentUser.employee_email);
@@ -3426,8 +3426,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setFieldValue('profile-zone-text', window.currentUser.employee_zone);
     setFieldValue('profile-state-text', window.currentUser.employee_state);
 }
-
-
 
     
     
