@@ -590,8 +590,6 @@ function showToast(msg, isError = true) {
       setTimeout(() => container.classList.add('hidden'), 4000);
     }
 
-
-// 1. Rolled-back switchView function (without the added view-work-entry dropdown hooks)
 function switchView(viewId) {
   if (viewId === 'view-change-password') {
     const loginCode = document.getElementById('login-emp-code').value.trim();
@@ -607,14 +605,18 @@ function switchView(viewId) {
     }
   }
 
-  ['view-login', 'view-change-password', 'view-register-email', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module'].forEach(id => {
-    document.getElementById(id).classList.add('hidden');
+  ['view-login', 'view-change-password', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
   });
-  document.getElementById(viewId).classList.remove('hidden');
+  
+  const targetEl = document.getElementById(viewId);
+  if (targetEl) targetEl.classList.remove('hidden');
 
   // Control Global Header visibility (visible everywhere except auth screens)
-  const isAuthView = ['view-login', 'view-change-password', 'view-register-email'].includes(viewId);
-  document.getElementById('global-header').classList.toggle('hidden', isAuthView);
+  const isAuthView = ['view-login', 'view-change-password'].includes(viewId);
+  const headerEl = document.getElementById('global-header');
+  if (headerEl) headerEl.classList.toggle('hidden', isAuthView);
 
   // Clear any lingering toast messages or local form status notices when changing views
   const toastContainer = document.getElementById('toast-container');
@@ -630,12 +632,10 @@ function switchView(viewId) {
     loadLeaveMasterOptions();
   }
 
-  // ADDED HERE: Automatically trigger date limits enforcement when entering work entry view
   if (viewId === 'view-work-entry') {
     setWorkDateLimits();
   }
 }
-
     
     function togglePasswordVisibility(inputId) {
       const input = document.getElementById(inputId);
