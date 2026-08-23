@@ -2682,7 +2682,9 @@ if (conflictingLog) {
       statusDiv.innerText = 'Leave request submitted successfully!';
     }
 
-    setTimeout(() => {
+
+
+setTimeout(() => {
       const leaveForm = document.getElementById('leaveApplyForm') || document.getElementById('leaveForm') || document.querySelector('form');
       if (leaveForm) leaveForm.reset();
 
@@ -2691,12 +2693,21 @@ if (conflictingLog) {
         if (el) el.classList.add('hidden');
       });
 
-      if (typeof openLeaveModule === 'function') {
-        openLeaveModule();
-      } else if (typeof loadLeaveBalances === 'function') {
-        loadLeaveBalances(empCode);
+      if (typeof statusDiv === 'function' || statusDiv) {
+        statusDiv.innerText = '';
+      }
+
+      // ⭐ Automatically return to dashboard after successful submission ⭐
+      if (typeof switchView === 'function') {
+        switchView('view-dashboard');
+      } else {
+        location.reload(); // Fallback if switchView isn't globally scoped
       }
     }, 1500);
+
+
+
+    
 
   } catch (err) {
     console.error('Leave submission error:', err);
