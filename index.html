@@ -304,15 +304,16 @@
   </div>
 
 
+  
+
 <!-- VIEW: DEDICATED EMPLOYEE PROFILE DETAILS -->
   <div id="view-employee-profile" class="hidden card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
+    <div style="margin-bottom: 15px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
       <h2 style="margin: 0; font-size: 1.2rem; font-weight: bold;">Employee Profile Details</h2>
-      <button onclick="switchView('view-dashboard')" style="width: auto; padding: 4px 10px; font-size: 0.75rem;" class="btn-secondary">Back</button>
     </div>
 
     <!-- Profile Details Stack -->
-    <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.9rem;">
+    <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.9rem; margin-bottom: 20px;">
       
       <!-- 1. Mobile -->
       <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -378,8 +379,10 @@
       </div>
 
     </div>
-  </div>
 
+    <!-- Return to Dashboard Button at the Bottom -->
+    <button onclick="switchView('view-dashboard')" class="btn-secondary">Return to Dashboard</button>
+  </div>
 
 
   
