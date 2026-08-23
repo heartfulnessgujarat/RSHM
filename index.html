@@ -167,29 +167,28 @@
   </div>
 
 
-
-
 <!-- VIEW 1: AUTHENTICATION CONTAINER -->
-  <div id="view-login" class="card">
+<div id="view-login" class="card">
 
-    <div class="logo-container" style="text-align: center; margin-bottom: 20px; width: 100%;">
-      <img id="app-logo-img" src="" alt="OneHR Logo" style="width: 100%; max-width: 240px; height: auto; object-fit: contain; display: block; margin: 0 auto;">
-    </div>
+  <div class="logo-container" style="text-align: center; margin-bottom: 20px; width: 100%;">
+    <!-- Start hidden with display: none to prevent tiny icon flash, adjust max-height for wide banner look -->
+    <img id="app-logo-img" src="" alt="OneHR Logo" style="display: none; width: 100%; max-height: 90px; object-fit: contain; margin: 0 auto;">
+  </div>
 
-    <script>
-      // Automatically load the base64 logo from Firebase root on page load
-      document.addEventListener("DOMContentLoaded", () => {
-          firebase.database().ref('htmlbase64').once('value').then(snapshot => {
-              const logoBase64 = snapshot.val();
-              const logoImgEl = document.getElementById('app-logo-img');
-              if (logoBase64 && logoImgEl) {
-                  logoImgEl.src = logoBase64;
-              }
-          }).catch(err => console.warn("Could not load base64 logo:", err));
-      });
-    </script>
+  <script>
+    // Automatically load the base64 logo from Firebase root on page load
+    document.addEventListener("DOMContentLoaded", () => {
+        firebase.database().ref('htmlbase64').once('value').then(snapshot => {
+            const logoBase64 = snapshot.val();
+            const logoImgEl = document.getElementById('app-logo-img');
+            if (logoBase64 && logoImgEl) {
+                logoImgEl.src = logoBase64;
+                logoImgEl.style.display = "block"; // Reveal smoothly once loaded
+            }
+        }).catch(err => console.warn("Could not load base64 logo:", err));
+    });
+  </script>
 
-  
 
  
  
