@@ -2993,21 +2993,13 @@ async function recalculateAndSyncAttendanceFrontend(activeEmpCode, workDate, ove
       return;
     }
 
-    const dateObjCheck = new Date(workDate);
-    const isSunday = !isNaN(dateObjCheck.getTime()) && dateObjCheck.getDay() === 0;
 
-    if (isSunday) {
-      const attendanceRecord = {
-        emp_code: activeEmpCode,
-        date: targetDateDisplay,
-        hours: 0,
-        status: "WO",
-        calculated_at: new Date().toLocaleString()
-      };
-      await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).set(attendanceRecord);
-      return;
-    }
 
+
+
+
+
+    
     // 1. Fetch existing attendance record to preserve hours and manual statuses if present
     const existingAttSnap = await dbRef.child(`attendance/${activeEmpCode}/${targetDateDisplay}`).once('value');
     const existingAtt = existingAttSnap.exists() ? existingAttSnap.val() : null;
