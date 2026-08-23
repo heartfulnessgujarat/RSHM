@@ -2429,19 +2429,30 @@ async function handleLeaveSubmit(e) {
         }
       }
 
-    
 
-      const effectiveDaysEl = document.getElementById('effectiveDaysCount');
+
+      
+const effectiveDaysEl = document.getElementById('effectiveDaysCount');
       const calculatedDaysEl = document.getElementById('calculatedDaysCount');
 
-      if (effectiveDaysEl && effectiveDaysEl.innerText && !isNaN(effectiveDaysEl.innerText)) {
-        totalDays = parseFloat(effectiveDaysEl.innerText);
-      } else if (calculatedDaysEl && calculatedDaysEl.innerText && !isNaN(calculatedDaysEl.innerText)) {
-        totalDays = parseFloat(calculatedDaysEl.innerText);
+      // ⭐ Only override with UI count if it's NOT a half-day leave ⭐
+      if (!isHalfDay) {
+        if (effectiveDaysEl && effectiveDaysEl.innerText && !isNaN(effectiveDaysEl.innerText)) {
+          totalDays = parseFloat(effectiveDaysEl.innerText);
+        } else if (calculatedDaysEl && calculatedDaysEl.innerText && !isNaN(calculatedDaysEl.innerText)) {
+          totalDays = parseFloat(calculatedDaysEl.innerText);
+        }
+      } else {
+        totalDays = 0.5; // Force safety lock for half-days
       }
 
       reason = document.getElementById('leaveReason')?.value?.trim() || 'Leave Application';
     }
+
+
+
+
+    
 
     if (totalDays <= 0) throw new Error('Invalid date selection or leave duration is 0 days.');
 
