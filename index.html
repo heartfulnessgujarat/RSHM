@@ -3750,7 +3750,71 @@ function showCustomModal(message, isError = false) {
     }
 }
 
+function uploadLogoBase64FromSheet() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const configSheet = ss.getSheetByName("Configuration");
+    
+    if (!configSheet) {
+      throw new Error("Configuration sheet not found!");
+    }
+    
+    const data = configSheet.getDataRange().getValues();
+    let driveLink = "";
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === "hr_logo_image_link") {
+        driveLink = data[i][1];
+        break;
+      }
+    }
+    
+    if (!driveLink) {
+      throw new Error("hr_logo_image_link not found in Configuration sheet!");
+    }
+    
+    // Extract File ID from Google Drive URL
+    const match = driveLink.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (!match || !match[1]) {
+      throw new Error("Invalid Google Drive sharing link format.");
+    }
+    const fileId = match[1];
+    
+    // Fetch the image file blob directly from Google Drive service
+    const file = DriveApp.getFileById(fileId);
+    const blob = file.getBlob();
+    
+    // Convert blob to Base64 data URL string
+    const base64Data = "data:" + blob.getContentType() + ";base64," + Utilities.base64Encode(blob.getBytes());
+    
+    // Wrap the base64 string inside an object so Firebase REST API parses it perfectly as valid JSON
+    const payloadObject = {
+      htmlbase64: base64Data
+    };
 
+    const firebaseConfigUrl = FIREBASE_DB_URL + ".json?auth=" + FIREBASE_AUTH_SECRET;
+    
+    const options = {
+      method: "patch", // Use patch to update just the htmlbase64 node without overwriting the rest of the root
+      contentType: "application/json",
+      payload: JSON.stringify(payloadObject),
+      muteHttpExceptions: true
+    };
+
+    const response = UrlFetchApp.fetch(firebaseConfigUrl, options);
+    const responseCode = response.getResponseCode();
+    
+    if (responseCode >= 200 && responseCode < 300) {
+      SpreadsheetApp.getUi().alert("Success! Logo converted to Base64 and synced to Firebase.");
+    } else {
+      throw new Error("Firebase sync failed: " + response.getContentText());
+    }
+    
+  } catch (err) {
+    SpreadsheetApp.getUi().alert("Error: " + err.message);
+    console.error(err);
+  }
+}
     
   </script>
 </body>
