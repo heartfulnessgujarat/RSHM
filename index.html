@@ -1842,7 +1842,10 @@ function renderTimesheetList() {
 }
 
 
-async function loadDashboardLeaveStatus(selectedCycleOffset = 0) {
+
+
+
+    async function loadDashboardLeaveStatus(selectedCycleOffset = 0) {
   const container = document.getElementById('dashboardLeaveStatusContainer');
   if (!container || !currentUser) return;
 
@@ -1859,13 +1862,21 @@ async function loadDashboardLeaveStatus(selectedCycleOffset = 0) {
 
     // 2. Calculate Payroll Cycle Date Boundaries based on offset
     const now = new Date();
+    // Today's date normalized to midnight for accurate date comparisons
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
     let targetYear = now.getFullYear();
     let targetMonth = now.getMonth();
 
     if (now.getDate() < payrollStartDay) {
       targetMonth -= 1;
     }
-    targetMonth -= selectedCycleOffset;
+    
+    // Only subtract offset if it's a numeric cycle
+    const isFutureView = selectedCycleOffset === 'future';
+    if (!isFutureView) {
+      targetMonth -= parseInt(selectedCycleOffset, 10);
+    }
 
     const cycleStartDate = new Date(targetYear, targetMonth, payrollStartDay);
     const cycleEndDate = new Date(targetYear, targetMonth + 1, payrollEndDay);
@@ -1877,22 +1888,25 @@ async function loadDashboardLeaveStatus(selectedCycleOffset = 0) {
 
     // Format cycle range label for display
     const monthsNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const cycleLabelText = `${cycleStartDate.getDate()} ${monthsNames[cycleStartDate.getMonth()]} - ${cycleEndDate.getDate()} ${monthsNames[cycleEndDate.getMonth()]} ${cycleEndDate.getFullYear()}`;
+    const cycleLabelText = isFutureView 
+      ? "Upcoming Future Dates" 
+      : `${cycleStartDate.getDate()} ${monthsNames[cycleStartDate.getMonth()]} - ${cycleEndDate.getDate()} ${monthsNames[cycleEndDate.getMonth()]} ${cycleEndDate.getFullYear()}`;
 
-    // Header with Cycle Selector Dropdown
+    // Header with Cycle Selector Dropdown (including Future Leaves option)
     let html = `
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #e5e7eb;">
         <span style="font-size: 0.78rem; font-weight: 600; color: #555;">Cycle: ${cycleLabelText}</span>
-        <select id="leave-cycle-selector" onchange="loadDashboardLeaveStatus(parseInt(this.value, 10))" style="padding: 3px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.75rem;">
+        <select id="leave-cycle-selector" onchange="loadDashboardLeaveStatus(this.value === 'future' ? 'future' : parseInt(this.value, 10))" style="padding: 3px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.75rem;">
           <option value="0" ${selectedCycleOffset === 0 ? 'selected' : ''}>Current Cycle</option>
           <option value="1" ${selectedCycleOffset === 1 ? 'selected' : ''}>Previous Cycle</option>
           <option value="2" ${selectedCycleOffset === 2 ? 'selected' : ''}>2 Cycles Ago</option>
+          <option value="future" ${isFutureView ? 'selected' : ''}>Future Leaves</option>
         </select>
       </div>
     `;
 
     if (!leavesData) {
-      container.innerHTML = html + `<div style="font-size: 0.85rem; color: #6b7280; font-style: italic; padding: 10px 0; text-align: center;">No leave applications found for this cycle.</div>`;
+      container.innerHTML = html + `<div style="font-size: 0.85rem; color: #6b7280; font-style: italic; padding: 10px 0; text-align: center;">No leave applications found.</div>`;
       return;
     }
 
@@ -1912,22 +1926,18 @@ async function loadDashboardLeaveStatus(selectedCycleOffset = 0) {
     // Helper parser function for DD-MMM-YYYY or YYYY-MM-DD
     const parseFirebaseDate = (dateStr) => {
       if (!dateStr) return null;
-      // Handle format like "17-AUG-2026"
       const parts = dateStr.split('-');
       if (parts.length === 3) {
         let day, monthIndex, year;
         if (isNaN(parts[1])) {
-          // DD-MMM-YYYY (e.g., 17-AUG-2026)
           day = parseInt(parts[0], 10);
           monthIndex = monthMap[parts[1].toUpperCase()];
           year = parseInt(parts[2], 10);
         } else if (parts[0].length === 4) {
-          // YYYY-MM-DD
           year = parseInt(parts[0], 10);
           monthIndex = parseInt(parts[1], 10) - 1;
           day = parseInt(parts[2], 10);
         } else {
-          // DD-MM-YYYY
           day = parseInt(parts[0], 10);
           monthIndex = parseInt(parts[1], 10) - 1;
           year = parseInt(parts[2], 10);
@@ -1936,29 +1946,35 @@ async function loadDashboardLeaveStatus(selectedCycleOffset = 0) {
           return new Date(year, monthIndex, day);
         }
       }
-      return new Date(dateStr); // standard fallback
+      return new Date(dateStr);
     };
 
-    // 4. Filter leaves strictly within the payroll cycle boundaries
+    // 4. Filter leaves based on whether 'Future' or a specific cycle is selected
     const cycleLeaves = requestsArray.filter(r => {
       const leaveDateStr = r.leave_date || r.leaveDate || r.from_date || r.fromDate;
       const leaveDate = parseFirebaseDate(leaveDateStr);
       
       if (!leaveDate || isNaN(leaveDate)) return false;
 
-      return leaveDate >= cycleStartDate && leaveDate <= cycleEndDate;
+      if (isFutureView) {
+        // Show only leaves strictly after today's date
+        return leaveDate > today;
+      } else {
+        // Show leaves within the selected payroll cycle boundaries
+        return leaveDate >= cycleStartDate && leaveDate <= cycleEndDate;
+      }
     });
 
     if (cycleLeaves.length === 0) {
-      container.innerHTML = html + `<div style="font-size: 0.85rem; color: #6b7280; font-style: italic; padding: 10px 0; text-align: center;">No leaves recorded in this cycle.</div>`;
+      container.innerHTML = html + `<div style="font-size: 0.85rem; color: #6b7280; font-style: italic; padding: 10px 0; text-align: center;">No leaves recorded here.</div>`;
       return;
     }
 
-    // Sort newest leave dates first
+    // Sort leave dates
     cycleLeaves.sort((a, b) => {
       const dateA = parseFirebaseDate(a.leave_date || a.leaveDate);
       const dateB = parseFirebaseDate(b.leave_date || b.leaveDate);
-      return dateB - dateA;
+      return isFutureView ? dateA - dateB : dateB - dateA; // Future sorted ascending, past/current descending
     });
 
     // 5. Scrollable Container Wrapper for the List
@@ -1997,7 +2013,6 @@ async function loadDashboardLeaveStatus(selectedCycleOffset = 0) {
     container.innerHTML = `<div style="font-size: 0.82rem; color: #dc2626;">Unable to load status.</div>`;
   }
 }
-
     
     
 
