@@ -1498,16 +1498,25 @@ function timeToMins(timeStr) {
   return (hours * 60) + mins;
 }
 
-    
+
 async function deleteWorkLog(worklogId) {
   const activeEmpCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
 
-  // 1. Fetch the log details first so we know its work_date before deleting it
+  // 1. Fetch the log details first so we know its work_date and duration before deleting it
   let workDateToRecalc = null;
+  let logDurationToRemove = 0;
   try {
     const logSnap = await firebase.database().ref(`daily_work/${activeEmpCode}/${worklogId}`).once('value');
     if (logSnap.exists()) {
-      workDateToRecalc = logSnap.val().work_date;
+      const logData = logSnap.val();
+      workDateToRecalc = logData.work_date;
+      const rawDur = String(logData.duration || "0");
+      if (rawDur.includes(':')) {
+        const [oh, om] = rawDur.split(':').map(Number);
+        logDurationToRemove = (oh || 0) + ((om || 0) / 60);
+      } else {
+        logDurationToRemove = parseFloat(rawDur) || 0;
+      }
     }
   } catch (err) {
     console.warn("Could not fetch log details prior to deletion:", err);
@@ -1517,11 +1526,55 @@ async function deleteWorkLog(worklogId) {
   if (!confirmed) return;
 
   try {
-    // 2. Remove the work log from Firebase
-    await firebase.database().ref(`daily_work/${activeEmpCode}/${worklogId}`).remove();
+    const dbRef = firebase.database().ref();
+
+    // 2. Reverse CO balance calculation if the deleted log was on a Weekly Off day
+    if (workDateToRecalc && logDurationToRemove > 0) {
+      try {
+        const configSnap = await dbRef.child("config").once('value');
+        const configData = configSnap.val() || {};
+        
+        const configuredWeeklyOff = String(
+          configData.weeklyoff || 
+          configData.WeeklyOff || 
+          configData.weekly_off || 
+          "sunday"
+        ).trim().toLowerCase();
+
+        const [y, m, d] = workDateToRecalc.split('-').map(Number);
+        const targetDateObj = new Date(y, m - 1, d);
+        const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+        const workDateDayName = dayNames[targetDateObj.getDay()];
+
+        if (configuredWeeklyOff && workDateDayName === configuredWeeklyOff) {
+          const fullCreditHours = parseFloat(configData.co_full_credit_hours || 8);
+          let maxCreditPerDay = parseFloat(configData.co_max_credit_per_day || 1);
+          if (isNaN(maxCreditPerDay)) maxCreditPerDay = 1;
+          const divisor = isNaN(fullCreditHours) || fullCreditHours <= 0 ? 8 : fullCreditHours;
+
+          let earnedCO = logDurationToRemove / divisor;
+          if (earnedCO > maxCreditPerDay) earnedCO = maxCreditPerDay;
+
+          const empNodeRef = dbRef.child(`masters/employees/${activeEmpCode}`);
+          const empSnap = await empNodeRef.once('value');
+          const empData = empSnap.val() || {};
+          
+          let currentCo = parseFloat(String(empData.co_balance || "0").replace(/"/g, ''));
+          if (isNaN(currentCo)) currentCo = 0;
+          
+          const newCoBalance = parseFloat(Math.max(0, currentCo - earnedCO).toFixed(2));
+          await empNodeRef.child("co_balance").set(newCoBalance);
+        }
+      } catch (coRevErr) {
+        console.warn("Non-critical: CO balance reversal skipped on deletion:", coRevErr);
+      }
+    }
+
+    // 3. Remove the work log from Firebase
+    await dbRef.child(`daily_work/${activeEmpCode}/${worklogId}`).remove();
     showToast("Work log deleted successfully.", false);
 
-    // 3. If we found a work date, recalculate attendance for that date
+    // 4. Recalculate attendance for that date
     if (workDateToRecalc) {
       if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
         await recalculateAndSyncAttendanceFrontend(activeEmpCode, workDateToRecalc);
@@ -1535,6 +1588,9 @@ async function deleteWorkLog(worklogId) {
 }
 
 
+
+
+    
  function updateTimePickerMaxForToday() {
     const workDateInput = document.getElementById('work-date');
     const fromTimeInput = document.getElementById('work-from');
