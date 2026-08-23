@@ -292,9 +292,7 @@
       <button onclick="loadTimesheetHistory()" class="btn-secondary">My Timesheet History</button>
       <button onclick="openLeaveModule()" class="btn-secondary" style="margin-top: 8px; background: #2563eb; color: white;">Apply / Check Leave</button>
 
-    
-
-      
+          
       <!-- Active & Pending Leave Status Box on Dashboard -->
       <div style="margin-top: 16px; padding: 12px; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb;">
         <h3 style="font-size: 0.9rem; font-weight: 600; color: #374151; margin-bottom: 8px;">My Active & Pending Leaves</h3>
@@ -302,11 +300,89 @@
           <div style="font-size: 0.85rem; color: #9ca3af; font-style: italic;">Loading leave status...</div>
         </div>
       </div>
-
-          
     </div>
   </div>
 
+
+<!-- VIEW: DEDICATED EMPLOYEE PROFILE DETAILS -->
+  <div id="view-employee-profile" class="hidden card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
+      <h2 style="margin: 0; font-size: 1.2rem; font-weight: bold;">Employee Profile Details</h2>
+      <button onclick="switchView('view-dashboard')" style="width: auto; padding: 4px 10px; font-size: 0.75rem;" class="btn-secondary">Back</button>
+    </div>
+
+    <!-- Profile Details Stack -->
+    <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.9rem;">
+      
+      <!-- 1. Mobile -->
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #4b5563; font-weight: 600;">Mobile :</span>
+          <span id="profile-mob-text" style="font-weight: 500;">-</span>
+          <input type="text" id="profile-mob-input" class="hidden" maxlength="10" style="padding: 4px 8px; font-size: 0.85rem; width: 150px;" placeholder="10-digit mobile">
+        </div>
+        <button id="btn-edit-mob" onclick="toggleProfileEdit('mob')" style="width: auto; padding: 3px 10px; font-size: 0.75rem;" class="btn-secondary">Edit</button>
+      </div>
+
+      <!-- 2. Email -->
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: #4b5563; font-weight: 600;">Email:</span>
+            <span id="profile-email-text" style="font-weight: 500;">-</span>
+            <input type="email" id="profile-email-input" class="hidden" style="padding: 4px 8px; font-size: 0.85rem; width: 180px;" placeholder="Enter email">
+          </div>
+          <button id="btn-edit-email" onclick="toggleProfileEdit('email')" style="width: auto; padding: 3px 10px; font-size: 0.75rem;" class="btn-secondary">Edit</button>
+        </div>
+        
+        <!-- OTP Box Container -->
+        <div id="email-otp-container" class="hidden" style="margin-top: 6px; padding: 8px; background: #f9fafb; border-radius: 6px; border: 1px dashed #d1d5db;">
+          <div style="display: flex; gap: 8px; align-items: center;"> 
+           <input type="text" id="email-otp-input" placeholder="Enter Verification Code" style="padding: 4px 8px; font-size: 0.85rem; flex-grow: 1;" onpaste="return true;">
+            <button onclick="verifyEmailOtp()" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">Verify Code</button>
+          </div>
+          <small id="email-otp-timer" style="color: #dc2626; display: block; margin-top: 4px; font-weight: 500;"></small>
+        </div>
+      </div>
+
+      <!-- 3. Centre -->
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #4b5563; font-weight: 600;">Centre:</span>
+          <span id="profile-centre-text" style="font-weight: 500;">-</span>
+          <input type="text" id="profile-centre-input" class="hidden" style="padding: 4px 8px; font-size: 0.85rem; width: 150px;" placeholder="Centre name">
+        </div>
+        <button id="btn-edit-centre" onclick="toggleProfileEdit('centre')" style="width: auto; padding: 3px 10px; font-size: 0.75rem;" class="btn-secondary">Edit</button>
+      </div>
+
+      <!-- 4. Zone -->
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #4b5563; font-weight: 600;">Zone:</span>
+          <span id="profile-zone-text" style="font-weight: 500;">-</span>
+          <input type="text" id="profile-zone-input" class="hidden" style="padding: 4px 8px; font-size: 0.85rem; width: 150px;" placeholder="Zone text/number">
+        </div>
+        <button id="btn-edit-zone" onclick="toggleProfileEdit('zone')" style="width: auto; padding: 3px 10px; font-size: 0.75rem;" class="btn-secondary">Edit</button>
+      </div>
+
+      <!-- 5. State -->
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #4b5563; font-weight: 600;">State:</span>
+          <span id="profile-state-text" style="font-weight: 500;">-</span>
+          <select id="profile-state-select" class="hidden" style="padding: 4px 8px; font-size: 0.85rem; width: 150px;">
+            <option value="">-- Choose State --</option>
+          </select>
+        </div>
+        <button id="btn-edit-state" onclick="toggleProfileEdit('state')" style="width: auto; padding: 3px 10px; font-size: 0.75rem;" class="btn-secondary">Edit</button>
+      </div>
+
+    </div>
+  </div>
+
+
+
+  
   
   <!-- VIEW 3: DAILY WORK ENTRY FORM -->
   <div id="view-work-entry" class="hidden card">
