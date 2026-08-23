@@ -168,16 +168,11 @@
 
 
 <!-- VIEW 1: AUTHENTICATION CONTAINER -->
-<div id="view-login" class="card">
+<div id="view-login" class="card"><div class="logo-container" style="text-align: center; margin-bottom: 20px; width: 100%;">
+  <img id="app-logo-img" src="" alt="" style="display: none; width: 100%; max-width: 100%; height: auto; display: block; margin: 0 auto;">
+</div>
 
-  <div class="logo-container" style="text-align: center; margin-bottom: 20px; width: 100%;">
-    <!-- Start hidden with display: none to prevent tiny icon flash, adjust max-height for wide banner look -->
-    
-  
-    <img id="app-logo-img" src="" alt="" style="display: none; width: 100%; height: auto; object-fit: cover; margin: 0 auto;">
-    
-  </div>
-
+ 
   <script>
     // Automatically load the base64 logo from Firebase root on page load
     document.addEventListener("DOMContentLoaded", () => {
