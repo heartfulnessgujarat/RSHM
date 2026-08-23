@@ -1841,8 +1841,7 @@ function renderTimesheetList() {
     `;
 }
 
-    
-  async function loadDashboardLeaveStatus() {
+async function loadDashboardLeaveStatus(selectedCycleOffset = 0) {
   const container = document.getElementById('dashboardLeaveStatusContainer');
   if (!container || !currentUser) return;
 
@@ -1850,15 +1849,52 @@ function renderTimesheetList() {
     const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
     if (!empCode) return;
 
+    // 1. Fetch Config for Payroll Cycle Start/End Days
+    const configSnap = await firebase.database().ref('config').once('value');
+    const configData = configSnap.val() || {};
+    
+    const payrollStartDay = parseInt(configData.payroll_start_day || configData.start_day || 26, 10);
+    const payrollEndDay = parseInt(configData.payroll_end_day || configData.end_day || 25, 10);
+
+    // 2. Calculate Payroll Cycle Date Boundaries based on offset
+    const now = new Date();
+    let targetYear = now.getFullYear();
+    let targetMonth = now.getMonth();
+
+    if (now.getDate() < payrollStartDay) {
+      targetMonth -= 1;
+    }
+    targetMonth -= selectedCycleOffset;
+
+    const cycleStartDate = new Date(targetYear, targetMonth, payrollStartDay);
+    const cycleEndDate = new Date(targetYear, targetMonth + 1, payrollEndDay);
+    cycleEndDate.setHours(23, 59, 59, 999);
+
+    // 3. Fetch leaves from Firebase
     const snapshot = await firebase.database().ref(`leave_requests/${empCode}`).once('value');
     const leavesData = snapshot.val();
 
+    // Format cycle range label for display
+    const monthsNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const cycleLabelText = `${cycleStartDate.getDate()} ${monthsNames[cycleStartDate.getMonth()]} - ${cycleEndDate.getDate()} ${monthsNames[cycleEndDate.getMonth()]} ${cycleEndDate.getFullYear()}`;
+
+    // Header with Cycle Selector Dropdown
+    let html = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #e5e7eb;">
+        <span style="font-size: 0.78rem; font-weight: 600; color: #555;">Cycle: ${cycleLabelText}</span>
+        <select id="leave-cycle-selector" onchange="loadDashboardLeaveStatus(parseInt(this.value, 10))" style="padding: 3px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.75rem;">
+          <option value="0" ${selectedCycleOffset === 0 ? 'selected' : ''}>Current Cycle</option>
+          <option value="1" ${selectedCycleOffset === 1 ? 'selected' : ''}>Previous Cycle</option>
+          <option value="2" ${selectedCycleOffset === 2 ? 'selected' : ''}>2 Cycles Ago</option>
+        </select>
+      </div>
+    `;
+
     if (!leavesData) {
-      container.innerHTML = `<div style="font-size: 0.85rem; color: #6b7280; font-style: italic;">No leave applications found.</div>`;
+      container.innerHTML = html + `<div style="font-size: 0.85rem; color: #6b7280; font-style: italic; padding: 10px 0; text-align: center;">No leave applications found for this cycle.</div>`;
       return;
     }
 
-    // Convert object to array and attach leaveId key for reference
     const requestsArray = [];
     for (const leaveId in leavesData) {
       const item = leavesData[leaveId];
@@ -1866,24 +1902,53 @@ function renderTimesheetList() {
       requestsArray.push(item);
     }
 
-    // Filter for both Pending and Approved leaves (ignore rejected or already cancelled)
-    const activeLeaves = requestsArray.filter(r => {
-      const s = String(r.status || '').toLowerCase();
-      return s === 'pending' || s === 'approved';
+    // 4. Filter leaves strictly within the payroll cycle & include Pending, Approved, and Rejected
+    const cycleLeaves = requestsArray.filter(r => {
+      const leaveDateStr = r.leave_date || r.leaveDate;
+      if (!leaveDateStr) return false;
+
+      // Handle date formats safely (assuming YYYY-MM-DD or DD-MM-YYYY)
+      let leaveDate;
+      if (leaveDateStr.includes('-')) {
+        const parts = leaveDateStr.split('-');
+        if (parts[0].length === 4) {
+          // YYYY-MM-DD
+          leaveDate = new Date(parts[0], parts[1] - 1, parts[2]);
+        } else {
+          // DD-MM-YYYY
+          leaveDate = new Date(parts[2], parts[1] - 1, parts[0]);
+        }
+      } else {
+        leaveDate = new Date(leaveDateStr);
+      }
+
+      return leaveDate >= cycleStartDate && leaveDate <= cycleEndDate;
     });
 
-    if (activeLeaves.length === 0) {
-      container.innerHTML = `<div style="font-size: 0.85rem; color: #16a34a; font-weight: 500;">No active or pending leaves to display.</div>`;
+    if (cycleLeaves.length === 0) {
+      container.innerHTML = html + `<div style="font-size: 0.85rem; color: #6b7280; font-style: italic; padding: 10px 0; text-align: center;">No leaves recorded in this cycle.</div>`;
       return;
     }
 
-    let html = "";
-    activeLeaves.forEach(r => {
+    // Sort newest leave dates first
+    cycleLeaves.sort((a, b) => new Date(b.leave_date || b.leaveDate) - new Date(a.leave_date || a.leaveDate));
+
+    // 5. Scrollable Container Wrapper for the List
+    html += `<div style="max-height: 220px; overflow-y: auto; padding-right: 4px;">`;
+
+    cycleLeaves.forEach(r => {
       const lType = r.leave_type || r.leaveType || 'Leave';
       const lDate = r.leave_date || r.leaveDate || '';
       const statusStr = String(r.status || '').toLowerCase();
-      const statusColor = statusStr === 'approved' ? '#16a34a' : '#d97706';
       
+      // Color coding for status: Approved = Green, Pending = Orange/Yellow, Rejected = Red
+      let statusColor = '#d97706';
+      if (statusStr === 'approved') statusColor = '#16a34a';
+      else if (statusStr === 'rejected') statusColor = '#dc2626';
+
+      // Only allow cancellation if it's pending
+      const canCancel = statusStr === 'pending';
+
       html += `
         <div style="font-size: 0.82rem; border-bottom: 1px dashed #e5e7eb; padding: 8px 0; display: flex; justify-content: space-between; align-items: center;">
           <div>
@@ -1892,18 +1957,23 @@ function renderTimesheetList() {
             <div style="color: ${statusColor}; font-weight: 600; margin-top: 2px;">Status: ${r.status}</div>
           </div>
           <div>
-            <button onclick="handleCancelLeave('${r.leaveId}', '${lType}', '${lDate}', '${r.status}')" style="background: #dc2626; color: white; border: none; padding: 4px 10px; font-size: 0.75rem; border-radius: 4px; cursor: pointer; font-weight: 600;">Cancel</button>
+            ${canCancel ? `<button onclick="handleCancelLeave('${r.leaveId}', '${lType}', '${lDate}', '${r.status}')" style="background: #dc2626; color: white; border: none; padding: 4px 10px; font-size: 0.75rem; border-radius: 4px; cursor: pointer; font-weight: 600;">Cancel</button>` : ''}
           </div>
         </div>
       `;
     });
+
+    html += `</div>`; // Close scrollable container
     container.innerHTML = html;
+
   } catch(e) {
     console.error("Error loading dashboard leave status:", e);
     container.innerHTML = `<div style="font-size: 0.82rem; color: #dc2626;">Unable to load status.</div>`;
   }
 }
 
+
+    
 
  async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   console.log("[DEBUG] Current Logged-in User Object:", currentUser);
