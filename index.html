@@ -4166,7 +4166,6 @@ async function loadAttendanceHistory(selectedCycleOffset = 0) {
   }
 }
 
-    
 function renderAttendanceHistoryUI(startDay, endDay, currentOffset, attendanceRecords) {
   const listDiv = document.getElementById('attendance-list');
   
@@ -4254,86 +4253,7 @@ function renderAttendanceHistoryUI(startDay, endDay, currentOffset, attendanceRe
       </table>
     </div>
   `;
-}
-
-    
-function renderAttendanceHistoryUI(startDay, endDay, currentOffset, attendanceRecords) {
-  const listDiv = document.getElementById('attendance-list');
-  
-  const now = new Date();
-  let targetMonth = now.getMonth();
-  if (now.getDate() < startDay) targetMonth -= 1;
-  targetMonth -= currentOffset;
-
-  const startLabelDate = new Date(now.getFullYear(), targetMonth, startDay);
-  const endLabelDate = new Date(now.getFullYear(), targetMonth + 1, endDay);
-  const monthsNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const cycleLabelText = `${startLabelDate.getDate()} ${monthsNames[startLabelDate.getMonth()]} - ${endLabelDate.getDate()} ${monthsNames[endLabelDate.getMonth()]} ${endLabelDate.getFullYear()}`;
-
-  let headerHtml = `
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 5px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
-      <span style="font-size: 13px; font-weight: 600; color: #555;">
-        Cycle: ${cycleLabelText}
-      </span>
-      <select id="attendance-cycle-selector" onchange="loadAttendanceHistory(parseInt(this.value, 10))" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px;">
-        <option value="0" ${currentOffset === 0 ? 'selected' : ''}>Current Cycle</option>
-        <option value="1" ${currentOffset === 1 ? 'selected' : ''}>Previous Cycle</option>
-        <option value="2" ${currentOffset === 2 ? 'selected' : ''}>2 Cycles Ago</option>
-      </select>
-    </div>
-  `;
-
-  if (!attendanceRecords || attendanceRecords.length === 0) {
-    listDiv.innerHTML = headerHtml + "<p style='text-align:center; padding:15px; color: #777;'>No attendance records found for this cycle.</p>";
-    return;
-  }
-
-  let cardsHtml = "";
-  attendanceRecords.forEach(att => {
-    const rawDate = att.date || att.work_date || "";
-    let formattedDate = rawDate;
-    let dayName = "";
-
-    try {
-      const parsedDate = new Date(rawDate);
-      if (!isNaN(parsedDate)) {
-        formattedDate = formatDatetoDDMMMYYYY(rawDate);
-        dayName = parsedDate.toLocaleDateString('en-US', { weekday: 'long' });
-      }
-    } catch(err) {}
-
-    const statusVal = att.status || "N/A";
-    const hoursVal = att.hours !== undefined ? att.hours : "0";
-
-    cardsHtml += `
-      <div class="item-row" style="background: #fff; margin-bottom: 8px; border-bottom: 1px solid #f0f0f0; padding: 10px;">
-        <div class="flex-space" style="display: flex; justify-content: space-between; align-items: center;">
-          <strong style="font-size: 0.9rem;">${formattedDate} ${dayName ? `(${dayName})` : ''}</strong>
-          <span style="background: #f3f4f6; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; color: #2563eb;">Status: ${statusVal}</span>
-        </div>
-        <div style="font-size: 0.82rem; color: #4b5563; margin-top: 4px;">
-          <span>Logged Hours: <strong>${hoursVal} hrs</strong></span>
-        </div>
-      </div>
-    `;
-  });
-
-  let summaryBanner = `
-    <div style="font-size: 12px; color: #4b5563; margin-bottom: 8px; font-weight: 500; display: flex; justify-content: space-between;">
-      <span>Total Days Recorded: <strong>${attendanceRecords.length}</strong></span>
-    </div>
-  `;
-
-  listDiv.innerHTML = `
-    ${headerHtml}
-    ${summaryBanner}
-    <div style="max-height: 400px; overflow-y: auto; overflow-x: hidden; padding-right: 4px; border: 1px solid #f3f4f6; border-radius: 6px;">
-      ${cardsHtml}
-    </div>
-  `;
-}
-
-    
+}    
 
 </script>    
 
