@@ -2195,8 +2195,7 @@ const clElem = document.getElementById('clBalanceDisplay');
 
 
 
-  
-  try {
+try {
     // ⭐ DIRECT FIREBASE READ FROM MASTERS/EMPLOYEES ⭐
     const snapshot = await firebase.database().ref(`masters/employees/${empId}`).once('value');
     const empData = snapshot.val();
@@ -2207,11 +2206,12 @@ const clElem = document.getElementById('clBalanceDisplay');
         cl: empData.cl_balance !== undefined ? empData.cl_balance : 0,
         sl: empData.sl_balance !== undefined ? empData.sl_balance : 0,
         co: empData.co_balance !== undefined ? empData.co_balance : 0,
-        ph: empData.ph_balance !== undefined ? empData.ph_balance : 0
+        ph: empData.ph_balance !== undefined ? empData.ph_balance : 0,
+        mt: empData.mt_balance !== undefined ? empData.mt_balance : 0 // ⭐ Added MT balance mapping ⭐
       };
       renderLeaveBalances(formattedBalances);
     } else {
-      renderLeaveBalances({ cl: 0, sl: 0, co: 0, ph: 0 });
+      renderLeaveBalances({ cl: 0, sl: 0, co: 0, ph: 0, mt: 0 }); // ⭐ Added default MT here too ⭐
     }
   } catch (err) {
     console.error("Error fetching leave balances from Firebase:", err);
@@ -2220,9 +2220,9 @@ const clElem = document.getElementById('clBalanceDisplay');
     }
   }
 }
+  
 
-    
-   
+ 
 
 /**
  * Helper to render balance values dynamically in index.html spans (Includes PH)
