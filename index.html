@@ -2068,6 +2068,8 @@ function renderTimesheetList() {
           targetPrefix = 'co';
         } else if (cleanType.includes('el') || cleanType.includes('earned')) {
           targetPrefix = 'el';
+          } else if (cleanType.includes('mt') || cleanType.includes('maternity')) {
+          targetPrefix = 'mt'; // ⭐ Added MT balance prefix mapping ⭐
         }
 
         const empNodeRef = dbRef.child(`masters/employees/${empCode}`);
