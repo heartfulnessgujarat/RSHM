@@ -4090,6 +4090,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (workTo) workTo.addEventListener('change', checkFutureTimeInput);
 });
 
+
 async function loadAttendanceHistory(selectedCycleOffset = 0) {
   switchView('view-attendance-history');
   const listDiv = document.getElementById('attendance-list');
@@ -4123,39 +4124,52 @@ async function loadAttendanceHistory(selectedCycleOffset = 0) {
     let allAttendance = [];
     if (snapshot.exists()) {
       snapshot.forEach(childSnap => {
-        const data = childSnap.val();
-        // Support date keys or data.date fields
-        allAttendance.push(data);
+        const key = childSnap.key; // e.g., "19-AUG-2026"
+        const data = childSnap.val() || {};
+        // Ensure we capture the date string from key or properties
+        allAttendance.push({
+          dateStr: key || data.date || data.work_date,
+          status: data.status,
+          hours: data.hours
+        });
       });
     }
 
     // Filter by payroll cycle boundaries
     const filteredAttendance = allAttendance.filter(att => {
-      const dateStr = att.date || att.work_date;
-      if (!dateStr) return false;
-      // Handle standard DD-MMM-YYYY or YYYY-MM-DD
-      let attDate;
-      if (dateStr.includes('-') && isNaN(dateStr.split('-')[0])) {
-        // e.g. "05-AUG-2026"
-        attDate = new Date(dateStr);
-      } else {
-        const [y, m, d] = dateStr.split('-').map(Number);
-        attDate = new Date(y, m - 1, d);
+      if (!att.dateStr) return false;
+      
+      // Parse standard "DD-MMM-YYYY" format like "19-AUG-2026"
+      const parts = att.dateStr.split('-');
+      if (parts.length === 3) {
+        const d = parseInt(parts[0], 10);
+        const mStr = parts[1].toUpperCase();
+        const y = parseInt(parts[2], 10);
+        
+        const monthsMap = { JAN:0, FEB:1, MAR:2, APR:3, MAY:4, JUN:5, JUL:6, AUG:7, SEP:8, OCT:9, NOV:10, DEC:11 };
+        if (monthsMap[mStr] !== undefined) {
+          const attDate = new Date(y, monthsMap[mStr], d);
+          return attDate >= cycleStartDate && attDate <= cycleEndDate;
+        }
       }
-      return attDate >= cycleStartDate && attDate <= cycleEndDate;
+      return false;
     });
 
     // Sort newest first
-    filteredAttendance.sort((a, b) => new Date(b.date || b.work_date) - new Date(a.date || a.work_date));
+    filteredAttendance.sort((a, b) => {
+      return new Date(b.dateStr) - new Date(a.dateStr);
+    });
 
     renderAttendanceHistoryUI(payrollStartDay, payrollEndDay, selectedCycleOffset, filteredAttendance);
 
+alsert("Error loading attendance:", e);
   } catch(e) {
     console.error("Error loading attendance:", e);
     showToast("Error loading attendance: " + e.message);
   }
 }
 
+    
 function renderAttendanceHistoryUI(startDay, endDay, currentOffset, attendanceRecords) {
   const listDiv = document.getElementById('attendance-list');
   
