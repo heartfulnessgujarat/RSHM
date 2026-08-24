@@ -435,7 +435,12 @@
     <button onclick="switchView('view-dashboard')" class="btn-secondary">Return to Dashboard</button>
   </div>
 
-
+<!-- VIEW: USER ATTENDANCE HISTORY -->
+  <div id="view-attendance-history" class="hidden card">
+    <h2>My Attendance History</h2>
+    <div id="attendance-list" style="margin-bottom: 15px; max-height: 350px; overflow-y: auto;"></div>
+    <button onclick="switchView('view-dashboard')" class="btn-secondary">Return to Dashboard</button>
+  </div>
 
 <!-- VIEW 5: LEAVE MANAGEMENT MODULE -->
   <div id="view-leave-module" class="hidden card">
@@ -621,7 +626,8 @@ function switchView(viewId) {
   }
 
   // UPDATED LINE: Added 'view-employee-profile' to the hide array
-  ['view-login', 'view-change-password', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module', 'view-employee-profile'].forEach(id => {
+
+    ['view-login', 'view-change-password', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module', 'view-employee-profile', 'view-attendance-history'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
   });
@@ -4081,7 +4087,147 @@ document.addEventListener('DOMContentLoaded', () => {
   if (workTo) workTo.addEventListener('change', checkFutureTimeInput);
 });
 
+async function loadAttendanceHistory(selectedCycleOffset = 0) {
+  switchView('view-attendance-history');
+  const listDiv = document.getElementById('attendance-list');
+  listDiv.innerHTML = "<p style='text-align:center; padding:15px;'>Loading attendance records...</p>";
+  
+  const activeEmpCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
 
+  try {
+    const configSnap = await firebase.database().ref('config').once('value');
+    const configData = configSnap.val() || {};
+    
+    const payrollStartDay = parseInt(configData.payroll_start_day || configData.start_day || 26, 10);
+    const payrollEndDay = parseInt(configData.payroll_end_day || configData.end_day || 25, 10);
+
+    const now = new Date();
+    let targetYear = now.getFullYear();
+    let targetMonth = now.getMonth();
+
+    if (now.getDate() < payrollStartDay) {
+      targetMonth -= 1;
+    }
+    targetMonth -= selectedCycleOffset;
+
+    const cycleStartDate = new Date(targetYear, targetMonth, payrollStartDay);
+    const cycleEndDate = new Date(targetYear, targetMonth + 1, payrollEndDay);
+    cycleEndDate.setHours(23, 59, 59, 999);
+
+    // Fetch attendance node for employee
+    const snapshot = await firebase.database().ref(`attendance/${activeEmpCode}`).once('value');
+
+    let allAttendance = [];
+    if (snapshot.exists()) {
+      snapshot.forEach(childSnap => {
+        const data = childSnap.val();
+        // Support date keys or data.date fields
+        allAttendance.push(data);
+      });
+    }
+
+    // Filter by payroll cycle boundaries
+    const filteredAttendance = allAttendance.filter(att => {
+      const dateStr = att.date || att.work_date;
+      if (!dateStr) return false;
+      // Handle standard DD-MMM-YYYY or YYYY-MM-DD
+      let attDate;
+      if (dateStr.includes('-') && isNaN(dateStr.split('-')[0])) {
+        // e.g. "05-AUG-2026"
+        attDate = new Date(dateStr);
+      } else {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        attDate = new Date(y, m - 1, d);
+      }
+      return attDate >= cycleStartDate && attDate <= cycleEndDate;
+    });
+
+    // Sort newest first
+    filteredAttendance.sort((a, b) => new Date(b.date || b.work_date) - new Date(a.date || a.work_date));
+
+    renderAttendanceHistoryUI(payrollStartDay, payrollEndDay, selectedCycleOffset, filteredAttendance);
+
+  } catch(e) {
+    console.error("Error loading attendance:", e);
+    showToast("Error loading attendance: " + e.message);
+  }
+}
+
+function renderAttendanceHistoryUI(startDay, endDay, currentOffset, attendanceRecords) {
+  const listDiv = document.getElementById('attendance-list');
+  
+  const now = new Date();
+  let targetMonth = now.getMonth();
+  if (now.getDate() < startDay) targetMonth -= 1;
+  targetMonth -= currentOffset;
+
+  const startLabelDate = new Date(now.getFullYear(), targetMonth, startDay);
+  const endLabelDate = new Date(now.getFullYear(), targetMonth + 1, endDay);
+  const monthsNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const cycleLabelText = `${startLabelDate.getDate()} ${monthsNames[startLabelDate.getMonth()]} - ${endLabelDate.getDate()} ${monthsNames[endLabelDate.getMonth()]} ${endLabelDate.getFullYear()}`;
+
+  let headerHtml = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 5px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
+      <span style="font-size: 13px; font-weight: 600; color: #555;">
+        Cycle: ${cycleLabelText}
+      </span>
+      <select id="attendance-cycle-selector" onchange="loadAttendanceHistory(parseInt(this.value, 10))" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px;">
+        <option value="0" ${currentOffset === 0 ? 'selected' : ''}>Current Cycle</option>
+        <option value="1" ${currentOffset === 1 ? 'selected' : ''}>Previous Cycle</option>
+        <option value="2" ${currentOffset === 2 ? 'selected' : ''}>2 Cycles Ago</option>
+      </select>
+    </div>
+  `;
+
+  if (!attendanceRecords || attendanceRecords.length === 0) {
+    listDiv.innerHTML = headerHtml + "<p style='text-align:center; padding:15px; color: #777;'>No attendance records found for this cycle.</p>";
+    return;
+  }
+
+  let cardsHtml = "";
+  attendanceRecords.forEach(att => {
+    const rawDate = att.date || att.work_date || "";
+    let formattedDate = rawDate;
+    let dayName = "";
+
+    try {
+      const parsedDate = new Date(rawDate);
+      if (!isNaN(parsedDate)) {
+        formattedDate = formatDatetoDDMMMYYYY(rawDate);
+        dayName = parsedDate.toLocaleDateString('en-US', { weekday: 'long' });
+      }
+    } catch(err) {}
+
+    const statusVal = att.status || "N/A";
+    const hoursVal = att.hours !== undefined ? att.hours : "0";
+
+    cardsHtml += `
+      <div class="item-row" style="background: #fff; margin-bottom: 8px; border-bottom: 1px solid #f0f0f0; padding: 10px;">
+        <div class="flex-space" style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="font-size: 0.9rem;">${formattedDate} ${dayName ? `(${dayName})` : ''}</strong>
+          <span style="background: #f3f4f6; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; color: #2563eb;">Status: ${statusVal}</span>
+        </div>
+        <div style="font-size: 0.82rem; color: #4b5563; margin-top: 4px;">
+          <span>Logged Hours: <strong>${hoursVal} hrs</strong></span>
+        </div>
+      </div>
+    `;
+  });
+
+  let summaryBanner = `
+    <div style="font-size: 12px; color: #4b5563; margin-bottom: 8px; font-weight: 500; display: flex; justify-content: space-between;">
+      <span>Total Days Recorded: <strong>${attendanceRecords.length}</strong></span>
+    </div>
+  `;
+
+  listDiv.innerHTML = `
+    ${headerHtml}
+    ${summaryBanner}
+    <div style="max-height: 400px; overflow-y: auto; overflow-x: hidden; padding-right: 4px; border: 1px solid #f3f4f6; border-radius: 6px;">
+      ${cardsHtml}
+    </div>
+  `;
+}
 
     
 
