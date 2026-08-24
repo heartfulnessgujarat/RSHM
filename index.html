@@ -4008,19 +4008,45 @@ function uploadLogoBase64FromSheet() {
 // ... all your other functions (executeWorkSubmit, etc.) above ...
 
   // ⭐ DISABLE NATIVE TIME POPUPS FOR MERS WORK ENTRY ⭐
-  document.addEventListener('DOMContentLoaded', () => {
-    const workFrom = document.getElementById('work-from');
-    const workTo = document.getElementById('work-to');
+// ⭐ INSTANT LIVE FUTURE TIME VALIDATION ⭐
+document.addEventListener('DOMContentLoaded', () => {
+  const workFrom = document.getElementById('work-from');
+  const workTo = document.getElementById('work-to');
+  const workDate = document.getElementById('work-date');
 
-    if (workFrom) {
-      workFrom.addEventListener('invalid', (e) => e.preventDefault());
+  function checkFutureTimeInput(event) {
+    const inputField = event.target;
+    const enteredTime = inputField.value;
+    const selectedDateStr = workDate ? workDate.value : '';
+
+    if (!enteredTime || !selectedDateStr) return;
+
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    // Only validate live if the selected date is TODAY
+    if (selectedDateStr === todayStr) {
+      const currentHours = String(now.getHours()).padStart(2, '0');
+      const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+      const currentTimeStr = `${currentHours}:${currentMinutes}`;
+
+      if (enteredTime > currentTimeStr) {
+        // Show your custom message instantly using your toast or alert
+        const msg = `Future time is not allowed! Current time is ${currentTimeStr}. You cannot select a time later than now.`;
+        if (typeof showToast === 'function') {
+          showToast(msg);
+        } else {
+          alert(msg);
+        }
+        // Clear the invalid future time immediately
+        inputField.value = "";
+      }
     }
-    if (workTo) {
-      workTo.addEventListener('invalid', (e) => e.preventDefault());
-    }
-  });
+  }
 
-
+  if (workFrom) workFrom.addEventListener('change', checkFutureTimeInput);
+  if (workTo) workTo.addEventListener('change', checkFutureTimeInput);
+});
 
 
 
