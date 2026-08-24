@@ -2180,16 +2180,22 @@ async function openLeaveModule() {
     return;
   }
 
-  const clElem = document.getElementById('clBalanceDisplay');
+
+const clElem = document.getElementById('clBalanceDisplay');
   const slElem = document.getElementById('slBalanceDisplay');
   const coElem = document.getElementById('coBalanceDisplay');
   const phElem = document.getElementById('phBalanceDisplay');
+  const mtElem = document.getElementById('mtBalanceDisplay'); // ⭐ Added MT element ⭐
 
   if (clElem) clElem.innerText = '..';
   if (slElem) slElem.innerText = '..';
   if (coElem) coElem.innerText = '..';
   if (phElem) phElem.innerText = '..';
+  if (mtElem) mtElem.innerText = '..'; // ⭐ Added MT default state ⭐
 
+
+
+  
   try {
     // ⭐ DIRECT FIREBASE READ FROM MASTERS/EMPLOYEES ⭐
     const snapshot = await firebase.database().ref(`masters/employees/${empId}`).once('value');
