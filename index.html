@@ -2232,19 +2232,24 @@ const clElem = document.getElementById('clBalanceDisplay');
 function renderLeaveBalances(balances) {
   if (!balances) return;
 
+  // ⭐ Add this console log to inspect the object in your browser's console ⭐
+  console.log("Balances object received:", balances);
+
   const clElem = document.getElementById('clBalanceDisplay');
   const slElem = document.getElementById('slBalanceDisplay');
   const coElem = document.getElementById('coBalanceDisplay');
   const phElem = document.getElementById('phBalanceDisplay');
   const mtElem = document.getElementById('mtBalanceDisplay');
 
-  if (clElem) clElem.innerText = balances.cl !== undefined ? balances.cl : (balances.cl_balance !== undefined ? balances.cl_balance : (balances.CL !== undefined ? balances.CL : '0'));
-  if (slElem) slElem.innerText = balances.sl !== undefined ? balances.sl : (balances.sl_balance !== undefined ? balances.sl_balance : (balances.SL !== undefined ? balances.SL : '0'));
-  if (coElem) coElem.innerText = balances.co !== undefined ? balances.co : (balances.co_balance !== undefined ? balances.co_balance : (balances.CO !== undefined ? balances.CO : '0'));
-  if (phElem) phElem.innerText = balances.ph !== undefined ? balances.ph : (balances.ph_balance !== undefined ? balances.ph_balance : (balances.PH !== undefined ? balances.PH : '0'));
+  if (clElem) clElem.innerText = balances.cl !== undefined ? balances.cl : (balances.cl_balance !== undefined ? balances.cl_balance : '0');
+  if (slElem) slElem.innerText = balances.sl !== undefined ? balances.sl : (balances.sl_balance !== undefined ? balances.sl_balance : '0');
+  if (coElem) coElem.innerText = balances.co !== undefined ? balances.co : (balances.co_balance !== undefined ? balances.co_balance : '0');
+  if (phElem) phElem.innerText = balances.ph !== undefined ? balances.ph : (balances.ph_balance !== undefined ? balances.ph_balance : '0');
   
-  // ⭐ Updated MT lookup to check mt, mt_balance, and MT ⭐
-  if (mtElem) mtElem.innerText = balances.mt !== undefined ? balances.mt : (balances.mt_balance !== undefined ? balances.mt_balance : (balances.MT !== undefined ? balances.MT : '0'));
+  // Let's directly target mt_balance here:
+  if (mtElem) {
+    mtElem.innerText = balances.mt_balance !== undefined ? balances.mt_balance : (balances.mt !== undefined ? balances.mt : '0');
+  }
 }
 
     
