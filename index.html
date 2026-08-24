@@ -2228,6 +2228,7 @@ const clElem = document.getElementById('clBalanceDisplay');
  * Helper to render balance values dynamically in index.html spans (Includes PH)
  */
 
+
 function renderLeaveBalances(balances) {
   if (!balances) return;
 
@@ -2235,13 +2236,15 @@ function renderLeaveBalances(balances) {
   const slElem = document.getElementById('slBalanceDisplay');
   const coElem = document.getElementById('coBalanceDisplay');
   const phElem = document.getElementById('phBalanceDisplay');
-  const mtElem = document.getElementById('mtBalanceDisplay'); // ⭐ Added MT element lookup ⭐
+  const mtElem = document.getElementById('mtBalanceDisplay');
 
-  if (clElem) clElem.innerText = balances.cl !== undefined ? balances.cl : (balances.CL !== undefined ? balances.CL : '0');
-  if (slElem) slElem.innerText = balances.sl !== undefined ? balances.sl : (balances.SL !== undefined ? balances.SL : '0');
-  if (coElem) coElem.innerText = balances.co !== undefined ? balances.co : (balances.CO !== undefined ? balances.CO : '0');
-  if (phElem) phElem.innerText = balances.ph !== undefined ? balances.ph : (balances.PH !== undefined ? balances.PH : '0');
-  if (mtElem) mtElem.innerText = balances.mt !== undefined ? balances.mt : (balances.MT !== undefined ? balances.MT : '0'); // ⭐ Added MT balance assignment ⭐
+  if (clElem) clElem.innerText = balances.cl !== undefined ? balances.cl : (balances.cl_balance !== undefined ? balances.cl_balance : (balances.CL !== undefined ? balances.CL : '0'));
+  if (slElem) slElem.innerText = balances.sl !== undefined ? balances.sl : (balances.sl_balance !== undefined ? balances.sl_balance : (balances.SL !== undefined ? balances.SL : '0'));
+  if (coElem) coElem.innerText = balances.co !== undefined ? balances.co : (balances.co_balance !== undefined ? balances.co_balance : (balances.CO !== undefined ? balances.CO : '0'));
+  if (phElem) phElem.innerText = balances.ph !== undefined ? balances.ph : (balances.ph_balance !== undefined ? balances.ph_balance : (balances.PH !== undefined ? balances.PH : '0'));
+  
+  // ⭐ Updated MT lookup to check mt, mt_balance, and MT ⭐
+  if (mtElem) mtElem.innerText = balances.mt !== undefined ? balances.mt : (balances.mt_balance !== undefined ? balances.mt_balance : (balances.MT !== undefined ? balances.MT : '0'));
 }
 
     
