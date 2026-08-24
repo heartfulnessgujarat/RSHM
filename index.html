@@ -620,8 +620,11 @@ function switchView(viewId) {
 
   // UPDATED LINE: Added 'view-employee-profile' to the hide array
 
-    ['view-login', 'view-change-password', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module', 'view-employee-profile', 'view-attendance-history'].forEach(id => {
-    const el = document.getElementById(id);
+['view-login', 'view-change-password', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module', 'view-employee-profile', 'view-attendance-history', 'view-leave-status-history'].forEach(id => {
+
+  
+
+      const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
   });
   
