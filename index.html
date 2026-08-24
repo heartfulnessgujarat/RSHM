@@ -1799,12 +1799,19 @@ function renderTimesheetList() {
         
         totalCycleHours += decimalDuration;
         const formattedDuration = decimalDuration.toFixed(2);
-        const displayDate = formatDatetoDDMMMYYYY(log.work_date);
+       
+
+      const displayDate = formatDatetoDDMMMYYYY(log.work_date);
+        const dayName = logDate.toLocaleDateString('en-US', { weekday: 'long' });
 
         cardsHtml += `
             <div class="item-row" style="background: #fff; margin-bottom: 8px; border-bottom: 1px solid #f0f0f0; padding: 10px;">
-                <div class="flex-space">
-                    <strong>${displayDate} (${formattedDuration} hrs)</strong>
+
+            
+            <div class="flex-space">
+                    <strong>${displayDate} (${dayName}) - ${formattedDuration} hrs</strong>
+
+                    
                     ${isEditable ? `
                         <div class="action-group">
                             <button type="button" class="btn-sm" onclick="editWorkLog('${log.worklog_id}')">Edit</button>
