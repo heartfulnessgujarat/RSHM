@@ -639,9 +639,7 @@ function switchView(viewId) {
   const leaveStatusMsg = document.getElementById('leaveStatusMessage');
   if (leaveStatusMsg) leaveStatusMsg.innerText = '';
 
-  if (viewId === 'view-dashboard') {
-    loadDashboardLeaveStatus();
-  }
+ 
   
   if (viewId === 'view-leave-module') {
     loadLeaveMasterOptions();
@@ -2114,7 +2112,7 @@ async function openLeaveStatusHistory(selectedCycleOffset = 0) {
     }
 
     if (typeof loadDashboardLeaveStatus === 'function') {
-      loadDashboardLeaveStatus();
+            openLeaveStatusHistory();
     }
 
   } catch (err) {
