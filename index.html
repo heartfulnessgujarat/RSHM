@@ -435,6 +435,26 @@
     <button onclick="switchView('view-dashboard')" class="btn-secondary">Return to Dashboard</button>
   </div>
 
+
+<!-- VIEW: MY LEAVE STATUS HISTORY -->
+<div id="view-leave-status-history" class="hidden card">
+  <h2 style="margin-bottom: 15px; font-size: 1.2rem; color: #1f2937; text-align: center;">My Leave Status History</h2>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 5px;">
+    <span id="leave-status-cycle-label" style="font-size: 13px; font-weight: 600; color: #555;">Cycle: ...</span>
+    <select id="leave-status-cycle-selector" onchange="openLeaveStatusHistory(parseInt(this.value, 10))" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px;">
+      <option value="0">Current Cycle</option>
+      <option value="1">Previous Cycle</option>
+      <option value="2">2 Cycles Ago</option>
+    </select>
+  </div>
+  <div id="leave-status-list-container" style="max-height: 350px; overflow-y: auto; margin-bottom: 15px; padding-right: 4px;">
+    <!-- Populated dynamically -->
+  </div>
+  <button onclick="switchView('view-dashboard')" class="btn-secondary">Return to Dashboard</button>
+</div>
+
+  
+
 <!-- VIEW 5: LEAVE MANAGEMENT MODULE -->
   <div id="view-leave-module" class="hidden card">
 
