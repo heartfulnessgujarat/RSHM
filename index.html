@@ -279,32 +279,22 @@
 </div>
 
 
-
- 
-
 <!-- VIEW 2: OPERATIONAL DASHBOARD -->
-  <div id="view-dashboard" class="hidden">
-    <div class="card">
-      
-      <h3 style="margin-bottom: 12px; font-size: 1.1rem;">Quick Actions</h3>
-      <button onclick="switchView('view-employee-profile')" class="btn-secondary" style="background: #4b5563; color: white; margin-bottom: 8px;">Employee Profile</button>
-      <button onclick="openNewWorkLogForm()">Daily Work Entry</button>
+<div id="view-dashboard" class="hidden">
+  <div class="card">
+    
+    <h3 style="margin-bottom: 12px; font-size: 1.1rem;">Quick Actions</h3>
+    <button onclick="switchView('view-employee-profile')" class="btn-secondary" style="background: #4b5563; color: white; margin-bottom: 8px;">Employee Profile</button>
+    <button onclick="openNewWorkLogForm()">Daily Work Entry</button>
 
-      
-      <button onclick="loadTimesheetHistory()" class="btn-secondary">My Timesheet History</button>
-      <button onclick="loadAttendanceHistory()" class="btn-secondary" style="margin-top: 8px; background: #0d9488; color: white;">My Attendance History</button>
-      <button onclick="openLeaveModule()" class="btn-secondary" style="margin-top: 8px; background: #2563eb; color: white;">Apply / Check Leave</button>
+    <button onclick="loadTimesheetHistory()" class="btn-secondary">My Timesheet History</button>
+    <button onclick="loadAttendanceHistory()" class="btn-secondary" style="margin-top: 8px; background: #0d9488; color: white;">My Attendance History</button>
+    <button onclick="openLeaveStatusHistory()" class="btn-secondary" style="margin-top: 8px; background: #0284c7; color: white;">My Leave Status</button>
+    <button onclick="openLeaveModule()" class="btn-secondary" style="margin-top: 8px; background: #2563eb; color: white;">Apply / Check Leave</button>
 
-      
-      <!-- Active & Pending Leave Status Box on Dashboard -->
-      <div style="margin-top: 16px; padding: 12px; background: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb;">
-        <h3 style="font-size: 0.9rem; font-weight: 600; color: #374151; margin-bottom: 8px;">My Active & Pending Leaves</h3>
-        <div id="dashboardLeaveStatusContainer">
-          <div style="font-size: 0.85rem; color: #9ca3af; font-style: italic;">Loading leave status...</div>
-        </div>
-      </div>
-    </div>
   </div>
+</div>
+ 
 
 
   
@@ -1854,12 +1844,12 @@ function renderTimesheetList() {
 }
 
 
-
-
-
-    async function loadDashboardLeaveStatus(selectedCycleOffset = 0) {
-  const container = document.getElementById('dashboardLeaveStatusContainer');
+async function openLeaveStatusHistory(selectedCycleOffset = 0) {
+  switchView('view-leave-status-history');
+  const container = document.getElementById('leave-status-list-container');
   if (!container || !currentUser) return;
+
+  container.innerHTML = "<p style='text-align:center; padding:15px; color:#777;'>Loading leave records...</p>";
 
   try {
     const empCode = currentUser.emp_code || currentUser.empCode || currentUser.employee_uid;
@@ -1874,7 +1864,6 @@ function renderTimesheetList() {
 
     // 2. Calculate Payroll Cycle Date Boundaries based on offset
     const now = new Date();
-    // Today's date normalized to midnight for accurate date comparisons
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
     let targetYear = now.getFullYear();
@@ -1884,7 +1873,6 @@ function renderTimesheetList() {
       targetMonth -= 1;
     }
     
-    // Only subtract offset if it's a numeric cycle
     const isFutureView = selectedCycleOffset === 'future';
     if (!isFutureView) {
       targetMonth -= parseInt(selectedCycleOffset, 10);
@@ -1904,21 +1892,15 @@ function renderTimesheetList() {
       ? "Upcoming Future Dates" 
       : `${cycleStartDate.getDate()} ${monthsNames[cycleStartDate.getMonth()]} - ${cycleEndDate.getDate()} ${monthsNames[cycleEndDate.getMonth()]} ${cycleEndDate.getFullYear()}`;
 
-    // Header with Cycle Selector Dropdown (including Future Leaves option)
-    let html = `
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #e5e7eb;">
-        <span style="font-size: 0.78rem; font-weight: 600; color: #555;">Cycle: ${cycleLabelText}</span>
-        <select id="leave-cycle-selector" onchange="loadDashboardLeaveStatus(this.value === 'future' ? 'future' : parseInt(this.value, 10))" style="padding: 3px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.75rem;">
-          <option value="0" ${selectedCycleOffset === 0 ? 'selected' : ''}>Current Cycle</option>
-          <option value="1" ${selectedCycleOffset === 1 ? 'selected' : ''}>Previous Cycle</option>
-          <option value="2" ${selectedCycleOffset === 2 ? 'selected' : ''}>2 Cycles Ago</option>
-          <option value="future" ${isFutureView ? 'selected' : ''}>Future Leaves</option>
-        </select>
-      </div>
-    `;
+    // Update cycle label text in the view
+    const labelElem = document.getElementById('leave-status-cycle-label');
+    if (labelElem) labelElem.innerText = `Cycle: ${cycleLabelText}`;
+
+    const selectorElem = document.getElementById('leave-status-cycle-selector');
+    if (selectorElem) selectorElem.value = selectedCycleOffset;
 
     if (!leavesData) {
-      container.innerHTML = html + `<div style="font-size: 0.85rem; color: #6b7280; font-style: italic; padding: 10px 0; text-align: center;">No leave applications found.</div>`;
+      container.innerHTML = `<div style="font-size: 0.9rem; color: #6b7280; font-style: italic; padding: 20px 0; text-align: center;">No leave applications found.</div>`;
       return;
     }
 
@@ -1929,13 +1911,11 @@ function renderTimesheetList() {
       requestsArray.push(item);
     }
 
-    // Helper map for text-based month names stored in Firebase (e.g., "AUG")
     const monthMap = {
       'JAN': 0, 'FEB': 1, 'MAR': 2, 'APR': 3, 'MAY': 4, 'JUN': 5,
       'JUL': 6, 'AUG': 7, 'SEP': 8, 'OCT': 9, 'NOV': 10, 'DEC': 11
     };
 
-    // Helper parser function for DD-MMM-YYYY or YYYY-MM-DD
     const parseFirebaseDate = (dateStr) => {
       if (!dateStr) return null;
       const parts = dateStr.split('-');
@@ -1961,7 +1941,6 @@ function renderTimesheetList() {
       return new Date(dateStr);
     };
 
-    // 4. Filter leaves based on whether 'Future' or a specific cycle is selected
     const cycleLeaves = requestsArray.filter(r => {
       const leaveDateStr = r.leave_date || r.leaveDate || r.from_date || r.fromDate;
       const leaveDate = parseFirebaseDate(leaveDateStr);
@@ -1969,28 +1948,24 @@ function renderTimesheetList() {
       if (!leaveDate || isNaN(leaveDate)) return false;
 
       if (isFutureView) {
-        // Show only leaves strictly after today's date
         return leaveDate > today;
       } else {
-        // Show leaves within the selected payroll cycle boundaries
         return leaveDate >= cycleStartDate && leaveDate <= cycleEndDate;
       }
     });
 
     if (cycleLeaves.length === 0) {
-      container.innerHTML = html + `<div style="font-size: 0.85rem; color: #6b7280; font-style: italic; padding: 10px 0; text-align: center;">No leaves recorded here.</div>`;
+      container.innerHTML = `<div style="font-size: 0.9rem; color: #6b7280; font-style: italic; padding: 20px 0; text-align: center;">No leaves recorded for this period.</div>`;
       return;
     }
 
-    // Sort leave dates
     cycleLeaves.sort((a, b) => {
       const dateA = parseFirebaseDate(a.leave_date || a.leaveDate);
       const dateB = parseFirebaseDate(b.leave_date || b.leaveDate);
-      return isFutureView ? dateA - dateB : dateB - dateA; // Future sorted ascending, past/current descending
+      return isFutureView ? dateA - dateB : dateB - dateA;
     });
 
-    // 5. Scrollable Container Wrapper for the List
-    html += `<div style="max-height: 220px; overflow-y: auto; padding-right: 4px;">`;
+    let html = `<div style="max-height: 320px; overflow-y: auto; padding-right: 4px;">`;
 
     cycleLeaves.forEach(r => {
       const lType = r.leave_type || r.leaveType || 'Leave';
@@ -2004,14 +1979,14 @@ function renderTimesheetList() {
       const canCancel = statusStr === 'pending';
 
       html += `
-        <div style="font-size: 0.82rem; border-bottom: 1px dashed #e5e7eb; padding: 8px 0; display: flex; justify-content: space-between; align-items: center;">
+        <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <div><strong>${lType}</strong> (${lDate})</div>
-            <div style="color: #6b7280;">Reason: ${r.reason || 'N/A'}</div>
-            <div style="color: ${statusColor}; font-weight: 600; margin-top: 2px;">Status: ${r.status}</div>
+            <strong style="font-size: 0.9rem; color: #1f2937;">${lType} (${lDate})</strong>
+            <div style="font-size: 0.8rem; color: #4b5563; margin-top: 2px;">Reason: ${r.reason || 'N/A'}</div>
+            <div style="font-size: 0.8rem; color: ${statusColor}; font-weight: 600; margin-top: 2px;">Status: ${r.status}</div>
           </div>
           <div>
-            ${canCancel ? `<button onclick="handleCancelLeave('${r.leaveId}', '${lType}', '${lDate}', '${r.status}')" style="background: #dc2626; color: white; border: none; padding: 4px 10px; font-size: 0.75rem; border-radius: 4px; cursor: pointer; font-weight: 600;">Cancel</button>` : ''}
+            ${canCancel ? `<button onclick="handleCancelLeave('${r.leaveId}', '${lType}', '${lDate}', '${r.status}')" style="background: #dc2626; color: white; border: none; padding: 5px 12px; font-size: 0.78rem; border-radius: 4px; cursor: pointer; font-weight: 600;">Cancel</button>` : ''}
           </div>
         </div>
       `;
@@ -2021,12 +1996,15 @@ function renderTimesheetList() {
     container.innerHTML = html;
 
   } catch(e) {
-    console.error("Error loading dashboard leave status:", e);
-    container.innerHTML = `<div style="font-size: 0.82rem; color: #dc2626;">Unable to load status.</div>`;
+    console.error("Error loading leave status history:", e);
+    container.innerHTML = `<div style="font-size: 0.85rem; color: #dc2626; text-align: center; padding: 15px;">Unable to load status records.</div>`;
   }
 }
+
+
     
-    
+
+
 
  async function handleCancelLeave(leaveId, leaveType, leaveDate, currentStatus) {
   console.log("[DEBUG] Current Logged-in User Object:", currentUser);
