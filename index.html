@@ -4000,8 +4000,34 @@ function uploadLogoBase64FromSheet() {
     console.error(err);
   }
 }
+
+
+
+
+
+// ... all your other functions (executeWorkSubmit, etc.) above ...
+
+  // ⭐ DISABLE NATIVE TIME POPUPS FOR MERS WORK ENTRY ⭐
+  document.addEventListener('DOMContentLoaded', () => {
+    const workFrom = document.getElementById('work-from');
+    const workTo = document.getElementById('work-to');
+
+    if (workFrom) {
+      workFrom.addEventListener('invalid', (e) => e.preventDefault());
+    }
+    if (workTo) {
+      workTo.addEventListener('invalid', (e) => e.preventDefault());
+    }
+  });
+
+
+
+
+
     
-  </script>
+
+</script>    
+
 </body>
 </html>
 
