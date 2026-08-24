@@ -4166,6 +4166,7 @@ async function loadAttendanceHistory(selectedCycleOffset = 0) {
   }
 }
 
+    
 function renderAttendanceHistoryUI(startDay, endDay, currentOffset, attendanceRecords) {
   const listDiv = document.getElementById('attendance-list');
   
@@ -4180,7 +4181,7 @@ function renderAttendanceHistoryUI(startDay, endDay, currentOffset, attendanceRe
   const cycleLabelText = `${startLabelDate.getDate()} ${monthsNames[startLabelDate.getMonth()]} - ${endLabelDate.getDate()} ${monthsNames[endLabelDate.getMonth()]} ${endLabelDate.getFullYear()}`;
 
   let headerHtml = `
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 5px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 5px;">
       <span style="font-size: 13px; font-weight: 600; color: #555;">
         Cycle: ${cycleLabelText}
       </span>
@@ -4197,11 +4198,11 @@ function renderAttendanceHistoryUI(startDay, endDay, currentOffset, attendanceRe
     return;
   }
 
-  let cardsHtml = "";
+  let rowsHtml = "";
   attendanceRecords.forEach(att => {
     const rawDate = att.dateStr || "";
     let formattedDate = rawDate;
-    let dayName = "";
+    let dayName = "-";
 
     try {
       const parts = rawDate.split('-');
@@ -4209,46 +4210,51 @@ function renderAttendanceHistoryUI(startDay, endDay, currentOffset, attendanceRe
         const monthsMap = { JAN:0, FEB:1, MAR:2, APR:3, MAY:4, JUN:5, JUL:6, AUG:7, SEP:8, OCT:9, NOV:10, DEC:11 };
         const parsedDate = new Date(parseInt(parts[2], 10), monthsMap[parts[1].toUpperCase()], parseInt(parts[0], 10));
         if (!isNaN(parsedDate)) {
-          formattedDate = formatDatetoDDMMMYYYY ? formatDatetoDDMMMYYYY(rawDate) : rawDate;
+          formattedDate = typeof formatDatetoDDMMMYYYY === 'function' ? formatDatetoDDMMMYYYY(rawDate) : rawDate;
           dayName = parsedDate.toLocaleDateString('en-US', { weekday: 'long' });
         }
       }
     } catch(err) {}
 
-    const statusVal = att.status || "N/A";
+    const attendanceVal = att.status || "-";
     const hoursVal = att.hours !== undefined ? att.hours : "0";
 
-    cardsHtml += `
-      <div class="item-row" style="background: #fff; margin-bottom: 8px; border-bottom: 1px solid #f0f0f0; padding: 10px;">
-        <div class="flex-space" style="display: flex; justify-content: space-between; align-items: center;">
-          <strong style="font-size: 0.9rem;">${formattedDate} ${dayName ? `(${dayName})` : ''}</strong>
-          <span style="background: #f3f4f6; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; color: #2563eb;">Status: ${statusVal}</span>
-        </div>
-        <div style="font-size: 0.82rem; color: #4b5563; margin-top: 4px;">
-          <span>Logged Hours: <strong>${hoursVal} hrs</strong></span>
-        </div>
-      </div>
+    rowsHtml += `
+      <tr style="border-bottom: 1px solid #f0f0f0; text-align: center;">
+        <td style="padding: 8px; font-size: 0.85rem; color: #333;">${formattedDate}</td>
+        <td style="padding: 8px; font-size: 0.85rem; color: #555;">${dayName}</td>
+        <td style="padding: 8px; font-size: 0.85rem; color: #333;">${hoursVal}</td>
+        <td style="padding: 8px; font-size: 0.85rem; font-weight: bold; color: #2563eb;">${attendanceVal}</td>
+      </tr>
     `;
   });
 
   let summaryBanner = `
-    <div style="font-size: 12px; color: #4b5563; margin-bottom: 8px; font-weight: 500; display: flex; justify-content: space-between;">
-      <span>Total Days Recorded: <strong>${attendanceRecords.length}</strong></span>
+    <div style="font-size: 12px; color: #4b5563; margin-bottom: 8px; font-weight: 500; padding: 0 5px;">
+      Total Days Recorded: <strong>${attendanceRecords.length}</strong>
     </div>
   `;
 
-  // Removed nested scroll container to fix the double scrollbar issue cleanly
   listDiv.innerHTML = `
     ${headerHtml}
     ${summaryBanner}
-    <div>
-      ${cardsHtml}
+    <div style="max-height: 320px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 6px;">
+      <table style="width: 100%; border-collapse: collapse; background: #fff;">
+        <thead>
+          <tr style="background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: center;">
+            <th style="padding: 8px; font-size: 0.85rem; color: #374151;">Date</th>
+            <th style="padding: 8px; font-size: 0.85rem; color: #374151;">Day</th>
+            <th style="padding: 8px; font-size: 0.85rem; color: #374151;">Hours</th>
+            <th style="padding: 8px; font-size: 0.85rem; color: #374151;">Attendance</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
     </div>
   `;
 }
-
-
-
 
     
 function renderAttendanceHistoryUI(startDay, endDay, currentOffset, attendanceRecords) {
