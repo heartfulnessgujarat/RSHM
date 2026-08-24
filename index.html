@@ -2227,6 +2227,7 @@ const clElem = document.getElementById('clBalanceDisplay');
 /**
  * Helper to render balance values dynamically in index.html spans (Includes PH)
  */
+
 function renderLeaveBalances(balances) {
   if (!balances) return;
 
@@ -2234,14 +2235,16 @@ function renderLeaveBalances(balances) {
   const slElem = document.getElementById('slBalanceDisplay');
   const coElem = document.getElementById('coBalanceDisplay');
   const phElem = document.getElementById('phBalanceDisplay');
+  const mtElem = document.getElementById('mtBalanceDisplay'); // ⭐ Added MT element lookup ⭐
 
   if (clElem) clElem.innerText = balances.cl !== undefined ? balances.cl : (balances.CL !== undefined ? balances.CL : '0');
   if (slElem) slElem.innerText = balances.sl !== undefined ? balances.sl : (balances.SL !== undefined ? balances.SL : '0');
   if (coElem) coElem.innerText = balances.co !== undefined ? balances.co : (balances.CO !== undefined ? balances.CO : '0');
   if (phElem) phElem.innerText = balances.ph !== undefined ? balances.ph : (balances.PH !== undefined ? balances.PH : '0');
+  if (mtElem) mtElem.innerText = balances.mt !== undefined ? balances.mt : (balances.MT !== undefined ? balances.MT : '0'); // ⭐ Added MT balance assignment ⭐
 }
 
-
+    
 
 function toggleLeaveFields() {
   const typeSelect = document.getElementById('leaveTypeSelect');
