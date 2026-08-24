@@ -1212,11 +1212,7 @@ async function executeWorkSubmit(e) {
         });
 
 
-
-
-
-
-        
+       
         if (activeLeave) {
           const formattedDate = formatDatetoDDMMMYYYY(work_date);
           const leaveType = activeLeave.leave_type || 'Leave';
@@ -1246,11 +1242,6 @@ async function executeWorkSubmit(e) {
             return;
           }
         }
-
-
-        
-
-
 
 
         
@@ -2660,6 +2651,10 @@ if (conflictingLog) {
     const empSnapshot = await empNodeRef.once('value');
     const empData = empSnapshot.val() || {};
 
+
+
+
+    
     const cleanType = finalLeaveType.toLowerCase();
     let targetPrefix = 'cl';
     if (cleanType.includes('ph') || cleanType.includes('holiday')) {
@@ -2670,9 +2665,16 @@ if (conflictingLog) {
       targetPrefix = 'co';
     } else if (cleanType.includes('el') || cleanType.includes('earned')) {
       targetPrefix = 'el';
+    } else if (cleanType.includes('mt') || cleanType.includes('maternity')) {
+      targetPrefix = 'mt'; // ⭐ Added support for Maternity Leave balance ⭐
     }
 
     const balanceField = `${targetPrefix}_balance`;
+
+    
+
+
+    
     const currentBal = parseFloat(String(empData[balanceField] || "0").replace(/"/g, ''));
     
     if (isNaN(currentBal) || totalDays > currentBal) {
