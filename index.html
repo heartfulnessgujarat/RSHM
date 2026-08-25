@@ -439,7 +439,7 @@
         <label>Activity Summary (Max 500 characters)</label>
         <textarea id="work-desc" rows="4" maxlength="500" placeholder="Describe the structural work accomplished..." required></textarea>
       </div>
-      <button type="submit" id="btn-save-log">Submit Work Log</button>
+      <button type="submit" id="btn-save-log">Submit Daily Work Entry</button>
       <button type="button" onclick="switchView('view-dashboard')" class="btn-secondary">Cancel</button>
     </form>
   </div>
@@ -1241,7 +1241,7 @@ async function executeWorkSubmit(e) {
       const btn = document.getElementById('btn-save-log');
       if (btn) {
         btn.disabled = false;
-        btn.innerText = "Submit Work Log";
+        btn.innerText = "Submit Daily Entry";
       }
       return; 
     }
@@ -1297,7 +1297,7 @@ async function executeWorkSubmit(e) {
             await showCustomAlert(errorMsg);
 
             const btn = document.getElementById('btn-save-log');
-            if (btn) { btn.disabled = false; btn.innerText = "Submit Work Log"; }
+            if (btn) { btn.disabled = false; btn.innerText = "Submit Daily Work Entry"; }
             return;
           }
 
@@ -1310,7 +1310,7 @@ async function executeWorkSubmit(e) {
           }
           if (!proceedWithWork) {
             const btn = document.getElementById('btn-save-log');
-            if (btn) { btn.disabled = false; btn.innerText = "Submit Work Log"; }
+            if (btn) { btn.disabled = false; btn.innerText = "Submit Daily Work Entry"; }
             return;
           }
         }
@@ -1367,7 +1367,7 @@ async function executeWorkSubmit(e) {
       const btn = document.getElementById('btn-save-log');
       if (btn) {
         btn.disabled = false;
-        btn.innerText = "Submit Work Log";
+        btn.innerText = "Submit Daily Work Entry";
       }
       return; 
     }
@@ -1532,7 +1532,7 @@ async function executeWorkSubmit(e) {
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.innerText = "Submit Work Log";
+      btn.innerText = "Submit Daily Work Entry";
     }
   }
 }
