@@ -611,7 +611,7 @@
 
 const BACKEND_API = "https://script.google.com/macros/s/AKfycbxGlXrXS8XgFxKQOk7WMtie_kFlnydOFsngBVeV-eDP-qP7byBPxcVoBo27BbNXXqKtwA/exec";
 
- // https://script.google.com/macros/s/AKfycbxGlXrXS8XgFxKQOk7WMtie_kFlnydOFsngBVeV-eDP-qP7byBPxcVoBo27BbNXXqKtwA/exec
+ 
     
     
     let currentUser = null;
@@ -1768,9 +1768,10 @@ async function loadTimesheetHistory(selectedCycleOffset = 0) {
       return logDate >= cycleStartDate && logDate <= cycleEndDate;
     });
 
-    // Sort newest dates first
-    cachedTimesheet.sort((a, b) => new Date(b.work_date) - new Date(b.work_date));
+   // Sort newest dates first
+    cachedTimesheet.sort((a, b) => new Date(b.work_date) - new Date(a.work_date));
 
+    
     // 5. Render header UI and then call your original renderTimesheetList()
     renderTimesheetHistoryUI(payrollStartDay, payrollEndDay, selectedCycleOffset);
 
