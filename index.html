@@ -2561,12 +2561,7 @@ async function handleLeaveSubmit(e) {
       
       const cleanType = finalLeaveType.toLowerCase();
 
-
-
-
-
-
-      
+     
       if (cleanType.includes('sl') || cleanType.includes('sick')) {
         const todayObj = new Date();
         const year = todayObj.getFullYear();
@@ -2578,10 +2573,7 @@ async function handleLeaveSubmit(e) {
           throw new Error('Sick Leave (SL) cannot be applied for future dates.');
         }
       }
-
-
-
-      
+   
 const effectiveDaysEl = document.getElementById('effectiveDaysCount');
       const calculatedDaysEl = document.getElementById('calculatedDaysCount');
 
@@ -2599,12 +2591,7 @@ const effectiveDaysEl = document.getElementById('effectiveDaysCount');
       reason = document.getElementById('leaveReason')?.value?.trim() || 'Leave Application';
     }
 
-
-
-
-    
-
-    if (totalDays <= 0) throw new Error('Invalid date selection or leave duration is 0 days.');
+   if (totalDays <= 0) throw new Error('Invalid date selection or leave duration is 0 days.');
 
     // ==========================================
     // ⭐ WORK LOG CONFLICT CHECK FOR LEAVE ⭐
@@ -2632,8 +2619,6 @@ const effectiveDaysEl = document.getElementById('effectiveDaysCount');
             }
           });
 
-
-
 if (conflictingLog) {
             const formattedDate = formatDatetoDDMMMYYYY(conflictingLog.work_date);
 
@@ -2649,20 +2634,6 @@ if (conflictingLog) {
               if (submitBtn) submitBtn.disabled = false;
               return;
             }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
             
             const confirmMsg = `You have already entered work on ${formattedDate} (${conflictingLog.duration} hrs). Since you selected a Half-Day leave (${finalLeaveType}), your existing work hours will be preserved. Do you wish to proceed?`;
@@ -2694,10 +2665,7 @@ if (conflictingLog) {
     const empSnapshot = await empNodeRef.once('value');
     const empData = empSnapshot.val() || {};
 
-
-
-
-    
+   
     const cleanType = finalLeaveType.toLowerCase();
     let targetPrefix = 'cl';
     if (cleanType.includes('ph') || cleanType.includes('holiday')) {
@@ -2714,10 +2682,7 @@ if (conflictingLog) {
 
     const balanceField = `${targetPrefix}_balance`;
 
-    
-
-
-    
+        
     const currentBal = parseFloat(String(empData[balanceField] || "0").replace(/"/g, ''));
     
     if (isNaN(currentBal) || totalDays > currentBal) {
