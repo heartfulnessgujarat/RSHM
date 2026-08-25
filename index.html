@@ -1910,14 +1910,20 @@ function renderTimesheetList() {
         </div>
     `;
 
-    // Enforce max-height and scrolling explicitly on the wrapper element
+
+  
+// Render the list cleanly without nested scroll wrappers
     listDiv.innerHTML = `
       ${html}
       ${summaryBanner}
-      <div style="max-height: 400px; overflow-y: auto; overflow-x: hidden; padding-right: 4px; border: 1px solid #f3f4f6; border-radius: 6px;">
+      <div>
         ${cardsHtml}
       </div>
     `;
+
+
+
+  
 }
 
 
