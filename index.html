@@ -2059,7 +2059,9 @@ async function openLeaveStatusHistory(selectedCycleOffset = 0) {
       if (statusStr === 'approved') statusColor = '#16a34a';
       else if (statusStr === 'rejected') statusColor = '#dc2626';
 
-      const canCancel = statusStr === 'pending';
+    //  const canCancel = statusStr === 'pending';
+
+      const canCancel = statusStr === 'pending' || statusStr.includes('approved');
 
       html += `
         <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
