@@ -2256,8 +2256,7 @@ async function openLeaveStatusHistory(selectedCycleOffset = 0) {
  * Fetches balances directly from masters/employees/${empId}
  */
 
-
-    async function openLeaveModule() {
+async function openLeaveModule() {
   if (typeof switchView === 'function') {
     switchView('view-leave-module');
   }
@@ -2265,13 +2264,82 @@ async function openLeaveStatusHistory(selectedCycleOffset = 0) {
   const formElem = document.getElementById('leaveApplyForm');
   if (formElem) formElem.reset();
 
-  // ⭐ ADD THIS LINE HERE, EXACTLY LIKE DAILY WORK LOG ⭐
+  // ⭐ CALL BOTH DATE LIMITS AND GUARDS HERE ⭐
   await setLeaveDateLimits();
+  initLeaveDateGuards();
 
-  // ... rest of your existing openLeaveModule logic ...
+  const badgeElem = document.getElementById('leaveDaysBadge');
+  if (badgeElem) badgeElem.classList.add('hidden');
+
+  const weeklyOffRowElem = document.getElementById('weeklyOffRow');
+  if (weeklyOffRowElem) weeklyOffRowElem.classList.add('hidden');
+
+  const effectiveDaysRowElem = document.getElementById('effectiveDaysRow');
+  if (effectiveDaysRowElem) effectiveDaysRowElem.classList.add('hidden');
+
+  const statusMsgElem = document.getElementById('leaveStatusMessage');
+  if (statusMsgElem) statusMsgElem.innerText = '';
+
+  let empId = (typeof currentUser !== 'undefined' && currentUser) 
+              ? (currentUser.empCode || currentUser.empId || currentUser.uid || currentUser.emp_code) 
+              : '';
+
+  if (!empId) {
+    empId = document.getElementById('leaveEmpId')?.value || 
+            document.getElementById('login-emp-code')?.value || '';
+  }
+
+  if (!empId) {
+    const codeElem = document.getElementById('dash-user-code');
+    if (codeElem && codeElem.innerText) {
+      const match = codeElem.innerText.match(/ID:\s*([A-Za-z0-9]+)/i);
+      if (match && match[1]) empId = match[1].trim();
+    }
+  }
+
+  if (!empId) {
+    console.warn('No Employee ID found to fetch leave balances.');
+    if (typeof showToast === 'function') {
+      showToast('Unable to detect Employee ID. Please re-login.', 'error');
+    }
+    return;
+  }
+
+  const clElem = document.getElementById('clBalanceDisplay');
+  const slElem = document.getElementById('slBalanceDisplay');
+  const coElem = document.getElementById('coBalanceDisplay');
+  const phElem = document.getElementById('phBalanceDisplay');
+  const mtElem = document.getElementById('mtBalanceDisplay');
+
+  if (clElem) clElem.innerText = '..';
+  if (slElem) slElem.innerText = '..';
+  if (coElem) coElem.innerText = '..';
+  if (phElem) phElem.innerText = '..';
+  if (mtElem) mtElem.innerText = '..';
+
+  try {
+    const snapshot = await firebase.database().ref(`masters/employees/${empId}`).once('value');
+    const empData = snapshot.val();
+
+    if (empData) {
+      const formattedBalances = {
+        cl: empData.cl_balance !== undefined ? empData.cl_balance : 0,
+        sl: empData.sl_balance !== undefined ? empData.sl_balance : 0,
+        co: empData.co_balance !== undefined ? empData.co_balance : 0,
+        ph: empData.ph_balance !== undefined ? empData.ph_balance : 0,
+        mt: empData.mt_balance !== undefined ? empData.mt_balance : 0
+      };
+      renderLeaveBalances(formattedBalances);
+    } else {
+      renderLeaveBalances({ cl: 0, sl: 0, co: 0, ph: 0, mt: 0 });
+    }
+  } catch (err) {
+    console.error("Error fetching leave balances from Firebase:", err);
+    if (typeof showToast === 'function') {
+      showToast('Error fetching leave balances: ' + err.message, 'error');
+    }
+  }
 }
-  
-
  
 
 /**
