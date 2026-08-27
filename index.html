@@ -2198,11 +2198,24 @@ async function openLeaveStatusHistory(selectedCycleOffset = 0) {
       console.log(`Leave successfully cancelled and notification sent to ${ricName}!`);
     }
 
-    if (typeof loadDashboardLeaveStatus === 'function') {
-            openLeaveStatusHistory();
+
+
+// Return user safely to the main dashboard screen instead of leaving them on the status panel
+    if (typeof openDashboard === 'function') {
+      openDashboard();
+    } else if (typeof closeLeaveStatusModal === 'function') {
+      closeLeaveStatusModal();
+    } else if (typeof showMainDashboard === 'function') {
+      showMainDashboard();
+    } else {
+      // Fallback: reload or redirect to main view if specific router functions differ
+      window.location.reload();
     }
 
   } catch (err) {
+
+
+    
     console.error("Cancellation error:", err);
     if (typeof showCustomAlert === 'function') {
       await showCustomAlert("Error: Could not complete cancellation.");
