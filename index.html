@@ -3222,27 +3222,45 @@ function openNewWorkLogForm() {
 }
 
 
+
+
+
 async function setWorkDateLimits() {
   const dateInput = document.getElementById('work-date');
   if (!dateInput) return;
 
   try {
     let editWindowDays = 7;
+    let payrollStartDay = 26;
+
     if (typeof window.APP_CONFIG !== 'undefined' && window.APP_CONFIG.edit_window_days) {
       editWindowDays = parseInt(window.APP_CONFIG.edit_window_days, 10);
+      payrollStartDay = parseInt(window.APP_CONFIG.payrollstartday || window.APP_CONFIG.payroll_start_day || 26, 10);
     } else {
       const configSnapshot = await firebase.database().ref('config').once('value');
       const configData = configSnapshot.val() || {};
       editWindowDays = parseInt(configData.edit_window_days || 7, 10);
+      payrollStartDay = parseInt(configData.payrollstartday || configData.payroll_start_day || 26, 10);
       window.APP_CONFIG = configData;
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // Subtract exact days using timestamp math to match the submit validator perfectly
-    const minTime = today.getTime() - (editWindowDays * 24 * 60 * 60 * 1000);
-    const minDate = new Date(minTime);
+    // 1. Calculate 7-day rolling window limit
+    const rollingMinTime = today.getTime() - (editWindowDays * 24 * 60 * 60 * 1000);
+    let rollingMinDate = new Date(rollingMinTime);
+
+    // 2. Calculate Payroll Cycle Start limit (e.g., 26th of current or previous cycle)
+    let cycleStartDate = new Date(now.getFullYear(), now.getMonth(), payrollStartDay);
+    if (now.getDate() < payrollStartDay) {
+      cycleStartDate = new Date(now.getFullYear(), now.getMonth() - 1, payrollStartDay);
+    }
+    cycleStartDate.setHours(0, 0, 0, 0);
+
+    // 3. Take the LATER of the two dates (whichever restricts further into the present/is stricter)
+    // This ensures neither the rolling window nor the closed payroll cycle can be violated.
+    const finalMinDate = cycleStartDate > rollingMinDate ? cycleStartDate : rollingMinDate;
 
     const formatDate = (d) => {
       const yyyy = d.getFullYear();
@@ -3252,14 +3270,20 @@ async function setWorkDateLimits() {
     };
 
     dateInput.max = formatDate(today);
-    dateInput.min = formatDate(minDate);
+    dateInput.min = formatDate(finalMinDate);
     
     console.log("Date Picker Limits Set -> Min:", dateInput.min, "| Max:", dateInput.max);
   } catch (err) {
     console.error("Failed to set date limits:", err);
   }
 }
+    
 
+
+
+
+
+    
 
 // Global helper to format YYYY-MM-DD into DD-MMM-YYYY
 function formatDatetoDDMMMYYYY(dateStr) {
