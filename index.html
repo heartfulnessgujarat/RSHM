@@ -1718,11 +1718,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+    
 async function editWorkLog(worklogId) {
     const log = cachedTimesheet.find(l => l.worklog_id === worklogId);
     if (!log) return;
 
     await setupWorkFormDropdowns();
+    await setWorkDateLimits(); // ⭐ Forces calendar limits to update instantly ⭐
+    
     document.getElementById('work-entry-title').innerText = "Edit Work Log";
     document.getElementById('editing-worklog-id').value = log.worklog_id;
     document.getElementById('work-date').value = log.work_date;
@@ -1735,9 +1738,7 @@ async function editWorkLog(worklogId) {
     updateTimePickerMaxForToday();
 
     switchView('view-work-entry');
-}   
-
-
+}
 
 
 
@@ -3216,11 +3217,11 @@ function handleFormSubmit(formData) {
     .processServerAction(formData);
 }
 
-function openNewWorkLogForm() {
+async function openNewWorkLogForm() {
   setupWorkFormDropdowns();
+  await setWorkDateLimits(); // ⭐ Forces calendar limits to update instantly ⭐
   switchView('view-work-entry');
 }
-
 
 
 
