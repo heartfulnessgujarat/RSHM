@@ -3620,12 +3620,13 @@ window.formatTimestamp = function(d) {
   return `${day}-${month}-${year} ${hours}:${minutes}`;
 };
 
-
 async function updateLeaveDateRestrictions() {
+  console.log("-> [DIAGNOSTIC] updateLeaveDateRestrictions() started");
   const leaveTypeEl = document.getElementById('leaveTypeSelect');
   const fromDateEl = document.getElementById('leaveFromDate');
   const toDateEl = document.getElementById('leaveToDate');
   
+  console.log("-> [DIAGNOSTIC] Elements found -> leaveTypeEl:", !!leaveTypeEl, "| fromDateEl:", !!fromDateEl, "| toDateEl:", !!toDateEl);
   if (!leaveTypeEl || !fromDateEl || !toDateEl) return;
 
   // --- PART 1: Enforce Strict Payroll / Rolling Window Minimum Limit ---
@@ -3636,12 +3637,15 @@ async function updateLeaveDateRestrictions() {
     if (typeof window.APP_CONFIG !== 'undefined' && window.APP_CONFIG.edit_window_days) {
       editWindowDays = parseInt(window.APP_CONFIG.edit_window_days, 10);
       payrollStartDay = parseInt(window.APP_CONFIG.payrollstartday || window.APP_CONFIG.payroll_start_day || 26, 10);
+      console.log("-> [DIAGNOSTIC] Loaded from window.APP_CONFIG -> editWindowDays:", editWindowDays, "| payrollStartDay:", payrollStartDay);
     } else {
+      console.log("-> [DIAGNOSTIC] Fetching config from Firebase database...");
       const configSnapshot = await firebase.database().ref('config').once('value');
       const configData = configSnapshot.val() || {};
       editWindowDays = parseInt(configData.edit_window_days || 7, 10);
       payrollStartDay = parseInt(configData.payrollstartday || configData.payroll_start_day || 26, 10);
       window.APP_CONFIG = configData;
+      console.log("-> [DIAGNOSTIC] Fetched config data from Firebase:", configData);
     }
 
     const now = new Date();
@@ -3656,6 +3660,8 @@ async function updateLeaveDateRestrictions() {
     }
     cycleStartDate.setHours(0, 0, 0, 0);
 
+    console.log("-> [DIAGNOSTIC] Calculated cycleStartDate:", cycleStartDate.toDateString(), "| rollingMinDate:", rollingMinDate.toDateString());
+
     const finalMinDate = cycleStartDate > rollingMinDate ? cycleStartDate : rollingMinDate;
 
     const formatDate = (d) => {
@@ -3668,13 +3674,15 @@ async function updateLeaveDateRestrictions() {
     const minStr = formatDate(finalMinDate);
     fromDateEl.min = minStr;
     toDateEl.min = minStr;
+    console.log("-> [DIAGNOSTIC] Successfully assigned min date:", minStr, "to inputs.");
   } catch (err) {
-    console.error("Error setting strict payroll minimum in updateLeaveDateRestrictions:", err);
+    console.error("-> [DIAGNOSTIC] Error setting strict payroll minimum:", err);
   }
 
   // --- PART 2: Handle Sick Leave & Half-Day UI Adjustments ---
   const leaveTypeVal = leaveTypeEl.value.toLowerCase();
   const isHalfDay = leaveTypeVal.includes('half day') || leaveTypeVal.includes('1/2');
+  console.log("-> [DIAGNOSTIC] Selected leave type:", leaveTypeVal, "| isHalfDay:", isHalfDay);
 
   const fromDateLabel = document.querySelector('label[for="leaveFromDate"]') || document.getElementById('from-date-label');
   const toDateContainer = document.getElementById('leaveToDateContainer') || document.getElementById('to-date-group') || document.getElementById('leaveToDate')?.closest('.mb-3, .form-group, div');
@@ -3706,9 +3714,6 @@ async function updateLeaveDateRestrictions() {
     toDateEl.removeAttribute('max');
   }
 }
-
-
-
 
     
 function showCustomAlert(message) {
