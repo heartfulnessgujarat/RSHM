@@ -1201,7 +1201,11 @@ async function executeWorkSubmit(e) {
 
       if (isNaN(editWindowDays)) editWindowDays = 7;
 
-      const [year, month, day] = work_date.split('-').map(Number);
+
+
+
+      
+const [year, month, day] = work_date.split('-').map(Number);
       const selectedDate = new Date(year, month - 1, day);
       selectedDate.setHours(0, 0, 0, 0);
 
@@ -1217,6 +1221,27 @@ async function executeWorkSubmit(e) {
       if (diffDays > editWindowDays) {
         throw new Error(`The date is outside the allowed entry/edit window (${editWindowDays} days).`);
       }
+
+      // ⭐ PAYROLL CYCLE BOUNDARY INTERLOCK CHECK ⭐
+      // Determine current active cycle start based on config (defaulting to 26th)
+      let payrollStartDay = 26;
+      if (typeof window.APP_CONFIG !== 'undefined' && (window.APP_CONFIG.payrollstartday || window.APP_CONFIG.payroll_start_day)) {
+        payrollStartDay = parseInt(window.APP_CONFIG.payrollstartday || window.APP_CONFIG.payroll_start_day, 10) || 26;
+      }
+      
+      let cycleStartDate = new Date(now.getFullYear(), now.getMonth(), payrollStartDay);
+      // If today is before the 26th of the current month, the current cycle actually started on the 26th of the previous month
+      if (now.getDate() < payrollStartDay) {
+        cycleStartDate = new Date(now.getFullYear(), now.getMonth() - 1, payrollStartDay);
+      }
+      cycleStartDate.setHours(0, 0, 0, 0);
+
+      if (selectedDate < cycleStartDate) {
+        throw new Error("This date belongs to a previous payroll cycle that has already been closed and locked.");
+      }
+
+
+      
 
       // ⭐ FUTURE TIME VALIDATION FOR TODAY ⭐
       const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
