@@ -4398,10 +4398,12 @@ function renderAttendanceHistoryUI(startDay, endDay, currentOffset, attendanceRe
   `;
 }    
 
-
 async function setLeaveDateLimits() {
+  console.log("-> [DIAGNOSTIC] setLeaveDateLimits() started");
   const fromDateEl = document.getElementById('leaveFromDate');
   const toDateEl = document.getElementById('leaveToDate');
+  
+  console.log("-> [DIAGNOSTIC] fromDateEl found:", !!fromDateEl, "| toDateEl found:", !!toDateEl);
   if (!fromDateEl && !toDateEl) return;
 
   try {
@@ -4422,18 +4424,15 @@ async function setLeaveDateLimits() {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // 1. Calculate 7-day rolling window limit
     const rollingMinTime = today.getTime() - (editWindowDays * 24 * 60 * 60 * 1000);
     let rollingMinDate = new Date(rollingMinTime);
 
-    // 2. Calculate Payroll Cycle Start limit
     let cycleStartDate = new Date(now.getFullYear(), now.getMonth(), payrollStartDay);
     if (now.getDate() < payrollStartDay) {
       cycleStartDate = new Date(now.getFullYear(), now.getMonth() - 1, payrollStartDay);
     }
     cycleStartDate.setHours(0, 0, 0, 0);
 
-    // 3. Take the LATER of the two dates (stricter limit)
     const finalMinDate = cycleStartDate > rollingMinDate ? cycleStartDate : rollingMinDate;
 
     const formatDate = (d) => {
@@ -4444,55 +4443,63 @@ async function setLeaveDateLimits() {
     };
 
     const minStr = formatDate(finalMinDate);
-    const maxStr = formatDate(today); // Optional: limits future leaves if needed, or leave max open. For rolling leave entry windows, setting min is critical.
+    const maxStr = formatDate(today);
 
     if (fromDateEl) {
       fromDateEl.min = minStr;
+      fromDateEl.max = maxStr;
+      console.log("-> [DIAGNOSTIC] Assigned min:", fromDateEl.min, "max:", fromDateEl.max, "to #leaveFromDate");
     }
     if (toDateEl) {
       toDateEl.min = minStr;
+      toDateEl.max = maxStr;
+      console.log("-> [DIAGNOSTIC] Assigned min:", toDateEl.min, "max:", toDateEl.max, "to #leaveToDate");
     }
-
-    console.log("Leave Date Picker Limits Set -> Min:", minStr);
   } catch (err) {
-    console.error("Failed to set leave date limits:", err);
+    console.error("-> [DIAGNOSTIC] Failed to set leave date limits:", err);
   }
 }
 
-   
-
-
 
     // Attach this to setup your date input guards
-function initLeaveDateGuards() {
+
+    
+    function initLeaveDateGuards() {
+  console.log("-> [DIAGNOSTIC] initLeaveDateGuards() attached");
   const fromDateEl = document.getElementById('leaveFromDate');
   const toDateEl = document.getElementById('leaveToDate');
 
   const validateDateInput = (e) => {
     const input = e.target;
+    console.log(`-> [DIAGNOSTIC] Date input changed on #${input.id}. Value picked:`, input.value, "| Min allowed:", input.min);
+    
     if (!input.min) return;
 
     if (input.value && input.value < input.min) {
+      console.warn(`-> [DIAGNOSTIC] BLOCKED! Value ${input.value} is older than minimum allowed ${input.min}`);
       if (typeof showToast === 'function') {
         showToast(`Dates prior to ${input.min} are not allowed.`, 'error');
       } else {
         alert(`Dates prior to ${input.min} are not allowed.`);
       }
-      input.value = ''; // Immediately clear the invalid date
+      input.value = '';
       
-      // Reset calculated days if cleared
       if (typeof calculateRequestedDays === 'function') {
         calculateRequestedDays();
       }
     }
   };
 
-  if (fromDateEl) fromDateEl.addEventListener('change', validateDateInput);
-  if (toDateEl) toDateEl.addEventListener('change', validateDateInput);
+  if (fromDateEl) {
+    fromDateEl.removeEventListener('change', validateDateInput); // Prevent duplicate bindings
+    fromDateEl.addEventListener('change', validateDateInput);
+  }
+  if (toDateEl) {
+    toDateEl.removeEventListener('change', validateDateInput);
+    toDateEl.addEventListener('change', validateDateInput);
+  }
 }
-
-// Call this once when your app initializes or inside openLeaveModule
-
+    
 
     
 </script>    
