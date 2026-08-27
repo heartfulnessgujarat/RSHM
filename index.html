@@ -3392,16 +3392,34 @@ async function recalculateAndSyncLeaveFrontend(activeEmpCode, leaveDate, isCance
 
 
 
+    if (isCancelled) {
+      // LEAVE CANCELLED LOCALLY: Check existing hours on the attendance row and convert to work status (P or WL4H)
+      const attSnap = await attendanceRowRef.once('value');
+      const attData = attSnap.exists() ? attSnap.val() : {};
+      const preservedHours = parseFloat(attData.hours) || 0;
 
+      if (preservedHours > 0) {
+        const configSnap = await dbRef.child('config').once('value');
+        const config = configSnap.val() || {};
+        const threshold = parseFloat(config.attendance_hours_threshold || config.threshold_hours) || 4.0;
+        const codePresent = config.attendance_code_present || "P";
+        const codeBelowThreshold = config.attendance_code_below_threshold || "WL4H";
+        const newStatus = preservedHours >= threshold ? codePresent : codeBelowThreshold;
 
-      if (isCancelled) {
-      // LEAVE CANCELLED: Clear the leave/preserved row and trigger a fresh daily work calculation
-      await attendanceRowRef.remove();
-      if (typeof recalculateAndSyncAttendanceFrontend === 'function') {
-        await recalculateAndSyncAttendanceFrontend(activeEmpCode, leaveDate);
+        await attendanceRowRef.set({
+          emp_code: activeEmpCode,
+          date: targetDateDisplay,
+          hours: preservedHours,
+          status: newStatus,
+          calculated_at: new Date().toLocaleString()
+        });
+        console.log(`-> [LOCAL LEAVE CANCEL] Converted cancelled half-day leave to work status '${newStatus}' with ${preservedHours} hrs for ${targetDateDisplay}`);
+      } else {
+        // If there were no hours, safe to clear the row
+        await attendanceRowRef.remove();
+        console.log(`-> [LOCAL LEAVE CANCEL] No hours found on cancelled leave row. Removed row for ${targetDateDisplay}`);
       }
-      console.log(`-> [LEAVE CANCEL SYNC] Leave cancelled. Cleared row and re-ran daily work calculation for ${targetDateDisplay}`);
-   
+    }
 
 
 
