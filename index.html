@@ -3620,14 +3620,15 @@ window.formatTimestamp = function(d) {
   return `${day}-${month}-${year} ${hours}:${minutes}`;
 };
 
-    async function updateLeaveDateRestrictions() {
+
+async function updateLeaveDateRestrictions() {
   const leaveTypeEl = document.getElementById('leaveTypeSelect');
   const fromDateEl = document.getElementById('leaveFromDate');
   const toDateEl = document.getElementById('leaveToDate');
   
   if (!leaveTypeEl || !fromDateEl || !toDateEl) return;
 
-  // 1. Enforce your strict Payroll / Rolling Window Minimum Limit first
+  // --- PART 1: Enforce Strict Payroll / Rolling Window Minimum Limit ---
   try {
     let editWindowDays = 7;
     let payrollStartDay = 26;
@@ -3671,15 +3672,30 @@ window.formatTimestamp = function(d) {
     console.error("Error setting strict payroll minimum in updateLeaveDateRestrictions:", err);
   }
 
-  // 2. Handle Sick Leave (SL) or other type-specific max restrictions
-  const selectedType = leaveTypeEl.value.toLowerCase();
+  // --- PART 2: Handle Sick Leave & Half-Day UI Adjustments ---
+  const leaveTypeVal = leaveTypeEl.value.toLowerCase();
+  const isHalfDay = leaveTypeVal.includes('half day') || leaveTypeVal.includes('1/2');
+
+  const fromDateLabel = document.querySelector('label[for="leaveFromDate"]') || document.getElementById('from-date-label');
+  const toDateContainer = document.getElementById('leaveToDateContainer') || document.getElementById('to-date-group') || document.getElementById('leaveToDate')?.closest('.mb-3, .form-group, div');
+
+  if (isHalfDay) {
+    if (fromDateLabel) fromDateLabel.innerText = "Date";
+    if (toDateContainer) toDateContainer.style.display = 'none';
+    if (toDateEl && fromDateEl) toDateEl.value = fromDateEl.value;
+  } else {
+    if (fromDateLabel) fromDateLabel.innerText = "From Date";
+    if (toDateContainer) toDateContainer.style.display = ''; 
+  }
+
+  // Sick Leave Max Date Restrictions
   const todayObj = new Date();
   const year = todayObj.getFullYear();
   const month = String(todayObj.getMonth() + 1).padStart(2, '0');
   const day = String(todayObj.getDate()).padStart(2, '0');
   const todayStr = `${year}-${month}-${day}`;
 
-  if (selectedType.includes('sl') || selectedType.includes('sick')) {
+  if (leaveTypeVal.includes('sl') || leaveTypeVal.includes('sick')) {
     fromDateEl.setAttribute('max', todayStr);
     toDateEl.setAttribute('max', todayStr);
     
@@ -3691,6 +3707,10 @@ window.formatTimestamp = function(d) {
   }
 }
 
+
+
+
+    
 function showCustomAlert(message) {
   return new Promise((resolve) => {
     // Check if a custom modal container already exists, otherwise create one
@@ -3738,67 +3758,6 @@ function formatSystemDate(d) {
   
   return `${day}-${month}-${year}`;
 }
-
-function updateLeaveDateRestrictions() {
-  const leaveTypeEl = document.getElementById('leaveTypeSelect');
-  if (!leaveTypeEl) return;
-
-  const leaveTypeVal = leaveTypeEl.value.toLowerCase();
-  const isHalfDay = leaveTypeVal.includes('half day') || leaveTypeVal.includes('1/2');
-
-  // Find the label for From Date and the container/wrapper for To Date
-  // (Adjust the selectors below if your HTML IDs/classes differ slightly)
-  const fromDateLabel = document.querySelector('label[for="leaveFromDate"]') || document.getElementById('from-date-label');
-  const toDateContainer = document.getElementById('leaveToDateContainer') || document.getElementById('to-date-group') || document.getElementById('leaveToDate')?.closest('.mb-3, .form-group, div');
-  const toDateInput = document.getElementById('leaveToDate');
-  const fromDateInput = document.getElementById('leaveFromDate');
-
-  if (isHalfDay) {
-    // 1. Rename From Date label to "Date"
-    if (fromDateLabel) {
-      fromDateLabel.innerText = "Date";
-    }
-    
-    // 2. Hide To Date container
-    if (toDateContainer) {
-      toDateContainer.style.display = 'none';
-    }
-
-    // 3. Sync To Date value to match From Date in the background
-    if (toDateInput && fromDateInput) {
-      toDateInput.value = fromDateInput.value;
-    }
-  } else {
-    // Restore back to standard range fields for Full-Day leaves
-    if (fromDateLabel) {
-      fromDateLabel.innerText = "From Date";
-    }
-    
-    if (toDateContainer) {
-      toDateContainer.style.display = ''; // Reset to default display
-    }
-  }
-}
-
-// Add this block at the bottom of your JavaScript file
-document.addEventListener('DOMContentLoaded', () => {
-  const fromInput = document.getElementById('leaveFromDate');
-  if (fromInput) {
-    fromInput.addEventListener('change', () => {
-      const typeSelect = document.getElementById('leaveTypeSelect');
-      const type = typeSelect ? typeSelect.value.toUpperCase() : '';
-      const isHalfDay = type.includes('HALF DAY') || type.includes('1/2');
-      
-      if (isHalfDay) {
-        const toInput = document.getElementById('leaveToDate');
-        if (toInput) {
-          toInput.value = fromInput.value;
-        }
-      }
-    });
-  }
-});
-
 
     
 // Function to safely update both old and new profile elements from currentUser
