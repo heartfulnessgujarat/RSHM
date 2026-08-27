@@ -2263,6 +2263,8 @@ async function openLeaveModule() {
   const formElem = document.getElementById('leaveApplyForm');
   if (formElem) formElem.reset();
 
+  // ⭐ ADD THIS LINE RIGHT HERE ⭐
+  initLeaveDateGuards();
 
 
   // ⭐ ADD THIS LINE FOR CALENDAR RESTRICTION ⭐
@@ -4475,6 +4477,38 @@ async function setLeaveDateLimits() {
 }
 
 
+
+
+
+    // Attach this to setup your date input guards
+function initLeaveDateGuards() {
+  const fromDateEl = document.getElementById('leaveFromDate');
+  const toDateEl = document.getElementById('leaveToDate');
+
+  const validateDateInput = (e) => {
+    const input = e.target;
+    if (!input.min) return;
+
+    if (input.value && input.value < input.min) {
+      if (typeof showToast === 'function') {
+        showToast(`Dates prior to ${input.min} are not allowed.`, 'error');
+      } else {
+        alert(`Dates prior to ${input.min} are not allowed.`);
+      }
+      input.value = ''; // Immediately clear the invalid date
+      
+      // Reset calculated days if cleared
+      if (typeof calculateRequestedDays === 'function') {
+        calculateRequestedDays();
+      }
+    }
+  };
+
+  if (fromDateEl) fromDateEl.addEventListener('change', validateDateInput);
+  if (toDateEl) toDateEl.addEventListener('change', validateDateInput);
+}
+
+// Call this once when your app initializes or inside openLeaveModule
 
 
     
