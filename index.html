@@ -2255,7 +2255,9 @@ async function openLeaveStatusHistory(selectedCycleOffset = 0) {
  * REPLACEMENT FOR openLeaveModule() / loadLeaveBalances()
  * Fetches balances directly from masters/employees/${empId}
  */
-async function openLeaveModule() {
+
+
+    async function openLeaveModule() {
   if (typeof switchView === 'function') {
     switchView('view-leave-module');
   }
@@ -2263,89 +2265,10 @@ async function openLeaveModule() {
   const formElem = document.getElementById('leaveApplyForm');
   if (formElem) formElem.reset();
 
-  // ⭐ ADD THIS LINE RIGHT HERE ⭐
-  initLeaveDateGuards();
-
-
-  // ⭐ ADD THIS LINE FOR CALENDAR RESTRICTION ⭐
+  // ⭐ ADD THIS LINE HERE, EXACTLY LIKE DAILY WORK LOG ⭐
   await setLeaveDateLimits();
 
-  const badgeElem = document.getElementById('leaveDaysBadge');
-  if (badgeElem) badgeElem.classList.add('hidden');
-
-  const weeklyOffRowElem = document.getElementById('weeklyOffRow');
-  if (weeklyOffRowElem) weeklyOffRowElem.classList.add('hidden');
-
-  const effectiveDaysRowElem = document.getElementById('effectiveDaysRow');
-  if (effectiveDaysRowElem) effectiveDaysRowElem.classList.add('hidden');
-
-  const statusMsgElem = document.getElementById('leaveStatusMessage');
-  if (statusMsgElem) statusMsgElem.innerText = '';
-
-  let empId = (typeof currentUser !== 'undefined' && currentUser) 
-              ? (currentUser.empCode || currentUser.empId || currentUser.uid || currentUser.emp_code) 
-              : '';
-
-  if (!empId) {
-    empId = document.getElementById('leaveEmpId')?.value || 
-            document.getElementById('login-emp-code')?.value || '';
-  }
-
-  if (!empId) {
-    const codeElem = document.getElementById('dash-user-code');
-    if (codeElem && codeElem.innerText) {
-      const match = codeElem.innerText.match(/ID:\s*([A-Za-z0-9]+)/i);
-      if (match && match[1]) empId = match[1].trim();
-    }
-  }
-
-  if (!empId) {
-    console.warn('No Employee ID found to fetch leave balances.');
-    if (typeof showToast === 'function') {
-      showToast('Unable to detect Employee ID. Please re-login.', 'error');
-    }
-    return;
-  }
-
-
-const clElem = document.getElementById('clBalanceDisplay');
-  const slElem = document.getElementById('slBalanceDisplay');
-  const coElem = document.getElementById('coBalanceDisplay');
-  const phElem = document.getElementById('phBalanceDisplay');
-  const mtElem = document.getElementById('mtBalanceDisplay'); // ⭐ Added MT element ⭐
-
-  if (clElem) clElem.innerText = '..';
-  if (slElem) slElem.innerText = '..';
-  if (coElem) coElem.innerText = '..';
-  if (phElem) phElem.innerText = '..';
-  if (mtElem) mtElem.innerText = '..'; // ⭐ Added MT default state ⭐
-
-
-
-try {
-    // ⭐ DIRECT FIREBASE READ FROM MASTERS/EMPLOYEES ⭐
-    const snapshot = await firebase.database().ref(`masters/employees/${empId}`).once('value');
-    const empData = snapshot.val();
-
-    if (empData) {
-      // Map the database fields (cl_balance, sl_balance, etc.) to what renderLeaveBalances expects
-      const formattedBalances = {
-        cl: empData.cl_balance !== undefined ? empData.cl_balance : 0,
-        sl: empData.sl_balance !== undefined ? empData.sl_balance : 0,
-        co: empData.co_balance !== undefined ? empData.co_balance : 0,
-        ph: empData.ph_balance !== undefined ? empData.ph_balance : 0,
-        mt: empData.mt_balance !== undefined ? empData.mt_balance : 0 // ⭐ Added MT balance mapping ⭐
-      };
-      renderLeaveBalances(formattedBalances);
-    } else {
-      renderLeaveBalances({ cl: 0, sl: 0, co: 0, ph: 0, mt: 0 }); // ⭐ Added default MT here too ⭐
-    }
-  } catch (err) {
-    console.error("Error fetching leave balances from Firebase:", err);
-    if (typeof showToast === 'function') {
-      showToast('Error fetching leave balances: ' + err.message, 'error');
-    }
-  }
+  // ... rest of your existing openLeaveModule logic ...
 }
   
 
@@ -4407,10 +4330,13 @@ function renderAttendanceHistoryUI(startDay, endDay, currentOffset, attendanceRe
   `;
 }    
 
-async function setLeaveDateLimits() {
-  try {
-    console.log("-> setLeaveDateLimits() started");
 
+async function setLeaveDateLimits() {
+  const fromDateEl = document.getElementById('leaveFromDate');
+  const toDateEl = document.getElementById('leaveToDate');
+  if (!fromDateEl && !toDateEl) return;
+
+  try {
     let editWindowDays = 7;
     let payrollStartDay = 26;
 
@@ -4418,36 +4344,29 @@ async function setLeaveDateLimits() {
       editWindowDays = parseInt(window.APP_CONFIG.edit_window_days, 10);
       payrollStartDay = parseInt(window.APP_CONFIG.payrollstartday || window.APP_CONFIG.payroll_start_day || 26, 10);
     } else {
-      try {
-        const configSnapshot = await firebase.database().ref('config').once('value');
-        const configData = configSnapshot.val() || {};
-        editWindowDays = parseInt(configData.edit_window_days || 7, 10);
-        payrollStartDay = parseInt(configData.payrollstartday || configData.payroll_start_day || 26, 10);
-        window.APP_CONFIG = configData;
-      } catch (e) {}
+      const configSnapshot = await firebase.database().ref('config').once('value');
+      const configData = configSnapshot.val() || {};
+      editWindowDays = parseInt(configData.edit_window_days || 7, 10);
+      payrollStartDay = parseInt(configData.payrollstartday || configData.payroll_start_day || 26, 10);
+      window.APP_CONFIG = configData;
     }
 
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // 1. Rolling window limit
+    // 1. Calculate 7-day rolling window limit
     const rollingMinTime = today.getTime() - (editWindowDays * 24 * 60 * 60 * 1000);
     let rollingMinDate = new Date(rollingMinTime);
 
-    // 2. Payroll cycle cutoff limit (26th)
+    // 2. Calculate Payroll Cycle Start limit
     let cycleStartDate = new Date(now.getFullYear(), now.getMonth(), payrollStartDay);
     if (now.getDate() < payrollStartDay) {
       cycleStartDate = new Date(now.getFullYear(), now.getMonth() - 1, payrollStartDay);
     }
     cycleStartDate.setHours(0, 0, 0, 0);
 
-    // Take the stricter (later) limit between rolling window and payroll cycle
-    let finalMinDate = cycleStartDate > rollingMinDate ? cycleStartDate : rollingMinDate;
-
-    // ⭐ CRITICAL OVERRIDE: Never allow past dates before today unless explicitly intended ⭐
-    if (finalMinDate < today) {
-      finalMinDate = today;
-    }
+    // 3. Take the LATER of the two dates (stricter limit)
+    const finalMinDate = cycleStartDate > rollingMinDate ? cycleStartDate : rollingMinDate;
 
     const formatDate = (d) => {
       const yyyy = d.getFullYear();
@@ -4456,27 +4375,23 @@ async function setLeaveDateLimits() {
       return `${yyyy}-${mm}-${dd}`;
     };
 
-    const minDateStr = formatDate(finalMinDate);
-    console.log("-> Forced Min Date set to:", minDateStr);
-
-    const fromDateEl = document.getElementById('leaveFromDate');
-    const toDateEl = document.getElementById('leaveToDate');
+    const minStr = formatDate(finalMinDate);
+    const maxStr = formatDate(today); // Optional: limits future leaves if needed, or leave max open. For rolling leave entry windows, setting min is critical.
 
     if (fromDateEl) {
-      fromDateEl.min = minDateStr;
-      console.log("-> SUCCESS: Assigned min to #leaveFromDate");
+      fromDateEl.min = minStr;
     }
     if (toDateEl) {
-      toDateEl.min = minDateStr;
-      console.log("-> SUCCESS: Assigned min to #leaveToDate");
+      toDateEl.min = minStr;
     }
 
+    console.log("Leave Date Picker Limits Set -> Min:", minStr);
   } catch (err) {
-    console.error("-> ERROR in setLeaveDateLimits:", err);
+    console.error("Failed to set leave date limits:", err);
   }
 }
 
-
+   
 
 
 
