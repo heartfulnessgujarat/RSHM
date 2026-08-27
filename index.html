@@ -2256,6 +2256,7 @@ async function openLeaveStatusHistory(selectedCycleOffset = 0) {
  * Fetches balances directly from masters/employees/${empId}
  */
 
+
 async function openLeaveModule() {
   if (typeof switchView === 'function') {
     switchView('view-leave-module');
@@ -2264,9 +2265,8 @@ async function openLeaveModule() {
   const formElem = document.getElementById('leaveApplyForm');
   if (formElem) formElem.reset();
 
-  // ⭐ CALL BOTH DATE LIMITS AND GUARDS HERE ⭐
-  await setLeaveDateLimits();
-  initLeaveDateGuards();
+  // ⭐ CALL THE UNIFIED RESTRICTION FUNCTION HERE ⭐
+  await updateLeaveDateRestrictions();
 
   const badgeElem = document.getElementById('leaveDaysBadge');
   if (badgeElem) badgeElem.classList.add('hidden');
@@ -2340,8 +2340,12 @@ async function openLeaveModule() {
     }
   }
 }
- 
 
+
+
+
+
+    
 /**
  * Helper to render balance values dynamically in index.html spans (Includes PH)
  */
