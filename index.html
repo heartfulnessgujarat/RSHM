@@ -3884,7 +3884,6 @@ function cancelProfileEdit(field) {
     
     
     
-
 async function saveProfileField(field) {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
@@ -3893,16 +3892,6 @@ async function saveProfileField(field) {
     if (!inputEl) return;
     const val = inputEl.value.trim();
 
-    // 1. Mobile Validation (10 digits, numeric, starts with 6-9)
-    if (field === 'mob') {
-        const mobileRegex = /^[6-9]\d{9}$/;
-        if (!mobileRegex.test(val)) {
-            showCustomModal("Please check your mobile number: Must be exactly 10 digits and start with 6, 7, 8, or 9.", true);
-            return;
-        }
-    }
-
-    // Map UI field to database column key
     const dbKeyMap = {
         'mob': 'employee_mob',
         'email': 'employee_email',
@@ -3915,24 +3904,10 @@ async function saveProfileField(field) {
     if (!dbField) return;
 
     try {
-        // Route through your secure Google Apps Script backend instead of direct Firebase write
-        const response = await fetch(BACKEND_API, {
-            method: "POST",
-            body: JSON.stringify({
-                action: "updateProfileField",
-                payload: { empCode: empCode, field: dbField, value: val }
-            })
-        });
-        
-        const result = await response.json();
-        if (!result.success) {
-            throw new Error(result.error || "Failed to update profile on server.");
-        }
+        // Direct Firebase write (Now allowed because of your new Firebase rules!)
+        await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(val);
 
-        // Update local session state
         window.currentUser[dbField] = val;
-
-        // Update UI text display instantly
         const textSpan = document.getElementById(`profile-${field}-text`);
         if (textSpan) textSpan.innerText = val;
 
@@ -3942,8 +3917,6 @@ async function saveProfileField(field) {
         showCustomModal("Failed to update profile: " + e.message, true);
     }
 }
-
-
     
 
 // Email Verification Code Timer (5 minutes)
