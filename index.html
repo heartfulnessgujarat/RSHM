@@ -863,7 +863,6 @@ function showCustomConfirm(message) {
     }
 
 
-
 async function executeLogin() {
     const empCodeInput = document.getElementById('login-emp-code').value.trim();
     const password = document.getElementById('login-password').value;
@@ -874,23 +873,23 @@ async function executeLogin() {
         console.log("Attempting login for:", empCode);
         showToast("Authenticating...");
 
-        // 1. Authenticate directly with Firebase Auth (Instant & secure)
         const internalEmail = `${empCode.toLowerCase()}@rshm-portal.internal`;
-        if (typeof firebase !== 'undefined' && firebase.auth) {
-            await firebase.auth().signInWithEmailAndPassword(internalEmail, password);
-        } else {
+        if (typeof firebase === 'undefined' || !firebase.auth) {
             throw new Error("Firebase Auth is not initialized.");
         }
 
-        // 2. Fetch employee profile data directly from Firebase Realtime Database (Lightning fast)
-        const snapshot = await firebase.database().ref(`masters/employees/${empCode}`).once('value');
-        const empData = snapshot.val();
+        // 🔥 PERFORMANCE BOOST: Run Firebase Auth AND Database fetch at the same time!
+        const [authResult, snapshot] = await Promise.all([
+            firebase.auth().signInWithEmailAndPassword(internalEmail, password),
+            firebase.database().ref(`masters/employees/${empCode}`).once('value')
+        ]);
 
+        const empData = snapshot.val();
         if (!empData) {
             throw new Error("Employee profile record not found in database.");
         }
 
-        // 3. Set global session state matching your exact expected format
+        // 3. Set global session state
         currentUser = { empCode, ...empData };
         window.currentUser = currentUser;
 
@@ -900,17 +899,13 @@ async function executeLogin() {
         
     } catch(e) {
         console.error("Login failed with error:", e);
-        // Clean up user-friendly error message from Firebase if needed
         let errMsg = e.message;
         if (errMsg.includes('auth/wrong-password') || errMsg.includes('auth/user-not-found') || errMsg.includes('auth/invalid-credential')) {
             errMsg = "Invalid employee code or password.";
         }
         showToast(errMsg);
     }
-}
-
-
-    
+}    
     
 async function executeChangePassword() {
     const empCodeInput = document.getElementById('change-emp-code');
