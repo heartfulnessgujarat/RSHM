@@ -860,57 +860,54 @@ function showCustomConfirm(message) {
     }
 
 
-    async function executeLogin() {
+async function executeLogin() {
     const empCode = document.getElementById('login-emp-code').value.trim();
     const password = document.getElementById('login-password').value;
     if(!empCode || !password) return showToast("Please input credentials explicitly.");
     
     try {
-        console.log("Attempting login for:", empCode); // 👈 Added log
+        console.log("Attempting login for:", empCode);
         showToast("Authenticating...");
 
-        // Call your Google Apps Script Web App URL
-
-
-const response = await fetch(BACKEND_API, {
-      
-     //   const response = await fetch("https://script.google.com/macros/s/AKfycbz4yfBsVMhsGJtnARae6c2i0K31UUVmWfJnCyRNkYJGqB3opl8ZFTOOSgmT_Mu_MDE03g/exec", {
+        const response = await fetch(BACKEND_API, {
             method: "POST",
             body: JSON.stringify({ action: "login", payload: { empCode: empCode, password: password } })
         });
         
         const result = await response.json();
-        console.log("Server response received:", result); // 👈 Added log
+        console.log("Server response received:", result);
 
         if (!result.success) {
             throw new Error(result.error || result.message || "Invalid employee code or password.");
         }
 
-        // Generate the secure background Firebase session token automatically
+        // Optional: Safe background session attempt if firebase auth exists, 
+        // wrapped in a try/catch so it never blocks successful sheet login if it fails.
         const syntheticEmail = `${empCode.toLowerCase()}@rshm.app`;
         try {
-            await firebase.auth().signInWithEmailAndPassword(syntheticEmail, password);
-            console.log("Firebase background session token generated successfully."); // 👈 Added log
-        } catch (authErr) {
-            console.warn("Auth error caught, attempting signup:", authErr.code); // 👈 Added log
-            if (authErr.code === 'auth/user-not-found') {
-                await firebase.auth().createUserWithEmailAndPassword(syntheticEmail, password);
-            } else {
-                throw authErr;
+            if (typeof firebase !== 'undefined' && typeof firebase.auth === 'function') {
+                await firebase.auth().signInWithEmailAndPassword(syntheticEmail, password);
+                console.log("Firebase background session token generated successfully.");
             }
+        } catch (authErr) {
+            console.warn("Auth warning (non-blocking):", authErr.code || authErr.message);
         }
 
         currentUser = { empCode, ...result.data };
         window.currentUser = currentUser;
 
+        showToast("Login successful!");
         populateEmployeeProfileUI();
         await openDashboard();
         
     } catch(e) {
-        console.error("Login failed with error:", e); // 👈 Added log
+        console.error("Login failed with error:", e);
         showToast(e.message);
     }
 }
+
+
+
 
     
 async function executeChangePassword() {
