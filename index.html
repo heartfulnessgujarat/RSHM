@@ -859,6 +859,8 @@ function showCustomConfirm(message) {
       }
     }
 
+
+
 async function executeLogin() {
     const empCodeInput = document.getElementById('login-emp-code').value.trim();
     const password = document.getElementById('login-password').value;
@@ -869,26 +871,24 @@ async function executeLogin() {
         console.log("Attempting login for:", empCode);
         showToast("Authenticating...");
 
-        // 1. Authenticate directly with Firebase Auth using internal email structure
+        // 1. Authenticate directly with Firebase Auth (Instant & secure)
         const internalEmail = `${empCode.toLowerCase()}@rshm-portal.internal`;
         if (typeof firebase !== 'undefined' && firebase.auth) {
             await firebase.auth().signInWithEmailAndPassword(internalEmail, password);
+        } else {
+            throw new Error("Firebase Auth is not initialized.");
         }
 
-        // 2. Fetch employee data from backend/database just like before
-        const response = await fetch(BACKEND_API, {
-            method: "POST",
-            body: JSON.stringify({ action: "login", payload: { empCode: empCode, password: password } })
-        });
-        
-        const result = await response.json();
-        console.log("Server response received:", result);
+        // 2. Fetch employee profile data directly from Firebase Realtime Database (Lightning fast)
+        const snapshot = await firebase.database().ref(`masters/employees/${empCode}`).once('value');
+        const empData = snapshot.val();
 
-        if (!result.success) {
-            throw new Error(result.error || result.message || "Invalid employee code or password.");
+        if (!empData) {
+            throw new Error("Employee profile record not found in database.");
         }
 
-        currentUser = { empCode, ...result.data };
+        // 3. Set global session state matching your exact expected format
+        currentUser = { empCode, ...empData };
         window.currentUser = currentUser;
 
         showToast("Login successful!");
@@ -897,10 +897,17 @@ async function executeLogin() {
         
     } catch(e) {
         console.error("Login failed with error:", e);
-        showToast(e.message);
+        // Clean up user-friendly error message from Firebase if needed
+        let errMsg = e.message;
+        if (errMsg.includes('auth/wrong-password') || errMsg.includes('auth/user-not-found') || errMsg.includes('auth/invalid-credential')) {
+            errMsg = "Invalid employee code or password.";
+        }
+        showToast(errMsg);
     }
 }
 
+
+    
     
 async function executeChangePassword() {
     const empCodeInput = document.getElementById('change-emp-code');
