@@ -870,7 +870,7 @@ function showCustomConfirm(message) {
         showToast("Authenticating...");
 
         // Call your Google Apps Script Web App URL
-        const response = await fetch("YOUR_APPS_SCRIPT_WEB_APP_URL", {
+        const response = await fetch("https://script.google.com/macros/s/AKfycbz4yfBsVMhsGJtnARae6c2i0K31UUVmWfJnCyRNkYJGqB3opl8ZFTOOSgmT_Mu_MDE03g/exec", {
             method: "POST",
             body: JSON.stringify({ action: "login", payload: { empCode: empCode, password: password } })
         });
