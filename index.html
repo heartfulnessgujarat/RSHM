@@ -881,21 +881,6 @@ async function executeLogin() {
             throw new Error(result.error || result.message || "Invalid employee code or password.");
         }
 
-        // Behind-the-scenes secure session token generation for Firebase
-        const syntheticEmail = `${empCode.toLowerCase()}@rshm.app`;
-        try {
-            await firebase.auth().signInWithEmailAndPassword(syntheticEmail, password);
-            console.log("Secure session token generated successfully.");
-        } catch (authErr) {
-            if (authErr.code === 'auth/user-not-found' || authErr.code === 'auth/invalid-credential') {
-                await firebase.auth().createUserWithEmailAndPassword(syntheticEmail, password);
-                await firebase.auth().signInWithEmailAndPassword(syntheticEmail, password);
-                console.log("New secure session created and signed in.");
-            } else {
-                throw authErr;
-            }
-        }
-
         currentUser = { empCode, ...result.data };
         window.currentUser = currentUser;
 
@@ -908,9 +893,6 @@ async function executeLogin() {
         showToast(e.message);
     }
 }
-
-
-
 
 
 
