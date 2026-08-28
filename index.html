@@ -859,7 +859,6 @@ function showCustomConfirm(message) {
       }
     }
 
-
 async function executeLogin() {
     const empCode = document.getElementById('login-emp-code').value.trim();
     const password = document.getElementById('login-password').value;
@@ -885,6 +884,23 @@ async function executeLogin() {
             throw new Error("Invalid employee code or password.");
         }
 
+        // --- BACKGROUND SESSION TOKEN GENERATION ---
+        // Automatically sign them into Firebase Auth using a clean backend email mapping 
+        // derived from their Employee ID (e.g., emp001@rshm.app), using their same password.
+        const syntheticEmail = `${empCode.toLowerCase()}@rshm.app`;
+        
+        try {
+            await firebase.auth().signInWithEmailAndPassword(syntheticEmail, password);
+        } catch (authErr) {
+            // If the synthetic auth account doesn't exist yet, create it automatically on first login!
+            if (authErr.code === 'auth/user-not-found') {
+                await firebase.auth().createUserWithEmailAndPassword(syntheticEmail, password);
+            } else {
+                throw authErr;
+            }
+        }
+        // -------------------------------------------
+
         currentUser = { empCode, ...userData };
         window.currentUser = currentUser; // Ensure global accessibility
 
@@ -907,8 +923,6 @@ async function executeLogin() {
         showToast(e.message);
     }
 }
-
-
 
 
     
