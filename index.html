@@ -3979,11 +3979,6 @@ function startEmailVerificationTimer() {
 
 
 
-
-    
-
-    
-// Verify Email Code instantly and finish update with zero lag
 async function verifyEmailOtp() {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
@@ -4031,7 +4026,9 @@ async function verifyEmailOtp() {
     } catch (e) {
         showCustomModal("Verification Failed: " + e.message, true);
     }
-}    
+}
+    
+
     
 
 function showCustomModal(message, isError = false) {
