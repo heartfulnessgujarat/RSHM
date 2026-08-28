@@ -137,10 +137,42 @@
 
 
 
-
-
 <body>
+  <!-- FRONT-DOOR PAYROLL LOCK INTERLOCK -->
+  <script>
+    (function () {
+      const now = new Date();
+      const day = now.getDate();
+      const hours = now.getHours();
+
+      // Check if today is the 25th and time is between 23:00 (11 PM) and 23:59
+      if (day === 25 && hours >= 23) {
+        document.write(`
+          <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #1f2937; z-index: 999999; display: flex; justify-content: center; align-items: center; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <div style="background: #ffffff; padding: 30px; border-radius: 12px; max-width: 400px; width: 100%; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+              <h2 style="color: #dc2626; margin-bottom: 12px; font-size: 1.4rem;">Portal Temporarily Locked</h2>
+              <p style="color: #4b5563; font-size: 0.95rem; line-height: 1.5; margin-bottom: 20px;">
+                You cannot operate this web app right now because the payroll cycle for the current month is being frozen and archived. Access will resume shortly after midnight.
+              </p>
+              <div style="background: #f3f4f6; padding: 10px; border-radius: 6px; font-size: 0.85rem; color: #1f2937; font-weight: 500;">
+                Status: Monthly Backup in Progress
+              </div>
+            </div>
+          </div>
+        `);
+        throw new Error("Portal locked for monthly payroll archiving.");
+      }
+    })();
+  </script>
+  <!-- END INTERLOCK -->
+
   <div id="toast-container" class="hidden"></div>
+
+
+
+
+
+  
   
 <!-- CUSTOM CONFIRMATION MODAL -->
 <!--  <div id="custom-confirm-modal" class="modal-overlay hidden">
