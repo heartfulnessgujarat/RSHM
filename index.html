@@ -878,7 +878,7 @@ async function executeLogin() {
             throw new Error("Firebase Auth is not initialized.");
         }
 
-        // 🔥 PERFORMANCE BOOST: Run Firebase Auth AND Database fetch at the same time!
+        // Run Firebase Auth AND Database fetch in parallel
         const [authResult, snapshot] = await Promise.all([
             firebase.auth().signInWithEmailAndPassword(internalEmail, password),
             firebase.database().ref(`masters/employees/${empCode}`).once('value')
@@ -889,7 +889,7 @@ async function executeLogin() {
             throw new Error("Employee profile record not found in database.");
         }
 
-        // 3. Set global session state
+        // Set global session state
         currentUser = { empCode, ...empData };
         window.currentUser = currentUser;
 
@@ -899,13 +899,23 @@ async function executeLogin() {
         
     } catch(e) {
         console.error("Login failed with error:", e);
+        
         let errMsg = e.message;
-        if (errMsg.includes('auth/wrong-password') || errMsg.includes('auth/user-not-found') || errMsg.includes('auth/invalid-credential')) {
-            errMsg = "Invalid employee code or password.";
+        const errCode = e.code || '';
+
+        // Custom friendly error messages
+        if (errCode === 'auth/user-not-found' || errMsg.includes('user-not-found')) {
+            errMsg = "You are not added as a user. Kindly contact HR/Admin at +91-XXXXXXXXXX.";
+        } else if (errCode === 'auth/wrong-password' || errMsg.includes('wrong-password')) {
+            errMsg = "Incorrect password. Please try again.";
+        } else if (errCode === 'auth/invalid-credential' || errMsg.includes('invalid-credential')) {
+            errMsg = "You are not added as a user or invalid credentials. Kindly contact HR/Admin at +91-XXXXXXXXXX.";
         }
+
         showToast(errMsg);
     }
-}    
+}
+
     
 async function executeChangePassword() {
     const empCodeInput = document.getElementById('change-emp-code');
