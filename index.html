@@ -3877,7 +3877,14 @@ function cancelProfileEdit(field) {
 }
 
 
+
+    
 // Save Profile Field with Strict Validation & Direct Firebase / Backend Integration
+
+    
+    
+    
+
 async function saveProfileField(field) {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
@@ -3895,68 +3902,6 @@ async function saveProfileField(field) {
         }
     }
 
-    // 2. Email Validation & Verification Code Flow
-    if (field === 'email') {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(val)) {
-            showCustomModal("Please check your email id format. Enter a valid email address.", true);
-            return;
-        }
-
-        const otpContainer = document.getElementById('email-otp-container') || document.getElementById('vcode-step-section');
-        const isOtpVisible = otpContainer && !otpContainer.classList.contains('hidden');
-
-        if (!isOtpVisible) {
-            // Trigger your existing backend verification code sender
-            const btn = document.getElementById('btn-send-vcode');
-            if (btn) {
-                btn.disabled = true;
-                btn.innerText = "Sending Code...";
-            }
-
-
-
-          
-            try {
-                const msg = await callBackend("sendVerificationCode", { empCode: empCode, email: val });
-                
-                // Save pending email safely so verifyEmailOtp() can access it later
-                emailVerificationState.pendingEmail = val;
-
-                showCustomModal(msg || "Verification code sent successfully. Please check your email.");
-
-                if (otpContainer) otpContainer.classList.remove('hidden');
-
-
-              
-              // Start the email verification countdown timer directly
-                if (typeof startEmailVerificationTimer === 'function') {
-                    startEmailVerificationTimer();
-                }
-
-              
-
-                if (btn) {
-                    btn.innerText = "Send Verification Code";
-                    btn.disabled = false;
-                }
-            } catch (e) {
-                showCustomModal("Failed to send verification code: " + e.message, true);
-                if (btn) {
-                    btn.innerText = "Send Verification Code";
-                    btn.disabled = false;
-                }
-            }
-            return;
-        }
-    }
-
-    // 3. Centre, Zone, State non-empty checks
-    if ((field === 'centre' || field === 'zone' || field === 'state') && !val) {
-        showCustomModal("This field cannot be empty.", true);
-        return;
-    }
-
     // Map UI field to database column key
     const dbKeyMap = {
         'mob': 'employee_mob',
@@ -3970,12 +3915,18 @@ async function saveProfileField(field) {
     if (!dbField) return;
 
     try {
-        // DIRECT FIREBASE FRONTEND UPDATE for immediate performance
-        if (typeof firebase !== 'undefined' && firebase.database) {
-            await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(val);
-        } else {
-            // Fallback to backend if needed
-            await callBackend("updateEmployeeProfileField", { empCode: empCode, field: dbField, value: val });
+        // Route through your secure Google Apps Script backend instead of direct Firebase write
+        const response = await fetch(BACKEND_API, {
+            method: "POST",
+            body: JSON.stringify({
+                action: "updateProfileField",
+                payload: { empCode: empCode, field: dbField, value: val }
+            })
+        });
+        
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || "Failed to update profile on server.");
         }
 
         // Update local session state
@@ -3990,7 +3941,10 @@ async function saveProfileField(field) {
     } catch (e) {
         showCustomModal("Failed to update profile: " + e.message, true);
     }
-}    
+}
+
+
+    
 
 // Email Verification Code Timer (5 minutes)
 function startEmailVerificationTimer() {
