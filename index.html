@@ -2640,12 +2640,24 @@ async function handleLeaveSubmit(e) {
 
     if (!empCode) throw new Error('Employee code not found. Please log in again.');
 
-    const leaveTypeEl = document.getElementById('leaveTypeSelect');
-    if (leaveTypeEl) {
-      leaveTypeEl.removeEventListener('change', updateLeaveDateRestrictions); 
-      leaveTypeEl.addEventListener('change', updateLeaveDateRestrictions);
-      updateLeaveDateRestrictions(); 
-    }
+
+
+    
+const leaveTypeEl = document.getElementById('leaveTypeSelect');
+  if (leaveTypeEl) {
+    leaveTypeEl.removeEventListener('change', toggleLeaveFields);
+    leaveTypeEl.removeEventListener('change', updateLeaveDateRestrictions);
+    
+    leaveTypeEl.addEventListener('change', () => {
+      toggleLeaveFields();
+      updateLeaveDateRestrictions();
+    });
+    toggleLeaveFields();
+    updateLeaveDateRestrictions();
+  }
+
+
+    
 
     const leaveTypeVal = leaveTypeEl ? leaveTypeEl.value : '';
     if (!leaveTypeVal) throw new Error('Please select a leave type.');
@@ -3046,11 +3058,7 @@ setTimeout(() => {
 }
 
 
-
-
-    
-    
-  async function loadLeaveMasterOptions() {
+async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
   const selectElem = document.getElementById('leaveTypeSelect');
   if (!selectElem) {
@@ -3086,30 +3094,22 @@ setTimeout(() => {
     leaveTypesArray.forEach((item) => {
       if (!item) return;
       
-      // Directly aligned with your Firebase schema keys including rejected code
       const leaveName = item.type_of_leave || '';
       const unapprovedCode = item.leave_code_unapproved || '';
       const approvedCode = item.leave_code_approved || ''; 
       const rejectedCode = item.leave_code_rejected || '';
       
       if (leaveName) {
-        // Store approved, unapproved, and rejected codes dynamically
         window.APP_LEAVE_CODES_MAP[leaveName] = {
           approved: approvedCode,
           unapproved: unapprovedCode,
           rejected: rejectedCode
         };
 
-
-
         const option = document.createElement('option');
         option.value = leaveName; 
-        // Display dropdown text using the approved code (capitalized) from Firebase
         option.textContent = approvedCode ? `${leaveName} (${approvedCode})` : leaveName;
         selectElem.appendChild(option);
-
-
-        
       }
     });
 
@@ -3152,15 +3152,32 @@ setTimeout(() => {
       CONFIG.edit_window_days = editWindowDays;
     }
 
+    // ==========================================
+    // ⭐ ATTACH UI EVENT LISTENERS & SYNC STATE ⭐
+    // ==========================================
+    selectElem.removeEventListener('change', toggleLeaveFields);
+    selectElem.addEventListener('change', () => {
+      toggleLeaveFields();
+      if (typeof updateLeaveDateRestrictions === 'function') {
+        updateLeaveDateRestrictions();
+      }
+    });
+
+    // Run once on load to establish correct default view
+    if (typeof toggleLeaveFields === 'function') {
+      toggleLeaveFields();
+    }
+
     console.log("-> loadLeaveMasterOptions() completed successfully. Loaded leave types count:", leaveTypesArray.length);
 
   } catch (err) {
     console.error("-> Error in loadLeaveMasterOptions:", err);
     selectElem.innerHTML = '<option value="">-- Error Loading Options --</option>';
   }
-}  
+}
 
-  
+    
+    
     
     
 async function executeLoginResetPassword() {
