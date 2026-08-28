@@ -859,71 +859,54 @@ function showCustomConfirm(message) {
       }
     }
 
-async function executeLogin() {
+
+    async function executeLogin() {
     const empCode = document.getElementById('login-emp-code').value.trim();
     const password = document.getElementById('login-password').value;
     if(!empCode || !password) return showToast("Please input credentials explicitly.");
     
     try {
-        // Reference the root database node
-        const dbRef = firebase.database().ref();
+        console.log("Attempting login for:", empCode); // 👈 Added log
+        showToast("Authenticating...");
+
+        // Call your Google Apps Script Web App URL
+        const response = await fetch("YOUR_APPS_SCRIPT_WEB_APP_URL", {
+            method: "POST",
+            body: JSON.stringify({ action: "login", payload: { empCode: empCode, password: password } })
+        });
         
-        // Fetch using the correct path: masters/employees/{empCode} and masters data
-        const [userSnapshot, masterSnapshot] = await Promise.all([
-            dbRef.child(`masters/employees/${empCode}`).once('value'),
-            dbRef.child('masters').once('value').catch(cacheErr => {
-                console.warn("Background master cache prefetch failed, will fallback dynamically:", cacheErr);
-                return null;
-            })
-        ]);
+        const result = await response.json();
+        console.log("Server response received:", result); // 👈 Added log
 
-        const userData = userSnapshot.val();
-
-        // Validate user existence and password
-        if (!userData || userData.password !== password) {
-            throw new Error("Invalid employee code or password.");
+        if (!result.success) {
+            throw new Error(result.error || result.message || "Invalid employee code or password.");
         }
 
-        // --- BACKGROUND SESSION TOKEN GENERATION ---
-        // Automatically sign them into Firebase Auth using a clean backend email mapping 
-        // derived from their Employee ID (e.g., emp001@rshm.app), using their same password.
+        // Generate the secure background Firebase session token automatically
         const syntheticEmail = `${empCode.toLowerCase()}@rshm.app`;
-        
         try {
             await firebase.auth().signInWithEmailAndPassword(syntheticEmail, password);
+            console.log("Firebase background session token generated successfully."); // 👈 Added log
         } catch (authErr) {
-            // If the synthetic auth account doesn't exist yet, create it automatically on first login!
+            console.warn("Auth error caught, attempting signup:", authErr.code); // 👈 Added log
             if (authErr.code === 'auth/user-not-found') {
                 await firebase.auth().createUserWithEmailAndPassword(syntheticEmail, password);
             } else {
                 throw authErr;
             }
         }
-        // -------------------------------------------
 
-        currentUser = { empCode, ...userData };
-        window.currentUser = currentUser; // Ensure global accessibility
+        currentUser = { empCode, ...result.data };
+        window.currentUser = currentUser;
 
-        // --- POPULATE ALL PROFILE DATA (Name, Code, Mob, Email, Centre, Zone, State) ---
         populateEmployeeProfileUI();
-        // ------------------------------------------------------------------------------
-        
-        // --- Assign cached data from Firebase ---
-        if (masterSnapshot && masterSnapshot.exists()) {
-            const masterCacheResult = masterSnapshot.val();
-            window.APP_MASTER_CACHE = masterCacheResult;
-            if (masterCacheResult.editWindowDays && typeof CONFIG !== 'undefined') {
-                CONFIG.edit_window_days = masterCacheResult.editWindowDays;
-            }
-        }
-        // -------------------------------------
-
         await openDashboard();
+        
     } catch(e) {
+        console.error("Login failed with error:", e); // 👈 Added log
         showToast(e.message);
     }
 }
-
 
     
 async function executeChangePassword() {
