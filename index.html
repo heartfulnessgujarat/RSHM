@@ -881,16 +881,19 @@ async function executeLogin() {
             throw new Error(result.error || result.message || "Invalid employee code or password.");
         }
 
-        // Optional: Safe background session attempt if firebase auth exists, 
-        // wrapped in a try/catch so it never blocks successful sheet login if it fails.
+        // Behind-the-scenes secure session token generation for Firebase
         const syntheticEmail = `${empCode.toLowerCase()}@rshm.app`;
         try {
-            if (typeof firebase !== 'undefined' && typeof firebase.auth === 'function') {
-                await firebase.auth().signInWithEmailAndPassword(syntheticEmail, password);
-                console.log("Firebase background session token generated successfully.");
-            }
+            await firebase.auth().signInWithEmailAndPassword(syntheticEmail, password);
+            console.log("Secure session token generated successfully.");
         } catch (authErr) {
-            console.warn("Auth warning (non-blocking):", authErr.code || authErr.message);
+            if (authErr.code === 'auth/user-not-found' || authErr.code === 'auth/invalid-credential') {
+                await firebase.auth().createUserWithEmailAndPassword(syntheticEmail, password);
+                await firebase.auth().signInWithEmailAndPassword(syntheticEmail, password);
+                console.log("New secure session created and signed in.");
+            } else {
+                throw authErr;
+            }
         }
 
         currentUser = { empCode, ...result.data };
@@ -905,6 +908,8 @@ async function executeLogin() {
         showToast(e.message);
     }
 }
+
+
 
 
 
