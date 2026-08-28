@@ -859,16 +859,23 @@ function showCustomConfirm(message) {
       }
     }
 
-
 async function executeLogin() {
-    const empCode = document.getElementById('login-emp-code').value.trim();
+    const empCodeInput = document.getElementById('login-emp-code').value.trim();
     const password = document.getElementById('login-password').value;
-    if(!empCode || !password) return showToast("Please input credentials explicitly.");
+    if(!empCodeInput || !password) return showToast("Please input credentials explicitly.");
     
     try {
+        const empCode = empCodeInput.toUpperCase();
         console.log("Attempting login for:", empCode);
         showToast("Authenticating...");
 
+        // 1. Authenticate directly with Firebase Auth using internal email structure
+        const internalEmail = `${empCode.toLowerCase()}@rshm-portal.internal`;
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+            await firebase.auth().signInWithEmailAndPassword(internalEmail, password);
+        }
+
+        // 2. Fetch employee data from backend/database just like before
         const response = await fetch(BACKEND_API, {
             method: "POST",
             body: JSON.stringify({ action: "login", payload: { empCode: empCode, password: password } })
@@ -893,8 +900,6 @@ async function executeLogin() {
         showToast(e.message);
     }
 }
-
-
 
     
 async function executeChangePassword() {
