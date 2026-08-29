@@ -4095,17 +4095,15 @@ async function verifyEmailOtp() {
         const otpContainer = document.getElementById('email-otp-container') || document.getElementById('vcode-step-section');
         if (otpContainer) otpContainer.classList.add('hidden');
         if (emailVerificationState.timerInterval) clearInterval(emailVerificationState.timerInterval);
- 
-        cancelProfileEdit('email');
+
+
+
+cancelProfileEdit('email');
         showCustomModal("Email successfully verified and updated!");
- 
-        // 2. BACKGROUND SERVER SYNC (Non-blocking call to Apps Script)
-        callBackend("verifyAndRegisterEmail", { 
-            empCode: empCode, 
-            email: pendingEmail, 
-            code: userEnteredCode 
-        }).catch(err => console.warn("Background server sync note:", err));
- 
+        
+        // Background sync removed since frontend handles full verification securely.
+
+           
     } catch (e) {
         showCustomModal("Verification Failed: " + e.message, true);
     }
