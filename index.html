@@ -4051,6 +4051,7 @@ function startEmailVerificationTimer() {
 //  3. VERIFY EMAIL OTP (Instant Frontend Check + Zero Lag)
 // ==========================================
 
+
 async function verifyEmailOtp() {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
@@ -4068,16 +4069,42 @@ async function verifyEmailOtp() {
     }
  
     try {
-        // This securely calls your Google Apps Script backend function
-        const msg = await callBackend("verifyEmailOtp", { 
-            empCode: empCode, 
-            code: userEnteredCode, 
-            email: pendingEmail 
-        });
+        // INSTANT FRONTEND READ from the employee's own record (allowed by your existing rules)
+        const snapshot = await firebase.database().ref(`masters/employees/${empCode}`).once('value');
+        const empData = snapshot.val() || {};
+        
+        const serverCode = String(empData.verification_code || "").trim();
+        const expiresAt = empData.verification_expires || 0;
+
+        if (!serverCode) {
+            showCustomModal("Verification code expired or not found. Please click save to resend.", true);
+            return;
+        }
+
+        // Check if code has expired
+        if (Date.now() > expiresAt) {
+            showCustomModal("Verification code has expired. Please click save to get a new one.", true);
+            return;
+        }
+
+        // Strict Code Match Check
+        const userCode = String(userEnteredCode || "").trim();
+        if (userCode !== serverCode) {
+            showCustomModal("Invalid verification code! Please check the code sent to your email.", true);
+            return;
+        }
+
+        // IF VALID: Update email and clear temp verification fields instantly in one batch update
+        const updates = {};
+        updates[`masters/employees/${empCode}/employee_email`] = pendingEmail;
+        updates[`masters/employees/${empCode}/email`] = pendingEmail;
+        updates[`masters/employees/${empCode}/verification_code`] = null;
+        updates[`masters/employees/${empCode}/verification_expires`] = null;
+
+        await firebase.database().ref().update(updates);
 
         // Update local session state & UI text immediately
-        const dbField = 'employee_email';
-        window.currentUser[dbField] = pendingEmail;
+        window.currentUser['employee_email'] = pendingEmail;
         const textSpan = document.getElementById('profile-email-text');
         if (textSpan) textSpan.innerText = pendingEmail;
  
@@ -4087,16 +4114,13 @@ async function verifyEmailOtp() {
         if (emailVerificationState.timerInterval) clearInterval(emailVerificationState.timerInterval);
  
         cancelProfileEdit('email');
-        showCustomModal(msg || "Email successfully updated!");
+        showCustomModal("Email successfully verified and updated!");
 
     } catch (e) {
-        // Friendly custom error message instead of raw technical codes
         console.error("Verification Error:", e);
-        showCustomModal(e.message || "We couldn't verify your code right now. Please try again.", true);
+        showCustomModal("We couldn't verify your code right now. Please try again.", true);
     }
 }
-    
-    
     
     
     
