@@ -4051,7 +4051,6 @@ function startEmailVerificationTimer() {
 //  3. VERIFY EMAIL OTP (Instant Frontend Check + Zero Lag)
 // ==========================================
 
- 
 async function verifyEmailOtp() {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
@@ -4074,7 +4073,7 @@ async function verifyEmailOtp() {
     }
 
     try {
-        // 1. INSTANTLY READ THE CODE FROM FIREBASE (Lightning fast, no backend script delay)
+        // 1. INSTANTLY READ THE CODE FROM FIREBASE
         const snapshot = await firebase.database().ref(`temp_verification/${empCode}`).once('value');
         const verificationData = snapshot.val();
 
@@ -4089,8 +4088,11 @@ async function verifyEmailOtp() {
             return;
         }
 
-        // STRICT CHECK: Match user-entered code against the Firebase record
-        if (userEnteredCode !== verificationData.code) {
+        // STRICT CHECK: Robust string matching to prevent type mismatches
+        const serverCode = String(verificationData.code || "").trim();
+        const userCode = String(userEnteredCode || "").trim();
+
+        if (userCode !== serverCode) {
             showCustomModal("Invalid verification code! Please check the code sent to your email.", true);
             return;
         }
@@ -4119,8 +4121,7 @@ async function verifyEmailOtp() {
     } catch (e) {
         showCustomModal("Verification Failed: " + e.message, true);
     }
-}
-    
+}   
     
     
     
