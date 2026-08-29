@@ -3932,7 +3932,9 @@ async function saveProfileField(field) {
 
 if (!isOtpVisible) {
             // Show instant loading message
-            showCustomModal(`Sending verification code to '${val}'. Please wait...`, false);
+
+  showCustomModal(`Sending verification code to '${val}'. Please wait...`, false, false);
+     //       showCustomModal(`Sending verification code to '${val}'. Please wait...`, false);
 
             const btn = document.getElementById('btn-send-vcode');
             if (btn) {
@@ -4077,7 +4079,7 @@ async function verifyEmailOtp() {
         const dbField = 'employee_email';
         if (typeof firebase !== 'undefined' && firebase.database) {
             firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
-            firebase.database().ref(`masters/employees/${empCode}/email`).set(pendingEmail);
+           // firebase.database().ref(`masters/employees/${empCode}/email`).set(pendingEmail);
         }
  
         // Update local session state & UI text immediately
