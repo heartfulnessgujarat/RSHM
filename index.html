@@ -3913,10 +3913,12 @@ function cancelProfileEdit(field) {
     }
 }
 
-    
-    
-    
-    // Save Profile Field with Strict Validation & Direct Firebase / Backend Integration
+
+
+
+    // ==========================================
+// 1. SAVE PROFILE FIELD (Mobile, Email, Centre, Zone, State)
+// ==========================================
 async function saveProfileField(field) {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
@@ -3924,68 +3926,98 @@ async function saveProfileField(field) {
     const inputEl = document.getElementById(`profile-${field}-input`) || document.getElementById(`profile-${field}-select`);
     if (!inputEl) return;
     const val = inputEl.value.trim();
-
-    // ==========================================
-    // 1. MOBILE NUMBER VALIDATION (Layered check)
-    // ==========================================
+ 
+    // Mobile Validation (10 digits, numeric, starts with 6-9)
     if (field === 'mob') {
-        const mobRegex = /^[6-9]\d{9}$/;
-        if (!mobRegex.test(val)) {
-            showCustomModal("Invalid mobile number! Must be exactly 10 digits and start with 6, 7, 8, or 9.", true);
+        const mobileRegex = /^[6-9]\d{9}$/;
+        if (!mobileRegex.test(val)) {
+            showCustomModal("Please check your mobile number: Must be exactly 10 digits and start with 6, 7, 8, or 9.", true);
             return;
         }
     }
-
-    // ==========================================
-    // 2. EMAIL VALIDATION (Two-layer check + OTP Trigger)
-    // ==========================================
+ 
+    // Email Validation & Verification Code Flow
     if (field === 'email') {
-        // Layer A: Format check
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(val)) {
-            showCustomModal("Please enter a valid email address format.", true);
+            showCustomModal("Please check your email id format. Enter a valid email address.", true);
             return;
         }
-
-        // Save pending email in state for the OTP verification step
-        emailVerificationState.pendingEmail = val;
-
-        // Layer B: Trigger OTP Verification UI Box & Timer
-        const otpContainer = document.getElementById('email-otp-container');
-        if (otpContainer) {
-            otpContainer.classList.remove('hidden');
+ 
+        const otpContainer = document.getElementById('email-otp-container') || document.getElementById('vcode-step-section');
+        const isOtpVisible = otpContainer && !otpContainer.classList.contains('hidden');
+ 
+        if (!isOtpVisible) {
+            const btn = document.getElementById('btn-send-vcode');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = "Sending Code...";
+            }
+ 
+            try {
+                const msg = await callBackend("sendVerificationCode", { empCode: empCode, email: val });
+                
+                // Save pending email safely so verifyEmailOtp() can access it later
+                emailVerificationState.pendingEmail = val;
+ 
+                showCustomModal(msg || "Verification code sent successfully. Please check your email.");
+ 
+                if (otpContainer) otpContainer.classList.remove('hidden');
+ 
+                // Start the email verification countdown timer directly
+                if (typeof startEmailVerificationTimer === 'function') {
+                    startEmailVerificationTimer();
+                }
+ 
+                if (btn) {
+                    btn.innerText = "Send Verification Code";
+                    btn.disabled = false;
+                }
+            } catch (e) {
+                showCustomModal("Failed to send verification code: " + e.message, true);
+                if (btn) {
+                    btn.innerText = "Send Verification Code";
+                    btn.disabled = false;
+                }
+            }
+            return;
         }
-
-        startEmailVerificationTimer();
-        showCustomModal("Verification code sent to your new email. Please enter the verification code below to save.");
-
-        // Temporarily hide the edit action buttons while waiting for OTP entry
-        const actionContainer = document.getElementById(`edit-actions-${field}`);
-        if (actionContainer) actionContainer.classList.add('hidden');
-        return; 
     }
-
-    // ==========================================
-    // 3. STANDARD PROFILE FIELDS (Centre, Zone, State)
-    // ==========================================
+ 
+    // Centre, Zone, State non-empty checks
+    if ((field === 'centre' || field === 'zone' || field === 'state') && !val) {
+        showCustomModal("This field cannot be empty.", true);
+        return;
+    }
+ 
+    // Map UI field to database column key
     const dbKeyMap = {
         'mob': 'employee_mob',
+        'email': 'employee_email',
         'centre': 'employee_centre',
         'zone': 'employee_zone',
         'state': 'employee_state'
     };
-
+ 
     const dbField = dbKeyMap[field];
     if (!dbField) return;
-
+ 
     try {
-        // Direct Firebase write (Secured by your new rules)
-        await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(val);
-
+        // DIRECT FIREBASE FRONTEND UPDATE for immediate performance
+        if (typeof firebase !== 'undefined' && firebase.database) {
+            await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(val);
+        } else {
+            // Fallback to backend if needed
+            await callBackend("updateEmployeeProfileField", { empCode: empCode, field: dbField, value: val });
+        }
+ 
+        // Update local session state
         window.currentUser[dbField] = val;
+ 
+        // Update UI text display instantly
         const textSpan = document.getElementById(`profile-${field}-text`);
         if (textSpan) textSpan.innerText = val;
-
+ 
         cancelProfileEdit(field);
         showCustomModal("Profile successfully updated!");
     } catch (e) {
@@ -3993,9 +4025,9 @@ async function saveProfileField(field) {
     }
 }
 
-  
-
-// Email Verification Code Timer (5 minutes)
+// ==========================================
+// 2. START EMAIL VERIFICATION TIMER (5 minutes)
+// ==========================================
 function startEmailVerificationTimer() {
     let timeLeft = 300; // 5 minutes in seconds
     const timerEl = document.getElementById('email-otp-timer');
@@ -4003,11 +4035,11 @@ function startEmailVerificationTimer() {
     if (emailVerificationState.timerInterval) {
         clearInterval(emailVerificationState.timerInterval);
     }
-
+ 
     if (timerEl) {
         timerEl.style.display = 'block';
     }
-
+ 
     emailVerificationState.timerInterval = setInterval(() => {
         let minutes = Math.floor(timeLeft / 60);
         let seconds = timeLeft % 60;
@@ -4026,24 +4058,25 @@ function startEmailVerificationTimer() {
     }, 1000);
 }
 
-
-
+// ==========================================
+// 3. VERIFY EMAIL OTP (Zero Lag Frontend First)
+// ==========================================
 async function verifyEmailOtp() {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
     const userEnteredCode = document.getElementById('email-otp-input').value.trim();
     const pendingEmail = emailVerificationState.pendingEmail || document.getElementById('profile-email-input').value.trim();
-
+ 
     if (!userEnteredCode) {
         showCustomModal("Please enter the verification code.", true);
         return;
     }
-
+ 
     if (!pendingEmail) {
         showCustomModal("Pending email address not found. Please click save again.", true);
         return;
     }
-
+ 
     try {
         // 1. INSTANT FRONTEND & FIREBASE UPDATE (Zero delay!)
         const dbField = 'employee_email';
@@ -4051,37 +4084,36 @@ async function verifyEmailOtp() {
             firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
             firebase.database().ref(`masters/employees/${empCode}/email`).set(pendingEmail);
         }
-
+ 
         // Update local session state & UI text immediately
         window.currentUser[dbField] = pendingEmail;
         const textSpan = document.getElementById('profile-email-text');
         if (textSpan) textSpan.innerText = pendingEmail;
-
+ 
         // Hide verification box instantly and clear timer
         const otpContainer = document.getElementById('email-otp-container') || document.getElementById('vcode-step-section');
         if (otpContainer) otpContainer.classList.add('hidden');
         if (emailVerificationState.timerInterval) clearInterval(emailVerificationState.timerInterval);
-
+ 
         cancelProfileEdit('email');
         showCustomModal("Email successfully verified and updated!");
-
+ 
         // 2. BACKGROUND SERVER SYNC (Non-blocking call to Apps Script)
         callBackend("verifyAndRegisterEmail", { 
             empCode: empCode, 
             email: pendingEmail, 
             code: userEnteredCode 
         }).catch(err => console.warn("Background server sync note:", err));
-
+ 
     } catch (e) {
         showCustomModal("Verification Failed: " + e.message, true);
     }
 }
-    
 
-    
-
+// ==========================================
+// 4. CUSTOM MODAL HELPER
+// ==========================================
 function showCustomModal(message, isError = false) {
-    // Check if modal container already exists, if not create it
     let modal = document.getElementById('custom-app-modal');
     if (!modal) {
         modal = document.createElement('div');
@@ -4098,6 +4130,8 @@ function showCustomModal(message, isError = false) {
     `;
     modal.style.display = 'flex';
 }
+
+
 
     async function generateAndUploadLogoBase64() {
     try {
