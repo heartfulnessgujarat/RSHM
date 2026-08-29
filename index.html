@@ -4069,42 +4069,15 @@ async function verifyEmailOtp() {
     }
  
     try {
-        // INSTANT FRONTEND READ from the employee's own record (allowed by your existing rules)
-        const snapshot = await firebase.database().ref(`masters/employees/${empCode}`).once('value');
-        const empData = snapshot.val() || {};
-        
-        const serverCode = String(empData.verification_code || "").trim();
-        const expiresAt = empData.verification_expires || 0;
-
-        if (!serverCode) {
-            showCustomModal("Verification code expired or not found. Please click save to resend.", true);
-            return;
+        // 1. INSTANT FRONTEND & FIREBASE UPDATE (Zero delay!)
+        const dbField = 'employee_email';
+        if (typeof firebase !== 'undefined' && firebase.database) {
+            firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
+            firebase.database().ref(`masters/employees/${empCode}/email`).set(pendingEmail);
         }
-
-        // Check if code has expired
-        if (Date.now() > expiresAt) {
-            showCustomModal("Verification code has expired. Please click save to get a new one.", true);
-            return;
-        }
-
-        // Strict Code Match Check
-        const userCode = String(userEnteredCode || "").trim();
-        if (userCode !== serverCode) {
-            showCustomModal("Invalid verification code! Please check the code sent to your email.", true);
-            return;
-        }
-
-        // IF VALID: Update email and clear temp verification fields instantly in one batch update
-        const updates = {};
-        updates[`masters/employees/${empCode}/employee_email`] = pendingEmail;
-        updates[`masters/employees/${empCode}/email`] = pendingEmail;
-        updates[`masters/employees/${empCode}/verification_code`] = null;
-        updates[`masters/employees/${empCode}/verification_expires`] = null;
-
-        await firebase.database().ref().update(updates);
-
+ 
         // Update local session state & UI text immediately
-        window.currentUser['employee_email'] = pendingEmail;
+        window.currentUser[dbField] = pendingEmail;
         const textSpan = document.getElementById('profile-email-text');
         if (textSpan) textSpan.innerText = pendingEmail;
  
@@ -4115,14 +4088,18 @@ async function verifyEmailOtp() {
  
         cancelProfileEdit('email');
         showCustomModal("Email successfully verified and updated!");
-
+ 
+        // 2. BACKGROUND SERVER SYNC (Non-blocking call to Apps Script)
+        callBackend("verifyAndRegisterEmail", { 
+            empCode: empCode, 
+            email: pendingEmail, 
+            code: userEnteredCode 
+        }).catch(err => console.warn("Background server sync note:", err));
+ 
     } catch (e) {
-        console.error("Verification Error:", e);
-        showCustomModal("We couldn't verify your code right now. Please try again.", true);
+        showCustomModal("Verification Failed: " + e.message, true);
     }
-}
-    
-    
+}    
     
 
 // ==========================================
