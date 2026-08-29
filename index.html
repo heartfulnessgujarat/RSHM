@@ -3930,10 +3930,8 @@ async function saveProfileField(field) {
         const isOtpVisible = otpContainer && !otpContainer.classList.contains('hidden');
 
 
-
-
 if (!isOtpVisible) {
-            // SHOW INSTANT FEEDBACK WITH THE ACTUAL EMAIL ID
+            // Show instant loading message
             showCustomModal(`Sending verification code to '${val}'. Please wait...`, false);
 
             const btn = document.getElementById('btn-send-vcode');
@@ -3943,21 +3941,18 @@ if (!isOtpVisible) {
             }
  
             try {
-                // Generate secure 6-digit code on the frontend instantly
-                const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
-                
-                // Save pending email and expected code in state memory
+                // Call backend to generate code and send email
+                const msg = await callBackend("sendVerificationCode", { empCode: empCode, email: val });
+ 
+                // AUTO-CLOSE the loading modal immediately once sent
+                const modal = document.getElementById('custom-app-modal');
+                if (modal) modal.style.display = 'none';
+
+                // Save pending email in state memory
                 emailVerificationState.pendingEmail = val;
-                emailVerificationState.verificationCode = generatedCode;
  
-                // Send code to backend just to trigger the email
-                const msg = await callBackend("sendVerificationCode", { empCode: empCode, email: val, code: generatedCode });
- 
-                showCustomModal(msg || `Verification code successfully sent to '${val}'. Please check your inbox.`);
- 
+                // Show the OTP input container & start timer
                 if (otpContainer) otpContainer.classList.remove('hidden');
- 
-                // Start the email verification countdown timer directly
                 if (typeof startEmailVerificationTimer === 'function') {
                     startEmailVerificationTimer();
                 }
@@ -3975,7 +3970,6 @@ if (!isOtpVisible) {
             }
             return;
         }
-
 
 
       
