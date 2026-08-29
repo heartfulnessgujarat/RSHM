@@ -3913,14 +3913,10 @@ function cancelProfileEdit(field) {
     }
 }
 
-
-
-    
-// Save Profile Field with Strict Validation & Direct Firebase / Backend Integration
-
     
     
     
+    // Save Profile Field with Strict Validation & Direct Firebase / Backend Integration
 async function saveProfileField(field) {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
@@ -3929,9 +3925,51 @@ async function saveProfileField(field) {
     if (!inputEl) return;
     const val = inputEl.value.trim();
 
+    // ==========================================
+    // 1. MOBILE NUMBER VALIDATION (Layered check)
+    // ==========================================
+    if (field === 'mob') {
+        const mobRegex = /^[6-9]\d{9}$/;
+        if (!mobRegex.test(val)) {
+            showCustomModal("Invalid mobile number! Must be exactly 10 digits and start with 6, 7, 8, or 9.", true);
+            return;
+        }
+    }
+
+    // ==========================================
+    // 2. EMAIL VALIDATION (Two-layer check + OTP Trigger)
+    // ==========================================
+    if (field === 'email') {
+        // Layer A: Format check
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(val)) {
+            showCustomModal("Please enter a valid email address format.", true);
+            return;
+        }
+
+        // Save pending email in state for the OTP verification step
+        emailVerificationState.pendingEmail = val;
+
+        // Layer B: Trigger OTP Verification UI Box & Timer
+        const otpContainer = document.getElementById('email-otp-container');
+        if (otpContainer) {
+            otpContainer.classList.remove('hidden');
+        }
+
+        startEmailVerificationTimer();
+        showCustomModal("Verification code sent to your new email. Please enter the verification code below to save.");
+
+        // Temporarily hide the edit action buttons while waiting for OTP entry
+        const actionContainer = document.getElementById(`edit-actions-${field}`);
+        if (actionContainer) actionContainer.classList.add('hidden');
+        return; 
+    }
+
+    // ==========================================
+    // 3. STANDARD PROFILE FIELDS (Centre, Zone, State)
+    // ==========================================
     const dbKeyMap = {
         'mob': 'employee_mob',
-        'email': 'employee_email',
         'centre': 'employee_centre',
         'zone': 'employee_zone',
         'state': 'employee_state'
@@ -3941,7 +3979,7 @@ async function saveProfileField(field) {
     if (!dbField) return;
 
     try {
-        // Direct Firebase write (Now allowed because of your new Firebase rules!)
+        // Direct Firebase write (Secured by your new rules)
         await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(val);
 
         window.currentUser[dbField] = val;
@@ -3954,7 +3992,8 @@ async function saveProfileField(field) {
         showCustomModal("Failed to update profile: " + e.message, true);
     }
 }
-    
+
+  
 
 // Email Verification Code Timer (5 minutes)
 function startEmailVerificationTimer() {
