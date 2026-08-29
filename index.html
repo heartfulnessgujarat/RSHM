@@ -4050,6 +4050,8 @@ function startEmailVerificationTimer() {
 // ==========================================
 //  3. VERIFY EMAIL OTP (Instant Frontend Check + Zero Lag)
 // ==========================================
+
+ 
 async function verifyEmailOtp() {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
@@ -4066,20 +4068,40 @@ async function verifyEmailOtp() {
         return;
     }
  
-    // STRICT FRONTEND VALIDATION (Blocks random codes instantly with zero delay)
-    const expectedCode = emailVerificationState.verificationCode;
-    if (expectedCode && userEnteredCode !== expectedCode) {
-        showCustomModal("Invalid verification code! Please enter the correct code sent to your email.", true);
+    if (typeof firebase === 'undefined' || !firebase.database) {
+        showCustomModal("Firebase database not available.", true);
         return;
     }
- 
+
     try {
-        // 1. INSTANT FRONTEND & FIREBASE UPDATE (Zero delay!)
-        const dbField = 'employee_email';
-        if (typeof firebase !== 'undefined' && firebase.database) {
-            await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
-            await firebase.database().ref(`masters/employees/${empCode}/email`).set(pendingEmail);
+        // 1. INSTANTLY READ THE CODE FROM FIREBASE (Lightning fast, no backend script delay)
+        const snapshot = await firebase.database().ref(`temp_verification/${empCode}`).once('value');
+        const verificationData = snapshot.val();
+
+        if (!verificationData) {
+            showCustomModal("Verification code expired or not found. Please click save to resend.", true);
+            return;
         }
+
+        // Check if code has expired
+        if (Date.now() > verificationData.expiresAt) {
+            showCustomModal("Verification code has expired. Please click save to get a new one.", true);
+            return;
+        }
+
+        // STRICT CHECK: Match user-entered code against the Firebase record
+        if (userEnteredCode !== verificationData.code) {
+            showCustomModal("Invalid verification code! Please check the code sent to your email.", true);
+            return;
+        }
+
+        // 2. IF MATCHES, WRITE NEW EMAIL DIRECTLY TO FIREBASE
+        const dbField = 'employee_email';
+        await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
+        await firebase.database().ref(`masters/employees/${empCode}/email`).set(pendingEmail);
+
+        // Clean up temporary verification node
+        await firebase.database().ref(`temp_verification/${empCode}`).remove();
  
         // Update local session state & UI text immediately
         window.currentUser[dbField] = pendingEmail;
@@ -4092,13 +4114,15 @@ async function verifyEmailOtp() {
         if (emailVerificationState.timerInterval) clearInterval(emailVerificationState.timerInterval);
  
         cancelProfileEdit('email');
-        showCustomModal("Email successfully updated!");
+        showCustomModal("Email successfully verified and updated!");
 
     } catch (e) {
         showCustomModal("Verification Failed: " + e.message, true);
     }
 }
-
+    
+    
+    
     
 
 // ==========================================
