@@ -4118,9 +4118,16 @@ async function verifyEmailOtp() {
         cancelProfileEdit('email');
         showCustomModal("Email successfully verified and updated!");
 
-    } catch (e) {
-        showCustomModal("Verification Failed: " + e.message, true);
+
+} catch (e) {
+        // Keeps the details hidden from the user, but logs it for your debugging
+        console.error("Verification Error:", e);
+        
+        // Your custom user-friendly message
+        showCustomModal("The verification code entered by you is wrong. Please check your registered email and enter validation code", true);
     }
+
+      
 }   
     
     
