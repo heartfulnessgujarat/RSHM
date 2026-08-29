@@ -3928,8 +3928,14 @@ async function saveProfileField(field) {
  
         const otpContainer = document.getElementById('email-otp-container') || document.getElementById('vcode-step-section');
         const isOtpVisible = otpContainer && !otpContainer.classList.contains('hidden');
- 
-        if (!isOtpVisible) {
+
+
+
+
+if (!isOtpVisible) {
+            // SHOW INSTANT FEEDBACK WITH THE ACTUAL EMAIL ID
+            showCustomModal(`Sending verification code to '${val}'. Please wait...`, false);
+
             const btn = document.getElementById('btn-send-vcode');
             if (btn) {
                 btn.disabled = true;
@@ -3947,7 +3953,7 @@ async function saveProfileField(field) {
                 // Send code to backend just to trigger the email
                 const msg = await callBackend("sendVerificationCode", { empCode: empCode, email: val, code: generatedCode });
  
-                showCustomModal(msg || "Verification code sent successfully. Please check your email.");
+                showCustomModal(msg || `Verification code successfully sent to '${val}'. Please check your inbox.`);
  
                 if (otpContainer) otpContainer.classList.remove('hidden');
  
@@ -3969,6 +3975,10 @@ async function saveProfileField(field) {
             }
             return;
         }
+
+
+
+      
     }
 
   
