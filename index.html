@@ -986,10 +986,18 @@ async function executeLogin() {
 }
 
 
+// Define both names so whichever one your HTML button calls, it will work!
+async function executeLoginResetPassword() {
+    return handlePasswordResetFlow();
+}
 
 async function executeResetPassword() {
-    // Check both possible element IDs so it never fails due to view differences
-    const empCodeInput = document.getElementById('change-emp-code') || document.getElementById('login-emp-code');
+    return handlePasswordResetFlow();
+}
+
+async function handlePasswordResetFlow() {
+    // Check both possible element IDs so it never fails
+    const empCodeInput = document.getElementById('login-emp-code') || document.getElementById('change-emp-code');
   
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
     
@@ -1001,9 +1009,10 @@ async function executeResetPassword() {
         console.log("➡️ [Frontend] Sending reset validation request for Employee Code:", empCode);
         showToast("Validating employee code...");
         
+        // 1. Verify employee exists on backend
         const response = await callBackend("resetPassword", { empCode: empCode });
         
-        // Once backend verifies the employee, trigger Firebase's native reset email
+        // 2. Trigger Firebase's native reset email using the internal email
         const internalEmail = `${empCode.toLowerCase()}@rshm-portal.internal`;
         
         if (typeof firebase === 'undefined' || !firebase.auth) {
@@ -1028,7 +1037,13 @@ async function executeResetPassword() {
         showCustomModal(e.message, true);
     }
 }
-    
+
+
+
+
+
+
+
     
     async function executeSendVerificationCode() {
       const email = document.getElementById('reg-user-email').value.trim();
@@ -3180,48 +3195,6 @@ async function loadLeaveMasterOptions() {
 }
 
 
-
-async function executeLoginResetPassword() {
-    const empCodeInput = document.getElementById('change-emp-code');
-    const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
-    
-    if (!empCode) {
-        return showCustomModal("Please enter Employee Code to reset password.", true);
-    }
-    
-    try {
-        console.log("➡️ [Frontend] Sending native Firebase reset link for Employee Code:", empCode);
-        showToast("Sending password reset link...");
-
-        // Construct the internal email used for this employee
-        const internalEmail = `${empCode.toLowerCase()}@rshm-portal.internal`;
-
-        // Check if Firebase is initialized
-        if (typeof firebase === 'undefined' || !firebase.auth) {
-            throw new Error("Firebase Auth is not initialized.");
-        }
-
-        // Trigger Firebase's native password reset email
-        await firebase.auth().sendPasswordResetEmail(internalEmail);
-
-        const successMessage = `Password reset link has been sent to the registered email for ${empCode}. Please check your inbox (and spam folder) to reset your password.`;
-        
-        console.log("✅ [Frontend] Native reset email dispatched successfully.");
-        showCustomModal(successMessage, false);
-
-        // Clear view / reset input
-        if (empCodeInput) empCodeInput.value = "";
-        switchView('view-login');
-
-    } catch(e) {
-        console.error("❌ [Frontend] Reset password error caught:", e);
-        let errMsg = e.message;
-        if (errMsg.includes("user-not-found")) {
-            errMsg = "Employee code not found in authentication records.";
-        }
-        showCustomModal(errMsg, true);
-    }
-}    
 
     // Example Frontend Handler for Work Entry submission
 function submitWorkEntryForm() {
