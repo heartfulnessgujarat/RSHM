@@ -985,50 +985,40 @@ async function executeLogin() {
     }
 }
 
+
+
 async function executeResetPassword() {
-
-  
-    const empCodeInput = document.getElementById('change-emp-code');
-
-  
+    // Check both possible element IDs so it never fails due to view differences
+    const empCodeInput = document.getElementById('change-emp-code') || document.getElementById('login-emp-code');
   
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
     
-    if (!empCode) return showCustomModal("Please enter Employee Code to reset password.", true);
+    if (!empCode) {
+        return showCustomModal("Please enter Employee Code to reset password.", true);
+    }
     
     try {
-        console.log("➡️ [Frontend] Sending reset request for Employee Code:", empCode);
+        console.log("➡️ [Frontend] Sending reset validation request for Employee Code:", empCode);
+        showToast("Validating employee code...");
         
-        const response = await fetch(BACKEND_API, {
-            method: "POST",
-            body: JSON.stringify({ action: "resetPassword", empCode: empCode })
-        });
+        const response = await callBackend("resetPassword", { empCode: empCode });
         
-        const result = await response.json();
-        console.log("⬅️ [Frontend] RAW Response received from backend:", result);
+        // Once backend verifies the employee, trigger Firebase's native reset email
+        const internalEmail = `${empCode.toLowerCase()}@rshm-portal.internal`;
         
-        if (!result.success) {
-            throw new Error(result.error || "Failed to reset password.");
+        if (typeof firebase === 'undefined' || !firebase.auth) {
+            throw new Error("Firebase Auth is not initialized.");
         }
 
-        const responseData = result.data || result;
-        const targetEmail = responseData.email || responseData.targetEmail || "";
-        const successMessage = responseData.message || `Password reset successfully. Temporary password has been emailed to the registered email address - ${targetEmail}.`;
+        await firebase.auth().sendPasswordResetEmail(internalEmail);
+
+        const successMessage = `Password reset link has been sent to the registered email for ${empCode}. Please check your inbox and spam folder.`;
         
-        console.log("✅ [Frontend] Final Modal Message constructed:", successMessage);
+        console.log("✅ [Frontend] Native reset email dispatched successfully.");
         showCustomModal(successMessage, false);
 
-        // === HARD RESET / CLEAN SLATE AFTER PASSWORD RESET ===
-        try {
-            if (typeof firebase !== 'undefined' && firebase.auth) {
-                await firebase.auth().signOut();
-            }
-        } catch (err) {
-            console.log("No active session to clear during reset.");
-        }
-        localStorage.removeItem('firebase:authUser');
-        // ====================================================
-
+        // Clear inputs and switch back to login view
+        if (empCodeInput) empCodeInput.value = "";
         const loginEmpInput = document.getElementById('login-emp-code');
         if (loginEmpInput) loginEmpInput.value = empCode;
 
