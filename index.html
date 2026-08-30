@@ -866,8 +866,6 @@ function showCustomConfirm(message) {
     }
 
 
-
-
 async function executeLogin() {
     const empCodeInput = document.getElementById('login-emp-code').value.trim();
     const password = document.getElementById('login-password').value;
@@ -905,22 +903,30 @@ async function executeLogin() {
     } catch(e) {
         console.error("Login failed with error:", e);
         
-        let errMsg = e.message;
+        let errMsg = e.message || "";
         const errCode = e.code || '';
+        const errStr = JSON.stringify(e);
 
-        // Custom friendly error messages
+        // Custom friendly error messages incorporating your exact text and raw string matching
         if (errCode === 'auth/user-not-found' || errMsg.includes('user-not-found')) {
             errMsg = "You are not added as a user. Kindly contact HR/Admin at +91-XXXXXXXXXX.";
-        } else if (errCode === 'auth/wrong-password' || errMsg.includes('wrong-password')) {
+        } else if (errCode === 'auth/wrong-password' || errMsg.includes('wrong-password') || errStr.includes('INVALID_LOGIN_CREDENTIALS') || errStr.includes('INVALID_PASSWORD')) {
             errMsg = "Incorrect password. Please try again.";
         } else if (errCode === 'auth/invalid-credential' || errMsg.includes('invalid-credential')) {
             errMsg = "You are not added as a user or invalid credentials. Kindly contact HR/Admin at +91-XXXXXXXXXX.";
+        } else {
+            errMsg = "Incorrect password or employee code. Please try again.";
         }
 
-        showToast(errMsg);
+        // Route to the custom popup alert dialog box with an OK button
+        showCustomAlertBox(errMsg);
     }
 }
 
+
+
+
+    
 
     
     async function executeChangePassword() {
@@ -4497,7 +4503,36 @@ function renderAttendanceHistoryUI(startDay, endDay, currentOffset, attendanceRe
   `;
 }    
 
+function showCustomAlertBox(message) {
+  let modalOverlay = document.getElementById('custom-alert-overlay');
+  if (!modalOverlay) {
+    modalOverlay = document.createElement('div');
+    modalOverlay.id = 'custom-alert-overlay';
+    modalOverlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;justify-content:center;align-items:center;z-index:9999;";
+    
+    modalOverlay.innerHTML = `
+      <div style="background:white;padding:24px;border-radius:8px;max-width:350px;width:100%;box-shadow:0 4px 12px rgba(0,0,0,0.15);text-align:center;font-family:sans-serif;">
+        <h3 style="margin-top:0;color:#333;font-size:18px;">Login Notice</h3>
+        <p id="custom-alert-msg" style="color:#666;font-size:14px;line-height:1.5;margin-bottom:20px;"></p>
+        <button id="custom-alert-btn" style="background:#2563eb;color:white;border:none;padding:8px 20px;border-radius:4px;font-size:14px;cursor:pointer;">OK</button>
+      </div>
+    `;
+    document.body.appendChild(modalOverlay);
+    
+    document.getElementById('custom-alert-btn').onclick = function() {
+      modalOverlay.style.display = 'none';
+    };
+  }
+  
+  document.getElementById('custom-alert-msg').innerText = message;
+  modalOverlay.style.display = 'flex';
+}
 
+
+
+
+
+    
     
 </script>    
 
