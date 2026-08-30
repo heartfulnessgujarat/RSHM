@@ -899,8 +899,8 @@ async function executeLogin() {
         showToast("Login successful!");
         populateEmployeeProfileUI();
         await openDashboard();
-        
-    } catch(e) {
+
+} catch(e) {
         console.error("Login failed with error:", e);
         
         let errMsg = e.message;
@@ -909,14 +909,17 @@ async function executeLogin() {
         // Custom friendly error messages
         if (errCode === 'auth/user-not-found' || errMsg.includes('user-not-found')) {
             errMsg = "You are not added as a user. Kindly contact HR/Admin at +91-XXXXXXXXXX.";
-        } else if (errCode === 'auth/wrong-password' || errMsg.includes('wrong-password')) {
-            errMsg = "Incorrect password. Please try again.";
-        } else if (errCode === 'auth/invalid-credential' || errMsg.includes('invalid-credential')) {
-            errMsg = "You are not added as a user or invalid credentials. Kindly contact HR/Admin at +91-XXXXXXXXXX.";
+        } else if (errCode === 'auth/wrong-password' || errMsg.includes('wrong-password') || errCode === 'auth/invalid-credential' || errMsg.includes('invalid-credential') || errCode === 'auth/invalid-login-credentials' || errMsg.includes('INVALID_LOGIN_CREDENTIALS')) {
+            errMsg = "Either Password or Username (Employee Id) is wrong. Please check and retry....";
+        } else {
+            errMsg = "Either Password or Username (Employee Id) is wrong. Please check and retry....";
         }
 
-        showToast(errMsg);
+        showCustomModal(errMsg, true);
     }
+
+
+  
 }
 
     
