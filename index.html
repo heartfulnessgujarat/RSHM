@@ -974,38 +974,35 @@ async function executeLogin() {
     }
 }
 
-async function executeResetPassword() {
+
+    async function executeResetPassword() {
     const empCodeInput = document.getElementById('change-emp-code');
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
     
     if (!empCode) return showCustomModal("Please enter Employee Code to reset password.", true);
     
     try {
-        console.log("-> Sending reset password request for Employee:", empCode);
-        
         const response = await fetch(BACKEND_API, {
             method: "POST",
             body: JSON.stringify({ action: "resetPassword", empCode: empCode })
         });
         
         const result = await response.json();
-        console.log("<- RAW Backend Response Received:", result); // Look at this in your browser console!
         
         if (!result.success) {
             throw new Error(result.error || "Failed to reset password.");
         }
 
-        // Catch message from any possible nesting structure (result.data.message OR result.message)
+        // Pull the exact message sent back from the backend
         const responseData = result.data || result;
         const successMessage = responseData.message || result.message;
         
         if (!successMessage) {
-            console.warn("⚠️ Warning: Backend returned success, but no message string was found!");
+            throw new Error("Backend succeeded, but no message was returned.");
         }
-
-        const finalMessage = successMessage || `Password reset successfully. Temporary password has been emailed to the registered email address.`;
         
-        showCustomModal(finalMessage, false);
+        // Show your exact required message in the modal
+        showCustomModal(successMessage, false);
 
         // Switch to login view with empCode ready
         const loginEmpInput = document.getElementById('login-emp-code');
@@ -1013,7 +1010,7 @@ async function executeResetPassword() {
 
         switchView('view-login');
     } catch(e) {
-        console.error("❌ Reset password error:", e);
+        console.error("Reset password error:", e);
         showCustomModal(e.message, true);
     }
 }
