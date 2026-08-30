@@ -924,7 +924,11 @@ async function executeLogin() {
 
     
     async function executeChangePassword() {
+
+      
     const empCodeInput = document.getElementById('change-emp-code');
+
+      
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
     const currentPassword = document.getElementById('change-curr-pass').value;
     const newPassword = document.getElementById('change-new-pass').value;
@@ -976,7 +980,12 @@ async function executeLogin() {
 }
 
 async function executeResetPassword() {
+
+  
     const empCodeInput = document.getElementById('change-emp-code');
+
+  
+  
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
     
     if (!empCode) return showCustomModal("Please enter Employee Code to reset password.", true);
