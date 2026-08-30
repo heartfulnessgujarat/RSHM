@@ -993,15 +993,14 @@ async function executeLogin() {
             throw new Error(result.error || "Failed to reset password.");
         }
 
-        // Pull the exact message sent back from the backend
+        // Extract data from response
         const responseData = result.data || result;
-        const successMessage = responseData.message || result.message;
+        const targetEmail = responseData.email || responseData.targetEmail || "";
         
-        if (!successMessage) {
-            throw new Error("Backend succeeded, but no message was returned.");
-        }
+        // Guarantee your exact message format with the email address included
+        const successMessage = responseData.message || (targetEmail ? `Password reset successfully. Temporary password has been emailed to the registered email address - ${targetEmail}.` : `Password reset successfully. Temporary password has been emailed.`);
         
-        // Show your exact required message in the modal
+        // Show your exact message in the modal
         showCustomModal(successMessage, false);
 
         // Switch to login view with empCode ready
@@ -1014,7 +1013,10 @@ async function executeLogin() {
         showCustomModal(e.message, true);
     }
 }
-    
+
+
+
+
     
     
     async function executeSendVerificationCode() {
