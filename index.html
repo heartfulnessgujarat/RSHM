@@ -922,44 +922,38 @@ async function executeLogin() {
   
 }
 
-    
-async function executeChangePassword() {
+    async function executeChangePassword() {
     const empCodeInput = document.getElementById('change-emp-code');
-    const empCode = empCodeInput ? empCodeInput.value.trim() : "";
+    const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
     const currentPassword = document.getElementById('change-curr-pass').value;
     const newPassword = document.getElementById('change-new-pass').value;
     const confPassword = document.getElementById('change-conf-pass').value;
 
     if (!empCode || !currentPassword || !newPassword || !confPassword) {
-        return showToast("All fields are required.");
+        return showCustomModal("All fields are required.", true);
     }
     if (newPassword !== confPassword) {
-        return showToast("New Password and Confirm Password do not match.");
+        return showCustomModal("New Password and Confirm Password do not match.", true);
     }
 
     try {
+        const internalEmail = `${empCode.toLowerCase()}@rshm-portal.internal`;
+
+        // 1. Authenticate user with Firebase Auth first using current password
+        const userCredential = await firebase.auth().signInWithEmailAndPassword(internalEmail, currentPassword);
+
+        // 2. Update password in Firebase Authentication
+        await userCredential.user.updatePassword(newPassword);
+
+        // 3. Update password and timestamp in Firebase Realtime Database
         const userRef = firebase.database().ref(`masters/employees/${empCode}`);
-        const snapshot = await userRef.once('value');
-        
-        if (!snapshot.exists()) {
-            throw new Error("Employee code not found.");
-        }
-
-        const userData = snapshot.val();
-
-        // Verify current password matches database record
-        if (userData.password !== currentPassword) {
-            throw new Error("Current password is incorrect.");
-        }
-
-        // Update password and track last changed timestamp directly in Firebase
         const timestamp = new Date().toLocaleString();
         await userRef.update({
             password: newPassword,
             password_last_changed_on: timestamp
         });
 
-        showToast("Password successfully updated!", false);
+        showCustomModal("Password successfully updated!", false);
         
         // Clear password fields but keep empCode intact, then switch to login
         document.getElementById('change-curr-pass').value = "";
@@ -971,15 +965,22 @@ async function executeChangePassword() {
 
         switchView('view-login');
     } catch(e) {
-        showToast(e.message);
+        console.error("Change password error:", e);
+        let msg = e.message;
+        if (msg.includes('wrong-password') || msg.includes('invalid-credential')) {
+            msg = "Current password is incorrect.";
+        }
+        showCustomModal(msg, true);
     }
 }
 
-async function executeResetPassword() {
+
+
+    async function executeResetPassword() {
     const empCodeInput = document.getElementById('change-emp-code');
-    const empCode = empCodeInput ? empCodeInput.value.trim() : "";
+    const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
     
-    if (!empCode) return showToast("Please enter Employee Code to reset password.");
+    if (!empCode) return showCustomModal("Please enter Employee Code to reset password.", true);
     
     try {
         const userRef = firebase.database().ref(`masters/employees/${empCode}`);
@@ -989,16 +990,16 @@ async function executeResetPassword() {
             throw new Error("Employee code not found.");
         }
 
-        // Generate a random 6-character temporary password or standard default
-        const tempPassword = Math.random().toString(36).slice(-6);
-        const timestamp = new Date().toLocaleString();
+        const empData = snapshot.val();
+        if (!empData.email) {
+            throw new Error("No email address found for this employee record to send reset instructions.");
+        }
 
-        await userRef.update({
-            password: tempPassword,
-            password_last_changed_on: timestamp
-        });
+        // Send Firebase built-in password reset email to internal email mapped to user
+        const internalEmail = `${empCode.toLowerCase()}@rshm-portal.internal`;
+        await firebase.auth().sendPasswordResetEmail(internalEmail);
 
-        showToast(`Password reset successfully. Temporary Password: ${tempPassword}`, false);
+        showCustomModal(`Password reset instructions have been emailed to the registered address for Employee ID: ${empCode}.`, false);
 
         // Switch to login view with empCode ready
         const loginEmpInput = document.getElementById('login-emp-code');
@@ -1006,12 +1007,10 @@ async function executeResetPassword() {
 
         switchView('view-login');
     } catch(e) {
-        showToast(e.message);
+        console.error("Reset password error:", e);
+        showCustomModal(e.message, true);
     }
 }
-
-
-    
     
     async function executeSendVerificationCode() {
       const email = document.getElementById('reg-user-email').value.trim();
