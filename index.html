@@ -996,9 +996,7 @@ async function executeResetPassword() {
 }
 
 async function handlePasswordResetFlow() {
-    // Check both possible element IDs so it never fails
     const empCodeInput = document.getElementById('login-emp-code') || document.getElementById('change-emp-code');
-  
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
     
     if (!empCode) {
@@ -1006,27 +1004,19 @@ async function handlePasswordResetFlow() {
     }
     
     try {
-        console.log("➡️ [Frontend] Sending reset validation request for Employee Code:", empCode);
-        showToast("Validating employee code...");
+        console.log("➡️ [Frontend] Requesting password reset link for Employee Code:", empCode);
+        showToast("Generating password reset link...");
         
-        // 1. Verify employee exists on backend
+        // Call backend which triggers Firebase link creation and emails the real address via GmailApp
         const response = await callBackend("resetPassword", { empCode: empCode });
+        const responseData = response.data || response;
         
-        // 2. Trigger Firebase's native reset email using the internal email
-        const internalEmail = `${empCode.toLowerCase()}@rshm-portal.internal`;
+        const targetEmail = responseData.email || "your registered email";
+        const successMessage = responseData.message || `Password reset link has been sent to ${targetEmail}. Please check your inbox.`;
         
-        if (typeof firebase === 'undefined' || !firebase.auth) {
-            throw new Error("Firebase Auth is not initialized.");
-        }
-
-        await firebase.auth().sendPasswordResetEmail(internalEmail);
-
-        const successMessage = `Password reset link has been sent to the registered email for ${empCode}. Please check your inbox and spam folder.`;
-        
-        console.log("✅ [Frontend] Native reset email dispatched successfully.");
+        console.log("✅ [Frontend] Success:", successMessage);
         showCustomModal(successMessage, false);
 
-        // Clear inputs and switch back to login view
         if (empCodeInput) empCodeInput.value = "";
         const loginEmpInput = document.getElementById('login-emp-code');
         if (loginEmpInput) loginEmpInput.value = empCode;
@@ -1037,8 +1027,6 @@ async function handlePasswordResetFlow() {
         showCustomModal(e.message, true);
     }
 }
-
-
 
 
 
