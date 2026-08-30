@@ -4105,11 +4105,10 @@ cancelProfileEdit('email');
     }
 }    
     
-
 // ==========================================
 // 4. CUSTOM MODAL HELPER
 // ==========================================
-function showCustomModal(message, isError = false) {
+function showCustomModal(message, isError = false, showButton = true) {
     let modal = document.getElementById('custom-app-modal');
     if (!modal) {
         modal = document.createElement('div');
@@ -4120,14 +4119,12 @@ function showCustomModal(message, isError = false) {
     
     modal.innerHTML = `
         <div style="background: white; padding: 20px; border-radius: 8px; max-width: 400px; width: 90%; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; font-family: inherit;">
-            <p style="margin: 0 0 15px 0; font-size: 1rem; color: ${isError ? '#dc2626' : '#111827'}; font-weight: 500;">${message}</p>
-            <button onclick="document.getElementById('custom-app-modal').style.display='none'" style="padding: 6px 16px; background: ${isError ? '#dc2626' : '#2563eb'}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">OK</button>
+            <p style="margin: 0 0 ${showButton ? '15px' : '0'} 0; font-size: 1rem; color: ${isError ? '#dc2626' : '#111827'}; font-weight: 500;">${message}</p>
+            ${showButton ? `<button onclick="document.getElementById('custom-app-modal').style.display='none'" style="padding: 6px 16px; background: ${isError ? '#dc2626' : '#2563eb'}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">OK</button>` : ''}
         </div>
     `;
     modal.style.display = 'flex';
 }
-
-
 
     async function generateAndUploadLogoBase64() {
     try {
