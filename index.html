@@ -3164,29 +3164,47 @@ async function loadLeaveMasterOptions() {
   }
 }
 
-    
-    
-    
-    
-async function executeLoginResetPassword() {
-  const empCode = document.getElementById('login-emp-code').value.trim();
-  if (!empCode) {
-    showToast("Please enter Employee Code to reset password.");
-    return;
-  }
-  
-  // Custom confirmation with exact text requested
-  const confirmAction = await showCustomConfirm("Are you sure you want to reset your password ?");
-  if (!confirmAction) return;
 
-  try {
-    const res = callBackend("resetPassword", { empCode });
-    showToast(res.message || "A new temporary password has been emailed to you.", false);
-  } catch (err) {
-    showToast(err.message || "Failed to reset password.");
-  }
+
+
+    async function executeLoginResetPassword() {
+    const empCodeInput = document.getElementById('login-emp-code');
+    const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
+    
+    if (!empCode) {
+        showCustomModal("Please enter Employee Code to reset password.", true);
+        return;
+    }
+    
+    // Custom confirmation with exact text requested
+    const confirmAction = await showCustomConfirm("Are you sure you want to reset your password ?");
+    if (!confirmAction) return;
+
+    try {
+        // FIXED: Added 'await' so we actually wait for the backend response object
+        const res = await callBackend("resetPassword", { empCode });
+        console.log("<- Backend Response:", res);
+
+        // Extract the email and build your exact required message string
+        const responseData = res.data || res;
+        const targetEmail = responseData.email || responseData.targetEmail || "";
+        
+        const successMessage = responseData.message || `Password reset successfully. Temporary password has been emailed to the registered email address - ${targetEmail}.`;
+
+        // Show your exact message in the modal instead of a toast
+        showCustomModal(successMessage, false);
+
+        // Switch back to login view with empCode ready
+        const loginEmpInput = document.getElementById('login-emp-code');
+        if (loginEmpInput) loginEmpInput.value = empCode;
+
+    } catch (err) {
+        console.error("Reset password error:", err);
+        showCustomModal(err.message || "Failed to reset password.", true);
+    }
 }
-
+    
+    
 
     // Example Frontend Handler for Work Entry submission
 function submitWorkEntryForm() {
