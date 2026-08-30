@@ -974,6 +974,7 @@ async function executeLogin() {
     }
 }
 
+
 async function executeResetPassword() {
     const empCodeInput = document.getElementById('change-emp-code');
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
@@ -988,13 +989,13 @@ async function executeResetPassword() {
         
         const result = await response.json();
         
-        // Handle both object responses and plain string error responses
-        if (result.error || result.success === false) {
-            throw new Error(result.error || result.message || "Failed to reset password.");
+        if (!result.success) {
+            throw new Error(result.error || "Failed to reset password.");
         }
 
-        // Use the message returned from the backend (which includes the email address)
-        const successMessage = result.message || `Password reset successfully. Temporary password has been emailed to the registered email address.`;
+        // Extract the message from your backend's "data" wrapper structure
+        const responseData = result.data || {};
+        const successMessage = responseData.message || `Password reset successfully. Temporary password has been emailed to the registered email address.`;
         
         showCustomModal(successMessage, false);
 
@@ -1007,8 +1008,11 @@ async function executeResetPassword() {
         console.error("Reset password error:", e);
         showCustomModal(e.message, true);
     }
-}    
+}
 
+
+    
+    
     
     async function executeSendVerificationCode() {
       const email = document.getElementById('reg-user-email').value.trim();
