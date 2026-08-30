@@ -866,20 +866,19 @@ function showCustomConfirm(message) {
     }
 
 
+
+
+
 async function executeLogin() {
-    // === HARD RESTART / CLEAN SLATE STEP ===
+    // Clean slate safeguard
     try {
-        // Force sign out any lingering or ghost Firebase sessions
         if (typeof firebase !== 'undefined' && firebase.auth) {
             await firebase.auth().signOut();
         }
     } catch (err) {
         console.log("No active session to clear.");
     }
-    
-    // Clear any stale local cached tokens or old app states
     localStorage.removeItem('firebase:authUser');
-    // =======================================
 
     const empCodeInput = document.getElementById('login-emp-code').value.trim();
     const password = document.getElementById('login-password').value;
@@ -895,13 +894,13 @@ async function executeLogin() {
             throw new Error("Firebase Auth is not initialized.");
         }
 
-        // Run Firebase Auth AND Database fetch in parallel with a fresh session
-        const [authResult, snapshot] = await Promise.all([
-            firebase.auth().signInWithEmailAndPassword(internalEmail, password),
-            firebase.database().ref(`masters/employees/${empCode}`).once('value')
-        ]);
+        // STEP 1: Authenticate with Firebase Auth FIRST
+        await firebase.auth().signInWithEmailAndPassword(internalEmail, password);
 
+        // STEP 2: Now that user is authenticated, fetch their profile from the Database safely
+        const snapshot = await firebase.database().ref(`masters/employees/${empCode}`).once('value');
         const empData = snapshot.val();
+        
         if (!empData) {
             throw new Error("Employee profile record not found in database.");
         }
@@ -922,9 +921,7 @@ async function executeLogin() {
 
         // Custom friendly error messages
         if (errCode === 'auth/user-not-found' || errMsg.includes('user-not-found')) {
-            errMsg = "You are not added as a user. Kindly contact HR/Admin at +91-XXXXXXXXXX.";
-        } else if (errCode === 'auth/wrong-password' || errMsg.includes('wrong-password') || errCode === 'auth/invalid-credential' || errMsg.includes('invalid-credential') || errCode === 'auth/invalid-login-credentials' || errMsg.includes('INVALID_LOGIN_CREDENTIALS')) {
-            errMsg = "Either Password or Username (Employee Id) is wrong. Please check and retry....";
+            errMsg = "You are not added as a user. Kindly contact HR/Admin.";
         } else {
             errMsg = "Either Password or Username (Employee Id) is wrong. Please check and retry....";
         }
@@ -932,7 +929,6 @@ async function executeLogin() {
         showCustomModal(errMsg, true);
     }
 }
-
 
 
 
