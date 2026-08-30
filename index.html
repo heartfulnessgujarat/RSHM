@@ -867,13 +867,27 @@ function showCustomConfirm(message) {
 
 
 async function executeLogin() {
+    // === HARD RESTART / CLEAN SLATE STEP ===
+    try {
+        // Force sign out any lingering or ghost Firebase sessions
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+            await firebase.auth().signOut();
+        }
+    } catch (err) {
+        console.log("No active session to clear.");
+    }
+    
+    // Clear any stale local cached tokens or old app states
+    localStorage.removeItem('firebase:authUser');
+    // =======================================
+
     const empCodeInput = document.getElementById('login-emp-code').value.trim();
     const password = document.getElementById('login-password').value;
     if(!empCodeInput || !password) return showToast("Please input credentials explicitly.");
     
     try {
         const empCode = empCodeInput.toUpperCase();
-        console.log("Attempting login for:", empCode);
+        console.log("Attempting fresh login for:", empCode);
         showToast("Authenticating...");
 
         const internalEmail = `${empCode.toLowerCase()}@rshm-portal.internal`;
@@ -881,7 +895,7 @@ async function executeLogin() {
             throw new Error("Firebase Auth is not initialized.");
         }
 
-        // Run Firebase Auth AND Database fetch in parallel
+        // Run Firebase Auth AND Database fetch in parallel with a fresh session
         const [authResult, snapshot] = await Promise.all([
             firebase.auth().signInWithEmailAndPassword(internalEmail, password),
             firebase.database().ref(`masters/employees/${empCode}`).once('value')
@@ -900,7 +914,7 @@ async function executeLogin() {
         populateEmployeeProfileUI();
         await openDashboard();
 
-} catch(e) {
+    } catch(e) {
         console.error("Login failed with error:", e);
         
         let errMsg = e.message;
@@ -917,11 +931,12 @@ async function executeLogin() {
 
         showCustomModal(errMsg, true);
     }
-
-
-  
 }
 
+
+
+
+    
     async function executeChangePassword() {
     const empCodeInput = document.getElementById('change-emp-code');
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
@@ -1002,6 +1017,17 @@ async function executeResetPassword() {
         console.log("✅ [Frontend] Final Modal Message constructed:", successMessage);
         showCustomModal(successMessage, false);
 
+        // === HARD RESET / CLEAN SLATE AFTER PASSWORD RESET ===
+        try {
+            if (typeof firebase !== 'undefined' && firebase.auth) {
+                await firebase.auth().signOut();
+            }
+        } catch (err) {
+            console.log("No active session to clear during reset.");
+        }
+        localStorage.removeItem('firebase:authUser');
+        // ====================================================
+
         const loginEmpInput = document.getElementById('login-emp-code');
         if (loginEmpInput) loginEmpInput.value = empCode;
 
@@ -1011,8 +1037,6 @@ async function executeResetPassword() {
         showCustomModal(e.message, true);
     }
 }
-
-
     
     
     async function executeSendVerificationCode() {
