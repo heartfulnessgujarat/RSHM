@@ -390,11 +390,11 @@
           <button id="btn-edit-email" onclick="toggleProfileEdit('email')" style="width: auto; padding: 3px 10px; font-size: 0.75rem;" class="btn-secondary">Edit</button>
         </div>
         
-        <!-- OTP Box Container -->
+<!-- OTP Box Container -->
         <div id="email-otp-container" class="hidden" style="margin-top: 6px; padding: 8px; background: #f9fafb; border-radius: 6px; border: 1px dashed #d1d5db;">
           <div style="display: flex; gap: 8px; align-items: center;"> 
-           <input type="text" id="email-otp-input" placeholder="Enter Verification Code" style="padding: 4px 8px; font-size: 0.85rem; flex-grow: 1;" onpaste="return true;">
-            <button onclick="verifyEmailOtp()" style="width: auto; padding: 4px 10px; font-size: 0.75rem;">Verify Code</button>
+            <input type="text" id="email-otp-input" placeholder="Enter 6-digit code" maxlength="6" style="padding: 4px 8px; font-size: 0.85rem; width: 130px; flex-grow: 0; text-align: center; letter-spacing: 2px;" onpaste="return true;">
+            <button onclick="verifyEmailOtp()" style="width: auto; padding: 6px 12px; font-size: 0.8rem; white-space: nowrap; cursor: pointer;">Verify Code</button>
           </div>
           <small id="email-otp-timer" style="color: #dc2626; display: block; margin-top: 4px; font-weight: 500;"></small>
         </div>
