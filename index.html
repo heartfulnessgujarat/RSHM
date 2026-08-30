@@ -974,47 +974,43 @@ async function executeLogin() {
     }
 }
 
-
-    async function executeResetPassword() {
+async function executeResetPassword() {
     const empCodeInput = document.getElementById('change-emp-code');
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
     
     if (!empCode) return showCustomModal("Please enter Employee Code to reset password.", true);
     
     try {
+        console.log("➡️ [Frontend] Sending reset request for Employee Code:", empCode);
+        
         const response = await fetch(BACKEND_API, {
             method: "POST",
             body: JSON.stringify({ action: "resetPassword", empCode: empCode })
         });
         
         const result = await response.json();
+        console.log("⬅️ [Frontend] RAW Response received from backend:", result);
         
         if (!result.success) {
             throw new Error(result.error || "Failed to reset password.");
         }
 
-        // Extract data from response
         const responseData = result.data || result;
         const targetEmail = responseData.email || responseData.targetEmail || "";
+        const successMessage = responseData.message || `Password reset successfully. Temporary password has been emailed to the registered email address - ${targetEmail}.`;
         
-        // Guarantee your exact message format with the email address included
-        const successMessage = responseData.message || (targetEmail ? `Password reset successfully. Temporary password has been emailed to the registered email address - ${targetEmail}.` : `Password reset successfully. Temporary password has been emailed.`);
-        
-        // Show your exact message in the modal
+        console.log("✅ [Frontend] Final Modal Message constructed:", successMessage);
         showCustomModal(successMessage, false);
 
-        // Switch to login view with empCode ready
         const loginEmpInput = document.getElementById('login-emp-code');
         if (loginEmpInput) loginEmpInput.value = empCode;
 
         switchView('view-login');
     } catch(e) {
-        console.error("Reset password error:", e);
+        console.error("❌ [Frontend] Reset password error caught:", e);
         showCustomModal(e.message, true);
     }
 }
-
-
 
 
     
