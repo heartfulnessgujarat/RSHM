@@ -974,7 +974,6 @@ async function executeLogin() {
     }
 }
 
-
 async function executeResetPassword() {
     const empCodeInput = document.getElementById('change-emp-code');
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
@@ -982,22 +981,31 @@ async function executeResetPassword() {
     if (!empCode) return showCustomModal("Please enter Employee Code to reset password.", true);
     
     try {
+        console.log("-> Sending reset password request for Employee:", empCode);
+        
         const response = await fetch(BACKEND_API, {
             method: "POST",
             body: JSON.stringify({ action: "resetPassword", empCode: empCode })
         });
         
         const result = await response.json();
+        console.log("<- RAW Backend Response Received:", result); // Look at this in your browser console!
         
         if (!result.success) {
             throw new Error(result.error || "Failed to reset password.");
         }
 
-        // Extract the message from your backend's "data" wrapper structure
-        const responseData = result.data || {};
-        const successMessage = responseData.message || `Password reset successfully. Temporary password has been emailed to the registered email address.`;
+        // Catch message from any possible nesting structure (result.data.message OR result.message)
+        const responseData = result.data || result;
+        const successMessage = responseData.message || result.message;
         
-        showCustomModal(successMessage, false);
+        if (!successMessage) {
+            console.warn("⚠️ Warning: Backend returned success, but no message string was found!");
+        }
+
+        const finalMessage = successMessage || `Password reset successfully. Temporary password has been emailed to the registered email address.`;
+        
+        showCustomModal(finalMessage, false);
 
         // Switch to login view with empCode ready
         const loginEmpInput = document.getElementById('login-emp-code');
@@ -1005,12 +1013,10 @@ async function executeResetPassword() {
 
         switchView('view-login');
     } catch(e) {
-        console.error("Reset password error:", e);
+        console.error("❌ Reset password error:", e);
         showCustomModal(e.message, true);
     }
 }
-
-
     
     
     
