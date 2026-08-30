@@ -207,10 +207,13 @@
   <img id="app-logo-img" src="" alt="" style="display: none; width: 100%; max-width: 100%; height: auto; display: block; margin: 0 auto;">
 </div>
 
- 
+
+
+
   <script>
     // Automatically load the base64 logo from Firebase root on page load
-    document.addEventListener("DOMContentLoaded", () => {
+    document.addEventListener("DOMContentLoaded", async () => {
+        // 1. Load Logo
         firebase.database().ref('htmlbase64').once('value').then(snapshot => {
             const logoBase64 = snapshot.val();
             const logoImgEl = document.getElementById('app-logo-img');
@@ -219,9 +222,48 @@
                 logoImgEl.style.display = "block"; // Reveal smoothly once loaded
             }
         }).catch(err => console.warn("Could not load base64 logo:", err));
+
+        // 2. Check URL parameters on page load for password reset token
+        const urlParams = new URLSearchParams(window.location.search);
+        const resetToken = urlParams.get('resetToken');
+        const empCode = urlParams.get('empCode');
+
+        if (resetToken && empCode) {
+          console.log(`[Frontend] Reset token detected for employee: ${empCode}`);
+          
+          const newPassword = prompt(`Enter your new 6-digit password for employee ${empCode}:`);
+          
+          if (!newPassword || newPassword.trim().length < 6) {
+            alert("Password must be at least 6 characters.");
+            return;
+          }
+
+          try {
+            // Ensure you have a helper function 'callBackend' pointing to your Apps Script Web App URL
+            const response = await callBackend('handleNewPasswordReset', {
+              empCode: empCode,
+              resetToken: resetToken,
+              newPassword: newPassword.trim()
+            });
+
+            if (response && response.success) {
+              alert("Password successfully reset! You can now log in with your new password.");
+              window.history.replaceState({}, document.title, window.location.pathname);
+            } else {
+              alert("Failed to reset password: " + (response.message || "Unknown error"));
+            }
+          } catch (err) {
+            console.error("Error updating password:", err);
+            alert("An error occurred while resetting your password. The link may have expired (valid for 15 minutes).");
+          }
+        }
     });
   </script>
 
+
+
+
+  
 
 <h2>Login for HST Team Members</h2>
     <div class="form-group">
