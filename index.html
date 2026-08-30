@@ -868,25 +868,14 @@ function showCustomConfirm(message) {
 
 
 
-
 async function executeLogin() {
-    // Clean slate safeguard
-    try {
-        if (typeof firebase !== 'undefined' && firebase.auth) {
-            await firebase.auth().signOut();
-        }
-    } catch (err) {
-        console.log("No active session to clear.");
-    }
-    localStorage.removeItem('firebase:authUser');
-
     const empCodeInput = document.getElementById('login-emp-code').value.trim();
     const password = document.getElementById('login-password').value;
     if(!empCodeInput || !password) return showToast("Please input credentials explicitly.");
     
     try {
         const empCode = empCodeInput.toUpperCase();
-        console.log("Attempting fresh login for:", empCode);
+        console.log("Attempting login for:", empCode);
         showToast("Authenticating...");
 
         const internalEmail = `${empCode.toLowerCase()}@rshm-portal.internal`;
@@ -894,13 +883,13 @@ async function executeLogin() {
             throw new Error("Firebase Auth is not initialized.");
         }
 
-        // STEP 1: Authenticate with Firebase Auth FIRST
-        await firebase.auth().signInWithEmailAndPassword(internalEmail, password);
+        // Run Firebase Auth AND Database fetch in parallel
+        const [authResult, snapshot] = await Promise.all([
+            firebase.auth().signInWithEmailAndPassword(internalEmail, password),
+            firebase.database().ref(`masters/employees/${empCode}`).once('value')
+        ]);
 
-        // STEP 2: Now that user is authenticated, fetch their profile from the Database safely
-        const snapshot = await firebase.database().ref(`masters/employees/${empCode}`).once('value');
         const empData = snapshot.val();
-        
         if (!empData) {
             throw new Error("Employee profile record not found in database.");
         }
@@ -912,7 +901,7 @@ async function executeLogin() {
         showToast("Login successful!");
         populateEmployeeProfileUI();
         await openDashboard();
-
+        
     } catch(e) {
         console.error("Login failed with error:", e);
         
@@ -921,15 +910,16 @@ async function executeLogin() {
 
         // Custom friendly error messages
         if (errCode === 'auth/user-not-found' || errMsg.includes('user-not-found')) {
-            errMsg = "You are not added as a user. Kindly contact HR/Admin.";
-        } else {
-            errMsg = "Either Password or Username (Employee Id) is wrong. Please check and retry....";
+            errMsg = "You are not added as a user. Kindly contact HR/Admin at +91-XXXXXXXXXX.";
+        } else if (errCode === 'auth/wrong-password' || errMsg.includes('wrong-password')) {
+            errMsg = "Incorrect password. Please try again.";
+        } else if (errCode === 'auth/invalid-credential' || errMsg.includes('invalid-credential')) {
+            errMsg = "You are not added as a user or invalid credentials. Kindly contact HR/Admin at +91-XXXXXXXXXX.";
         }
 
-        showCustomModal(errMsg, true);
+        showToast(errMsg);
     }
 }
-
 
 
     
