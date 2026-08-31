@@ -212,29 +212,36 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", async () => {
+        console.log("[Frontend] DOM fully loaded and parsed.");
+        
         // 1. Load Logo
         firebase.database().ref('htmlbase64').once('value').then(snapshot => {
             const logoBase64 = snapshot.val();
             const logoImgEl = document.getElementById('app-logo-img');
+            console.log("[Frontend] Logo snapshot retrieved:", logoBase64 ? "Found logo data" : "Logo empty");
             if (logoBase64 && logoImgEl) {
                 logoImgEl.src = logoBase64;
                 logoImgEl.style.display = "block"; 
             }
-        }).catch(err => console.warn("Could not load base64 logo:", err));
+        }).catch(err => console.warn("[Frontend] Could not load base64 logo:", err));
 
         // 2. Check URL parameters for password reset token
         const urlParams = new URLSearchParams(window.location.search);
         const resetToken = urlParams.get('resetToken');
         const empCode = urlParams.get('empCode');
 
+        console.log("[Frontend] URL Params parsed -> empCode:", empCode, "| resetToken:", resetToken);
+
         if (resetToken && empCode) {
-            console.log(`[Frontend] Reset token detected for employee: ${empCode}`);
+            console.log(`[Frontend] Reset token and empCode detected. Prompting user for password.`);
             showCustomResetModal(empCode, resetToken);
+        } else {
+            console.log("[Frontend] No reset parameters found in URL. Normal page load.");
         }
     });
 
     function showCustomResetModal(empCode, resetToken) {
-        // Remove existing if any
+        console.log("[Frontend] Rendering custom reset modal for:", empCode);
         const existing = document.getElementById('custom-modal-overlay');
         if (existing) existing.remove();
 
@@ -256,36 +263,47 @@
 
         document.getElementById('modal-submit-btn').onclick = async () => {
             const pwdInput = document.getElementById('custom-new-password').value.trim();
+            console.log("[Frontend] Password submit clicked. Length:", pwdInput.length);
+
             if (!pwdInput || pwdInput.length < 6) {
+                console.warn("[Frontend] Validation failed: Password too short.");
                 alertCustom("Validation Error", "Password must be at least 6 characters.");
                 return;
             }
 
+            const payload = {
+                empCode: empCode,
+                resetToken: resetToken,
+                newPassword: pwdInput
+            };
+
+            console.log("[Frontend] Calling backend 'handleNewPasswordReset' with payload:", payload);
+
             try {
-                const response = await callBackend('handleNewPasswordReset', {
-                    empCode: empCode,
-                    resetToken: resetToken,
-                    newPassword: pwdInput
-                });
+                const response = await callBackend('handleNewPasswordReset', payload);
+                console.log("[Frontend] Backend response received:", response);
 
                 overlay.remove();
 
                 if (response && response.success) {
+                    console.log("[Frontend] Password reset reported SUCCESS by backend.");
                     alertCustom("Success", "Password successfully reset! You can now log in with your new password.", () => {
                         window.history.replaceState({}, document.title, window.location.pathname);
                     });
                 } else {
-                    alertCustom("Reset Failed", response.message || "Unknown error occurred.");
+                    console.error("[Frontend] Password reset failed according to backend:", response);
+                    alertCustom("Reset Failed", response ? response.message : "Unknown backend response.");
                 }
             } catch (err) {
                 overlay.remove();
-                console.error("Error updating password:", err);
-                alertCustom("Error", "An error occurred while resetting your password. The link may have expired.");
+                console.error("[Frontend Catch Block] Error calling backend:", err);
+                alertCustom("Error", "Network or script error: " + err.toString());
             }
         };
     }
 
     function alertCustom(title, message, callback) {
+        console.log("[Frontend Modal] Displaying alert dialog -> Title:", title, "| Message:", message);
         const existing = document.getElementById('custom-alert-overlay');
         if (existing) existing.remove();
 
@@ -303,11 +321,13 @@
         document.body.appendChild(overlay);
 
         document.getElementById('alert-ok-btn').onclick = () => {
+            console.log("[Frontend Modal] Alert OK clicked.");
             overlay.remove();
             if (callback) callback();
         };
     }
 </script>
+  
 
 
   
