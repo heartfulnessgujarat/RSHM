@@ -904,7 +904,8 @@ function showCustomConfirm(message) {
     }
 
 
-async function executeLogin() {
+
+    async function executeLogin() {
     const empCodeInput = document.getElementById('login-emp-code');
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
     const passwordElement = document.getElementById('login-password');
@@ -915,7 +916,8 @@ async function executeLogin() {
     }
 
     try {
-        showCustomModal("Verifying employee details...", false);
+        // Show loading message without button
+        showLoadingModal("Verifying employee details...");
 
         console.log("Sending request to backend for empCode:", empCode);
         
@@ -924,34 +926,32 @@ async function executeLogin() {
         
         console.log("Received backend response:", response);
 
-        // Fixed check to correctly read email from response or response.data
         const realEmail = response ? (response.email || (response.data && response.data.email)) : null;
 
         if (!realEmail) {
-            const overlay = document.getElementById('custom-modal-overlay');
-            if (overlay) overlay.remove();
+            hideLoadingModal();
             return showCustomModal("Employee Code not found or email not configured.", true);
         }
 
         console.log("Extracted email for login:", realEmail);
 
-        showCustomModal("Logging in...", false);
+        // Update loading text smoothly
+        showLoadingModal("Logging in...");
 
         // 2. Authenticate with Firebase Auth using the real email
         await firebase.auth().signInWithEmailAndPassword(realEmail, password);
 
         if (passwordElement) passwordElement.value = "";
         
-        const overlay = document.getElementById('custom-modal-overlay');
-        if (overlay) overlay.remove();
-
+        // Clean up loading modal and switch view
+        hideLoadingModal();
         switchView('view-dashboard');
 
     } catch (e) {
         console.error("Detailed Login Error object:", e);
         
-        const overlay = document.getElementById('custom-modal-overlay');
-        if (overlay) overlay.remove();
+        // Remove loading modal and show error with OK button
+        hideLoadingModal();
 
         let msg = e.message;
         if (msg.includes('wrong-password') || msg.includes('invalid-credential') || msg.includes('user-not-found') || msg.includes('invalid-email')) {
@@ -960,10 +960,6 @@ async function executeLogin() {
         showCustomModal(msg, true);
     }
 }
-
-
-
-
 
 
 
@@ -4595,7 +4591,30 @@ async function executeVerifyTempPassword() {
     }
 }
 
+// ==========================================
+// DEDICATED LOADING MODAL (No OK button, auto-closes)
+// ==========================================
+function showLoadingModal(message) {
+    let modal = document.getElementById('custom-app-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'custom-app-modal';
+        modal.style.cssText = "position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 9999;";
+        document.body.appendChild(modal);
+    }
+    
+    modal.innerHTML = `
+        <div style="background: white; padding: 25px; border-radius: 8px; text-align: center; max-width: 400px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <p style="margin: 0; font-weight: 500; color: #333; font-size: 16px;">${message}</p>
+        </div>
+    `;
+    modal.style.display = "flex";
+}
 
+function hideLoadingModal() {
+    const modal = document.getElementById('custom-app-modal');
+    if (modal) modal.remove();
+}
 
 
     
