@@ -1020,7 +1020,9 @@ async function executeLogin() {
     }
 }
 
-async function executeLoginResetPassword() {
+
+
+    async function executeLoginResetPassword() {
   const empCodeInput = document.getElementById('login-emp-code');
   const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
   
@@ -1029,7 +1031,6 @@ async function executeLoginResetPassword() {
     return;
   }
   
-  // Custom confirmation with exact text requested
   const confirmAction = await showCustomConfirm("Are you sure you want to reset your password ?");
   if (!confirmAction) return;
 
@@ -1037,13 +1038,13 @@ async function executeLoginResetPassword() {
     const res = callBackend("resetPassword", { empCode });
     showToast(res.message || "A new temporary password has been emailed to you.", false);
     
-    // Automatically pre-fill the employee code in the new view and switch views
+    // Pre-fill employee code on the reset confirmation view
     const resetEmpInput = document.getElementById('reset-confirm-emp-code');
     if (resetEmpInput) {
       resetEmpInput.value = empCode;
     }
     
-    // Switch to your new intermediate reset confirmation view
+    // Switch to the temporary password entry view
     switchView('view-reset-confirm');
 
   } catch (err) {
