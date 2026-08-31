@@ -1075,12 +1075,15 @@ function showCustomConfirm(message) {
     }
 }
 
-
 async function executeLoginResetPassword() {
+  console.log("=== START: executeLoginResetPassword called ===");
+  
   const empCodeInput = document.getElementById('login-emp-code');
   const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
+  console.log("Entered Employee Code:", empCode);
   
   if (!empCode) {
+    console.warn("Validation failed: Employee code is empty.");
     if (typeof showToast === 'function') {
       showToast("Please enter Employee Code to reset password.");
     } else {
@@ -1090,35 +1093,48 @@ async function executeLoginResetPassword() {
   }
   
   const confirmAction = await showCustomConfirm("Are you sure you want to reset your password?");
+  console.log("User confirmation result:", confirmAction);
   if (!confirmAction) return;
 
   try {
-    // Show a loading/working indicator if needed
     if (typeof showCustomModal === 'function') {
       showCustomModal("Looking up account and sending reset link...", false);
     }
 
     // 1. Look up the real email from the Realtime Database using the Employee Code
-    const userRef = firebase.database().ref(`masters/employees/${empCode}`);
+    const dbPath = `masters/employees/${empCode}`;
+    console.log("Querying Firebase database path:", dbPath);
+    
+    const userRef = firebase.database().ref(dbPath);
     const snapshot = await userRef.once('value');
 
+    console.log("Snapshot exists?:", snapshot.exists());
+
     if (!snapshot.exists()) {
+      console.warn("Employee code not found in database:", empCode);
       const overlay = document.getElementById('custom-modal-overlay');
       if (overlay) overlay.remove();
       return showCustomModal("Employee Code not found.", true);
     }
 
     const empData = snapshot.val();
-    const realEmail = empData.email || empData.employee_email;
+    console.log("Retrieved employee data object:", empData);
+
+    // Using employee_email as verified from your database structure
+    const realEmail = empData.employee_email || empData.email;
+    console.log("Resolved real email for reset:", realEmail);
 
     if (!realEmail) {
+      console.warn("Email field is missing/blank for employee:", empCode);
       const overlay = document.getElementById('custom-modal-overlay');
       if (overlay) overlay.remove();
       return showCustomModal("Real email address not found for this employee code.", true);
     }
 
-    // 2. Trigger Firebase's native built-in password reset email to their real email
+    // 2. Trigger Firebase's native built-in password reset email
+    console.log("Triggering firebase.auth().sendPasswordResetEmail for:", realEmail);
     await firebase.auth().sendPasswordResetEmail(realEmail);
+    console.log("Password reset email sent successfully by Firebase Auth!");
 
     // Clean up loading modal
     const overlay = document.getElementById('custom-modal-overlay');
@@ -1132,11 +1148,18 @@ async function executeLoginResetPassword() {
     }
 
   } catch (err) {
-    console.error("Reset password error:", err);
+    console.error("=== RESET PASSWORD ERROR CAUGHT ===", err);
+    console.error("Error Code:", err.code);
+    console.error("Error Message:", err.message);
+    
     const overlay = document.getElementById('custom-modal-overlay');
     if (overlay) overlay.remove();
     
-    const errorMsg = err.message || "Failed to send password reset email.";
+    let errorMsg = err.message || "Failed to send password reset email.";
+    if (err.code === 'auth/user-not-found') {
+      errorMsg = "This employee's email is not registered in the Firebase Authentication system yet.";
+    }
+    
     if (typeof showToast === 'function') {
       showToast(errorMsg, true);
     } else {
@@ -1144,6 +1167,13 @@ async function executeLoginResetPassword() {
     }
   }
 }
+
+
+
+
+
+
+
 
     
     async function executeSendVerificationCode() {
