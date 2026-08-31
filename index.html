@@ -407,7 +407,7 @@
     <input type="password" id="reset-confirm-conf-pass" placeholder="Confirm new password">
   </div>
 
-  <button onclick="executeResetPasswordConfirm()">Update Password</button>
+ <button onclick="executeResetAfterNewPWReceived()">Update Password</button>
 
   <div style="display: flex; justify-content: center; align-items: center; margin-top: 15px;">
     <button type="button" onclick="switchView('view-login')" class="btn-link" style="margin-top: 0;">Back to Login</button>
@@ -1149,9 +1149,10 @@ async function executeLogin() {
     }
 }
 
-
 async function executeLoginResetPassword() {
-  const empCode = document.getElementById('login-emp-code').value.trim();
+  const empCodeInput = document.getElementById('login-emp-code');
+  const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
+  
   if (!empCode) {
     showToast("Please enter Employee Code to reset password.");
     return;
@@ -1164,12 +1165,20 @@ async function executeLoginResetPassword() {
   try {
     const res = callBackend("resetPassword", { empCode });
     showToast(res.message || "A new temporary password has been emailed to you.", false);
+    
+    // Automatically pre-fill the employee code in the new view and switch views
+    const resetEmpInput = document.getElementById('reset-confirm-emp-code');
+    if (resetEmpInput) {
+      resetEmpInput.value = empCode;
+    }
+    
+    // Switch to your new intermediate reset confirmation view
+    switchView('view-reset-confirm');
+
   } catch (err) {
     showToast(err.message || "Failed to reset password.");
   }
 }
-
-
 
 
     
