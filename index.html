@@ -1097,48 +1097,24 @@ async function executeLogin() {
 }
 
 
-// Define both names so whichever one your HTML button calls, it will work!
 async function executeLoginResetPassword() {
-    return handlePasswordResetFlow();
+  const empCode = document.getElementById('login-emp-code').value.trim();
+  if (!empCode) {
+    showToast("Please enter Employee Code to reset password.");
+    return;
+  }
+  
+  // Custom confirmation with exact text requested
+  const confirmAction = await showCustomConfirm("Are you sure you want to reset your password ?");
+  if (!confirmAction) return;
+
+  try {
+    const res = callBackend("resetPassword", { empCode });
+    showToast(res.message || "A new temporary password has been emailed to you.", false);
+  } catch (err) {
+    showToast(err.message || "Failed to reset password.");
+  }
 }
-
-async function executeResetPassword() {
-    return handlePasswordResetFlow();
-}
-
-async function handlePasswordResetFlow() {
-    const empCodeInput = document.getElementById('login-emp-code') || document.getElementById('change-emp-code');
-    const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
-    
-    if (!empCode) {
-        return showCustomModal("Please enter Employee Code to reset password.", true);
-    }
-    
-    try {
-        console.log("➡️ [Frontend] Requesting password reset link for Employee Code:", empCode);
-        showToast("Generating password reset link...");
-        
-        // Call backend which triggers Firebase link creation and emails the real address via GmailApp
-        const response = await callBackend("resetPassword", { empCode: empCode });
-        const responseData = response.data || response;
-        
-        const targetEmail = responseData.email || "your registered email";
-        const successMessage = responseData.message || `Password reset link has been sent to ${targetEmail}. Please check your inbox.`;
-        
-        console.log("✅ [Frontend] Success:", successMessage);
-        showCustomModal(successMessage, false);
-
-        if (empCodeInput) empCodeInput.value = "";
-        const loginEmpInput = document.getElementById('login-emp-code');
-        if (loginEmpInput) loginEmpInput.value = empCode;
-
-        switchView('view-login');
-    } catch(e) {
-        console.error("❌ [Frontend] Reset password error caught:", e);
-        showCustomModal(e.message, true);
-    }
-}
-
 
 
 
