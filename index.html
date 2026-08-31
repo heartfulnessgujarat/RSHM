@@ -23,7 +23,7 @@
 
 
   
-  <script>
+<script>
     const firebaseConfig = {
       apiKey: "AIzaSyA8BOhsXUmhe9ipp4mAzf2ymjV3zBy0ctY",
       authDomain: "rshm-portal.firebaseapp.com",
@@ -34,9 +34,20 @@
       appId: "1:521632429701:web:d13bd57af30b7221d2dbec"
     };
     firebase.initializeApp(firebaseConfig);
+
+    // Automatically fetch and display the Base64 logo across all login/reset views on load
+    document.addEventListener("DOMContentLoaded", () => {
+      firebase.database().ref('htmlbase64').once('value').then(snapshot => {
+        const logoBase64 = snapshot.val();
+        if (logoBase64) {
+          document.querySelectorAll('img[id^="app-logo-img"]').forEach(img => {
+            img.src = logoBase64;
+            img.style.display = "block";
+          });
+        }
+      }).catch(err => console.warn("Could not load base64 logo:", err));
+    });
   </script>
-
-
   
 
   <style>
@@ -203,11 +214,12 @@
 
 
 <!-- VIEW 1: AUTHENTICATION CONTAINER -->
-<div id="view-login" class="card"><div class="logo-container" style="text-align: center; margin-bottom: 20px; width: 100%;">
-  <img id="app-logo-img" src="" alt="" style="display: none; width: 100%; max-width: 100%; height: auto; display: block; margin: 0 auto;">
-</div>
+<div id="view-login" class="card">
+  <div class="logo-container" style="text-align: center; margin-bottom: 20px; width: 100%;">
+    <img id="app-logo-img" src="" alt="HR Logo" style="display: none; max-width: 160px; height: auto; margin: 0 auto;">
+  </div>
 
-
+  
 
 
   
