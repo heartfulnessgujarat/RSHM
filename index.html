@@ -915,7 +915,6 @@ function showCustomConfirm(message) {
       }
     }
 
-
 async function executeLogin() {
     const empCodeInput = document.getElementById('login-emp-code');
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
@@ -949,19 +948,46 @@ async function executeLogin() {
         // Update loading text smoothly
         showLoadingModal("Logging in...");
 
-        // 2. Authenticate with Firebase Auth using the real email
+        // 2. Authenticate with Firebase Auth using real email & password
         await firebase.auth().signInWithEmailAndPassword(realEmail, password);
 
-        // 3. Fetch user metadata from Firebase database node to populate the header
-        const userSnapshot = await firebase.database().ref(`masters/employees/${empCode}`).once('value');
-        const userData = userSnapshot.val() || {};
+        // 3. Fetch full employee profile and master data simultaneously (just like your backup code)
+        const dbRef = firebase.database().ref();
+        const [userSnapshot, masterSnapshot] = await Promise.all([
+            dbRef.child(`masters/employees/${empCode}`).once('value'),
+            dbRef.child('masters').once('value').catch(cacheErr => {
+                console.warn("Background master cache prefetch failed:", cacheErr);
+                return null;
+            })
+        ]);
 
-        // Populate global user object and header fields
-        window.currentUser = { empCode, ...userData };
-        
+        const userData = userSnapshot.val();
+        if (!userData) {
+            hideLoadingModal();
+            return showCustomModal("Employee record not found in database.", true);
+        }
+
+        // Set global current user with all fields included for profile view/edit actions
+        currentUser = { empCode, ...userData };
+        window.currentUser = currentUser;
+
+        // --- POPULATE ALL PROFILE DATA & HEADER ---
+        if (typeof populateEmployeeProfileUI === 'function') {
+            populateEmployeeProfileUI();
+        }
+
         document.getElementById('dash-user-code').textContent = empCode;
-        document.getElementById('dash-user-name').textContent = userData.name || userData.fullName || "Team Member";
+        document.getElementById('dash-user-name').textContent = userData.employee_name || "Team Member";
         document.getElementById('global-header').classList.remove('hidden');
+
+        // --- Assign cached data from Firebase ---
+        if (masterSnapshot && masterSnapshot.exists()) {
+            const masterCacheResult = masterSnapshot.val();
+            window.APP_MASTER_CACHE = masterCacheResult;
+            if (masterCacheResult.editWindowDays && typeof CONFIG !== 'undefined') {
+                CONFIG.edit_window_days = masterCacheResult.editWindowDays;
+            }
+        }
 
         if (passwordElement) passwordElement.value = "";
         
@@ -982,8 +1008,6 @@ async function executeLogin() {
         showCustomModal(msg, true);
     }
 }
-
-
 
 
     
