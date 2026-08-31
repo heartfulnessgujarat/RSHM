@@ -768,6 +768,8 @@ const BACKEND_API = "https://script.google.com/macros/s/AKfycbz4yfBsVMhsGJtnARae
     let cachedLeaveMaster = { leaveTypes: [], paidHolidays: [] };
     let resendTimer = null;
 
+
+    
   async function callBackend(action, payload, useCache = false) {
       // If cache is requested and available for read operations, use it instantly
       if (useCache && action === "getLeaveMasterData" && window.APP_MASTER_CACHE) {
