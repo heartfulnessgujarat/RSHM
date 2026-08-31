@@ -905,64 +905,55 @@ function showCustomConfirm(message) {
 
 
 async function executeLogin() {
-    const empCodeInput = document.getElementById('login-emp-code').value.trim();
-    const password = document.getElementById('login-password').value;
-    if(!empCodeInput || !password) return showToast("Please input credentials explicitly.");
-    
+    const empCodeInput = document.getElementById('login-emp-code');
+    const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
+    const passwordElement = document.getElementById('login-password');
+    const password = passwordElement ? passwordElement.value : "";
+
+    if (!empCode || !password) {
+        return showCustomModal("Employee Code and Password are required.", true);
+    }
+
     try {
-        const empCode = empCodeInput.toUpperCase();
-        console.log("Attempting login for:", empCode);
-        showToast("Authenticating...");
+        showCustomModal("Verifying employee details...", false);
 
-        const internalEmail = `${empCode.toLowerCase()}@rshm-portal.internal`;
-        if (typeof firebase === 'undefined' || !firebase.auth) {
-            throw new Error("Firebase Auth is not initialized.");
+        // 1. Securely fetch the real email via your backend Apps Script function
+        const response = await callBackend("getEmployeeEmail", { empCode });
+
+        if (!response || !response.success || !response.email) {
+            const overlay = document.getElementById('custom-modal-overlay');
+            if (overlay) overlay.remove();
+            return showCustomModal("Employee Code not found or email not configured.", true);
         }
 
-        // Run Firebase Auth AND Database fetch in parallel
-        const [authResult, snapshot] = await Promise.all([
-            firebase.auth().signInWithEmailAndPassword(internalEmail, password),
-            firebase.database().ref(`masters/employees/${empCode}`).once('value')
-        ]);
+        const realEmail = response.email;
 
-        const empData = snapshot.val();
-        if (!empData) {
-            throw new Error("Employee profile record not found in database.");
-        }
+        showCustomModal("Logging in...", false);
 
-        // Set global session state
-        currentUser = { empCode, ...empData };
-        window.currentUser = currentUser;
+        // 2. Authenticate with Firebase Auth using the real email securely retrieved
+        await firebase.auth().signInWithEmailAndPassword(realEmail, password);
 
-        showToast("Login successful!");
-        populateEmployeeProfileUI();
-        await openDashboard();
+        // Success - clear password field and switch view to dashboard
+        if (passwordElement) passwordElement.value = "";
         
-    } catch(e) {
-        console.error("Login failed with error:", e);
+        const overlay = document.getElementById('custom-modal-overlay');
+        if (overlay) overlay.remove();
+
+        switchView('view-dashboard');
+
+    } catch (e) {
+        console.error("Login error:", e);
         
-        let errMsg = e.message || "";
-        const errCode = e.code || '';
-        const errStr = JSON.stringify(e);
+        const overlay = document.getElementById('custom-modal-overlay');
+        if (overlay) overlay.remove();
 
-        // Custom friendly error messages incorporating your exact text and raw string matching
-        if (errCode === 'auth/user-not-found' || errMsg.includes('user-not-found')) {
-            errMsg = "You are not added as a user. Kindly contact HR/Admin at +91-XXXXXXXXXX.";
-        } else if (errCode === 'auth/wrong-password' || errMsg.includes('wrong-password') || errStr.includes('INVALID_LOGIN_CREDENTIALS') || errStr.includes('INVALID_PASSWORD')) {
-            errMsg = "Incorrect password. Please try again.";
-        } else if (errCode === 'auth/invalid-credential' || errMsg.includes('invalid-credential')) {
-            errMsg = "You are not added as a user or invalid credentials. Kindly contact HR/Admin at +91-XXXXXXXXXX.";
-        } else {
-            errMsg = "Incorrect password or employee code. Please try again.";
+        let msg = e.message;
+        if (msg.includes('wrong-password') || msg.includes('invalid-credential') || msg.includes('user-not-found') || msg.includes('invalid-email')) {
+            msg = "Incorrect password or employee code.";
         }
-
-        // Route to the custom popup alert dialog box with an OK button
-        showCustomAlertBox(errMsg);
+        showCustomModal(msg, true);
     }
 }
-
-
-
 
     
 
