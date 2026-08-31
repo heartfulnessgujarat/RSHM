@@ -4506,43 +4506,53 @@ function showCustomAlertBox(message) {
 }
 
 
+async function executeVerifyTempPassword() {
+    console.log("[TempPass] === START: executeVerifyTempPassword triggered ===");
 
-
-
-
-
-    async function executeVerifyTempPassword() {
     const empCodeInput = document.getElementById('reset-confirm-emp-code');
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
     const tempPassword = document.getElementById('reset-confirm-temp-pass').value.trim();
 
+    console.log("[TempPass] Extracted Employee Code:", empCode);
+    console.log("[TempPass] Extracted Temp Password length:", tempPassword ? tempPassword.length : 0);
+    console.log("[TempPass] Extracted Temp Password value:", tempPassword);
+
     if (!empCode || !tempPassword) {
+        console.warn("[TempPass] Validation failed: Missing employee code or temporary password.");
         return showCustomModal("Employee Code and Temporary Password are required.", true);
     }
 
     try {
         const internalEmail = `${empCode.toLowerCase()}@rshm-portal.internal`;
+        console.log("[TempPass] Generated internal email for Firebase Auth:", internalEmail);
 
-        // Authenticate user with Firebase Auth using the temporary password
+        console.log("[TempPass] Attempting Firebase Auth signInWithEmailAndPassword...");
         const userCredential = await firebase.auth().signInWithEmailAndPassword(internalEmail, tempPassword);
+        console.log("[TempPass] Firebase Auth SUCCESS! User credential received:", userCredential);
 
         showCustomModal("Successfully logged in with temporary password!", false);
         
         // Clear the temporary password field
         document.getElementById('reset-confirm-temp-pass').value = "";
         
-        // Switch directly to the dashboard
+        console.log("[TempPass] Switching view to 'view-dashboard'...");
         switchView('view-dashboard');
 
     } catch(e) {
-        console.error("Temp password verification error:", e);
+        console.error("[TempPass CAUGHT ERROR]:", e);
+        console.error("[TempPass ERROR code]:", e.code);
+        console.error("[TempPass ERROR message]:", e.message);
+        
         let msg = e.message;
-        if (msg.includes('wrong-password') || msg.includes('invalid-credential')) {
-            msg = "Incorrect temporary password. Please check your email.";
+        if (msg.includes('wrong-password') || msg.includes('invalid-credential') || msg.includes('INVALID_LOGIN_CREDENTIALS')) {
+            msg = "Incorrect temporary password or Firebase Auth was not updated with this password.";
         }
-        showCustomModal(msg, true);
+        showCustomModal(msg + " (Check console for details)", true);
     }
 }
+
+
+
 
     
     
