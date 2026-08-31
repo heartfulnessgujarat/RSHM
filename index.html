@@ -915,7 +915,9 @@ function showCustomConfirm(message) {
       }
     }
 
-async function executeLogin() {
+
+
+    async function executeLogin() {
     const empCodeInput = document.getElementById('login-emp-code');
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
     const passwordElement = document.getElementById('login-password');
@@ -951,7 +953,7 @@ async function executeLogin() {
         // 2. Authenticate with Firebase Auth using real email & password
         await firebase.auth().signInWithEmailAndPassword(realEmail, password);
 
-        // 3. Fetch full employee profile and master data simultaneously (just like your backup code)
+        // 3. Fetch full employee profile and master data simultaneously
         const dbRef = firebase.database().ref();
         const [userSnapshot, masterSnapshot] = await Promise.all([
             dbRef.child(`masters/employees/${empCode}`).once('value'),
@@ -991,9 +993,13 @@ async function executeLogin() {
 
         if (passwordElement) passwordElement.value = "";
         
-        // Clean up loading modal and switch view
+        // Clean up loading modal and trigger openDashboard (handles view switch & dropdown population)
         hideLoadingModal();
-        switchView('view-dashboard');
+        if (typeof openDashboard === 'function') {
+            await openDashboard();
+        } else {
+            switchView('view-dashboard');
+        }
 
     } catch (e) {
         console.error("Detailed Login Error object:", e);
@@ -1008,7 +1014,6 @@ async function executeLogin() {
         showCustomModal(msg, true);
     }
 }
-
 
     
 
