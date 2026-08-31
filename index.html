@@ -860,7 +860,6 @@ function showToast(msg, isError = true) {
       setTimeout(() => container.classList.add('hidden'), 4000);
     }
 
-
 function switchView(viewId) {
   if (viewId === 'view-change-password') {
     const loginCode = document.getElementById('login-emp-code').value.trim();
@@ -885,7 +884,7 @@ function switchView(viewId) {
     }
   }
 
-  // Added 'view-reset-confirm' to the hide array so it toggles correctly
+  // Hide all view containers including the reset confirmation view
   ['view-login', 'view-change-password', 'view-reset-confirm', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module', 'view-employee-profile', 'view-attendance-history', 'view-leave-status-history'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
@@ -894,8 +893,8 @@ function switchView(viewId) {
   const targetEl = document.getElementById(viewId);
   if (targetEl) targetEl.classList.remove('hidden');
 
-  // Control Global Header visibility (ONLY hidden on the login and change-password screens now)
-  const isAuthView = ['view-login', 'view-change-password'].includes(viewId);
+  // Control Global Header visibility (Hidden on login, change-password, and reset screens)
+  const isAuthView = ['view-login', 'view-change-password', 'view-reset-confirm'].includes(viewId);
   const headerEl = document.getElementById('global-header');
   if (headerEl) headerEl.classList.toggle('hidden', isAuthView);
 
@@ -913,7 +912,6 @@ function switchView(viewId) {
     setWorkDateLimits();
   }
 }
-
 
 
 
