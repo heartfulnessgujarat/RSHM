@@ -860,6 +860,7 @@ function showToast(msg, isError = true) {
       setTimeout(() => container.classList.add('hidden'), 4000);
     }
 
+
 function switchView(viewId) {
   if (viewId === 'view-change-password') {
     const loginCode = document.getElementById('login-emp-code').value.trim();
@@ -868,6 +869,15 @@ function switchView(viewId) {
       updateRegisteredEmailHint();
     }
   }
+  
+  if (viewId === 'view-reset-confirm') {
+    const loginCode = document.getElementById('login-emp-code').value.trim();
+    if (loginCode) {
+      const resetEmpInput = document.getElementById('reset-confirm-emp-code');
+      if (resetEmpInput) resetEmpInput.value = loginCode;
+    }
+  }
+
   if (viewId === 'view-login') {
     const changeCode = document.getElementById('change-emp-code').value.trim();
     if (changeCode) {
@@ -875,20 +885,16 @@ function switchView(viewId) {
     }
   }
 
-  // UPDATED LINE: Added 'view-employee-profile' to the hide array
-
-['view-login', 'view-change-password', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module', 'view-employee-profile', 'view-attendance-history', 'view-leave-status-history'].forEach(id => {
-
-  
-
-      const el = document.getElementById(id);
+  // Added 'view-reset-confirm' to the hide array so it toggles correctly
+  ['view-login', 'view-change-password', 'view-reset-confirm', 'view-dashboard', 'view-work-entry', 'view-timesheet', 'view-leave-module', 'view-employee-profile', 'view-attendance-history', 'view-leave-status-history'].forEach(id => {
+    const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
   });
   
   const targetEl = document.getElementById(viewId);
   if (targetEl) targetEl.classList.remove('hidden');
 
-  // Control Global Header visibility (visible everywhere except auth screens)
+  // Control Global Header visibility (ONLY hidden on the login and change-password screens now)
   const isAuthView = ['view-login', 'view-change-password'].includes(viewId);
   const headerEl = document.getElementById('global-header');
   if (headerEl) headerEl.classList.toggle('hidden', isAuthView);
@@ -899,8 +905,6 @@ function switchView(viewId) {
   const leaveStatusMsg = document.getElementById('leaveStatusMessage');
   if (leaveStatusMsg) leaveStatusMsg.innerText = '';
 
- 
-  
   if (viewId === 'view-leave-module') {
     loadLeaveMasterOptions();
   }
@@ -911,6 +915,9 @@ function switchView(viewId) {
 }
 
 
+
+
+    
 function togglePasswordVisibility(inputId) {
   const input = document.getElementById(inputId);
   if (input) {
