@@ -4503,74 +4503,43 @@ function showCustomAlertBox(message) {
 }
 
 
-    
-async function executeResetAfterNewPWReceived() {
+
+
+
+
+
+    async function executeVerifyTempPassword() {
     const empCodeInput = document.getElementById('reset-confirm-emp-code');
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
     const tempPassword = document.getElementById('reset-confirm-temp-pass').value.trim();
-    const newPassword = document.getElementById('reset-confirm-new-pass').value;
-    const confPassword = document.getElementById('reset-confirm-conf-pass').value;
 
-    if (!empCode || !tempPassword || !newPassword || !confPassword) {
-        return showCustomModal("All fields are required.", true);
-    }
-    if (newPassword !== confPassword) {
-        return showCustomModal("New Password and Confirm Password do not match.", true);
+    if (!empCode || !tempPassword) {
+        return showCustomModal("Employee Code and Temporary Password are required.", true);
     }
 
     try {
         const internalEmail = `${empCode.toLowerCase()}@rshm-portal.internal`;
 
-        // 1. Verify temporary password against Firebase Realtime Database first
-        const userRef = firebase.database().ref(`masters/employees/${empCode}`);
-        const snapshot = await userRef.once('value');
+        // Authenticate user with Firebase Auth using the temporary password
+        const userCredential = await firebase.auth().signInWithEmailAndPassword(internalEmail, tempPassword);
+
+        showCustomModal("Successfully logged in with temporary password!", false);
         
-        if (!snapshot.exists()) {
-            return showCustomModal("Employee Code not found.", true);
-        }
-
-        const empData = snapshot.val();
-        if (empData.password !== tempPassword) {
-            return showCustomModal("Incorrect temporary password.", true);
-        }
-
-        // 2. Sign in temporarily with the temporary password in Firebase Auth
-        let userCredential;
-        try {
-            userCredential = await firebase.auth().signInWithEmailAndPassword(internalEmail, tempPassword);
-        } catch (authErr) {
-            throw new Error("Authentication verification failed. Please re-trigger reset.");
-        }
-
-        // 3. Update password in Firebase Authentication
-        await userCredential.user.updatePassword(newPassword);
-
-        // 4. Update password and timestamp in Firebase Realtime Database
-        const timestamp = new Date().toLocaleString();
-        await userRef.update({
-            password: newPassword,
-            password_last_changed_on: timestamp
-        });
-
-        showCustomModal("Password successfully updated! Please log in with your new password.", false);
-        
-        // Clear fields and switch back to login view, pre-filling the empCode
+        // Clear the temporary password field
         document.getElementById('reset-confirm-temp-pass').value = "";
-        document.getElementById('reset-confirm-new-pass').value = "";
-        document.getElementById('reset-confirm-conf-pass').value = "";
         
-        const loginEmpInput = document.getElementById('login-emp-code');
-        if (loginEmpInput) loginEmpInput.value = empCode;
-
-        switchView('view-login');
+        // Switch directly to the dashboard
+        switchView('view-dashboard');
 
     } catch(e) {
-        console.error("Reset confirm error:", e);
-        showCustomModal(e.message || "Failed to update password.", true);
+        console.error("Temp password verification error:", e);
+        let msg = e.message;
+        if (msg.includes('wrong-password') || msg.includes('invalid-credential')) {
+            msg = "Incorrect temporary password. Please check your email.";
+        }
+        showCustomModal(msg, true);
     }
 }
-
-
 
     
     
