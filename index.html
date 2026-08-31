@@ -916,8 +916,7 @@ function showCustomConfirm(message) {
     }
 
 
-
-    async function executeLogin() {
+async function executeLogin() {
     const empCodeInput = document.getElementById('login-emp-code');
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
     const passwordElement = document.getElementById('login-password');
@@ -953,6 +952,17 @@ function showCustomConfirm(message) {
         // 2. Authenticate with Firebase Auth using the real email
         await firebase.auth().signInWithEmailAndPassword(realEmail, password);
 
+        // 3. Fetch user metadata from Firebase database node to populate the header
+        const userSnapshot = await firebase.database().ref(`masters/employees/${empCode}`).once('value');
+        const userData = userSnapshot.val() || {};
+
+        // Populate global user object and header fields
+        window.currentUser = { empCode, ...userData };
+        
+        document.getElementById('dash-user-code').textContent = empCode;
+        document.getElementById('dash-user-name').textContent = userData.name || userData.fullName || "Team Member";
+        document.getElementById('global-header').classList.remove('hidden');
+
         if (passwordElement) passwordElement.value = "";
         
         // Clean up loading modal and switch view
@@ -972,8 +982,6 @@ function showCustomConfirm(message) {
         showCustomModal(msg, true);
     }
 }
-
-
 
 
 
