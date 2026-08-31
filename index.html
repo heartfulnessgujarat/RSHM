@@ -903,6 +903,7 @@ function showCustomConfirm(message) {
       }
     }
 
+
 async function executeLogin() {
     const empCodeInput = document.getElementById('login-emp-code');
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
@@ -923,13 +924,15 @@ async function executeLogin() {
         
         console.log("Received backend response:", response);
 
-        if (!response || !response.success || !response.email) {
+        // Fixed check to correctly read email from response or response.data
+        const realEmail = response ? (response.email || (response.data && response.data.email)) : null;
+
+        if (!realEmail) {
             const overlay = document.getElementById('custom-modal-overlay');
             if (overlay) overlay.remove();
             return showCustomModal("Employee Code not found or email not configured.", true);
         }
 
-        const realEmail = response.email;
         console.log("Extracted email for login:", realEmail);
 
         showCustomModal("Logging in...", false);
@@ -945,7 +948,7 @@ async function executeLogin() {
         switchView('view-dashboard');
 
     } catch (e) {
-        console.error("Detailed Login Error object:", e); // <-- This will log the exact error
+        console.error("Detailed Login Error object:", e);
         
         const overlay = document.getElementById('custom-modal-overlay');
         if (overlay) overlay.remove();
@@ -957,6 +960,19 @@ async function executeLogin() {
         showCustomModal(msg, true);
     }
 }
+
+
+
+
+
+
+
+
+
+
+    
+
+    
     
     async function executeChangePassword() {
 
