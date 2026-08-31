@@ -251,18 +251,13 @@
 
 
 
-
-
-
-<!-- VIEW: RESET CONFIRM / NEW PASSWORD ENTRY -->
-
-  <div id="view-reset-confirm" class="hidden card">
-
+<!-- VIEW: RESET CONFIRM / TEMP PASSWORD ENTRY -->
+<div id="view-reset-confirm" class="hidden card">
   <div class="logo-container" style="text-align: center; margin-bottom: 20px; width: 100%;">
     <img id="app-logo-img-reset" src="" alt="" style="display: none; width: 100%; max-width: 100%; height: auto; display: block; margin: 0 auto;">
   </div>
   
-  <h2>Set New Password</h2>
+  <h2>Enter Temporary Password</h2>
   
   <div class="form-group">
     <label>Employee Code</label>
@@ -281,25 +276,12 @@
     </div>
   </div>
 
-  <div class="form-group">
-    <label>New Permanent Password</label>
-    <input type="password" id="reset-confirm-new-pass" placeholder="Enter new password">
-  </div>
-
-  <div class="form-group">
-    <label>Confirm New Password</label>
-    <input type="password" id="reset-confirm-conf-pass" placeholder="Confirm new password">
-  </div>
-
- <button onclick="executeResetAfterNewPWReceived()">Update Password</button>
+  <button onclick="executeVerifyTempPassword()">Login with Temporary Password</button>
 
   <div style="display: flex; justify-content: center; align-items: center; margin-top: 15px;">
     <button type="button" onclick="switchView('view-login')" class="btn-link" style="margin-top: 0;">Back to Login</button>
   </div>
 </div>
-
-
-
 
 
 
@@ -4519,6 +4501,8 @@ function showCustomAlertBox(message) {
   modalOverlay.style.display = 'flex';
 }
 
+
+    
 async function executeResetAfterNewPWReceived() {
     const empCodeInput = document.getElementById('reset-confirm-emp-code');
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
