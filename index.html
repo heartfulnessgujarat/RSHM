@@ -4209,9 +4209,8 @@ function startEmailVerificationTimer() {
 
 
 
-
 // ==========================================
-// 3. VERIFY EMAIL OTP (Instant Frontend Check + Zero Lag)
+//  3. VERIFY EMAIL OTP (Instant Frontend Check + Zero Lag)
 // ==========================================
 async function verifyEmailOtp() {
     if (!window.currentUser) return;
@@ -4230,13 +4229,11 @@ async function verifyEmailOtp() {
     }
  
     try {
-        // 1. UPDATE FIREBASE AUTH TABLE FIRST
+        // 1. UPDATE FIREBASE AUTH TABLE FIRST (Triggers official system verification email)
         const authUser = firebase.auth().currentUser;
         if (authUser) {
             try {
-                // This triggers Firebase's secure email update verification flow
                 await authUser.verifyBeforeUpdateEmail(pendingEmail);
-                console.log("Firebase Auth verification email sent for address change.");
             } catch (authErr) {
                 console.error("Auth email update error:", authErr);
                 if (authErr.code === 'auth/requires-recent-login') {
@@ -4251,7 +4248,7 @@ async function verifyEmailOtp() {
             return;
         }
 
-        // 2. UPDATE REALTIME DATABASE NODE
+        // 2. INSTANT REALTIME DATABASE UPDATE
         const dbField = 'employee_email';
         if (typeof firebase !== 'undefined' && firebase.database) {
             await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
@@ -4273,13 +4270,7 @@ async function verifyEmailOtp() {
     } catch (e) {
         showCustomModal("Verification Failed: " + e.message, true);
     }
-}
-
-
-
-
-
-
+}   
     
 // ==========================================
 // 4. CUSTOM MODAL HELPER
@@ -4301,6 +4292,14 @@ function showCustomModal(message, isError = false, showButton = true) {
     `;
     modal.style.display = 'flex';
 }
+
+
+
+
+
+
+    
+
 
     async function generateAndUploadLogoBase64() {
     try {
