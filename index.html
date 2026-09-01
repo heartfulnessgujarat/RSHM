@@ -1075,6 +1075,9 @@ function showCustomConfirm(message) {
     }
 }
 
+
+
+
 async function executeLoginResetPassword() {
   console.log("=== START: executeLoginResetPassword called ===");
   
@@ -1097,8 +1100,9 @@ async function executeLoginResetPassword() {
   if (!confirmAction) return;
 
   try {
-    if (typeof showCustomModal === 'function') {
-      showCustomModal("Looking up account and sending reset link...", false);
+    // Use the dedicated loading modal (no OK button needed)
+    if (typeof showLoadingModal === 'function') {
+      showLoadingModal("Looking up account and sending reset link...");
     }
 
     // 1. Look up the real email from the Realtime Database using the Employee Code
@@ -1112,8 +1116,7 @@ async function executeLoginResetPassword() {
 
     if (!snapshot.exists()) {
       console.warn("Employee code not found in database:", empCode);
-      const overlay = document.getElementById('custom-modal-overlay');
-      if (overlay) overlay.remove();
+      if (typeof hideLoadingModal === 'function') hideLoadingModal();
       return showCustomModal("Employee Code not found.", true);
     }
 
@@ -1126,8 +1129,7 @@ async function executeLoginResetPassword() {
 
     if (!realEmail) {
       console.warn("Email field is missing/blank for employee:", empCode);
-      const overlay = document.getElementById('custom-modal-overlay');
-      if (overlay) overlay.remove();
+      if (typeof hideLoadingModal === 'function') hideLoadingModal();
       return showCustomModal("Real email address not found for this employee code.", true);
     }
 
@@ -1137,8 +1139,7 @@ async function executeLoginResetPassword() {
     console.log("Password reset email sent successfully by Firebase Auth!");
 
     // Clean up loading modal
-    const overlay = document.getElementById('custom-modal-overlay');
-    if (overlay) overlay.remove();
+    if (typeof hideLoadingModal === 'function') hideLoadingModal();
 
     const successMsg = `Password reset link sent to your registered email (${realEmail}). Please check your inbox!`;
     if (typeof showToast === 'function') {
@@ -1152,8 +1153,8 @@ async function executeLoginResetPassword() {
     console.error("Error Code:", err.code);
     console.error("Error Message:", err.message);
     
-    const overlay = document.getElementById('custom-modal-overlay');
-    if (overlay) overlay.remove();
+    // Ensure loading modal is cleared on error
+    if (typeof hideLoadingModal === 'function') hideLoadingModal();
     
     let errorMsg = err.message || "Failed to send password reset email.";
     if (err.code === 'auth/user-not-found') {
@@ -1167,11 +1168,7 @@ async function executeLoginResetPassword() {
     }
   }
 }
-
-
-
-
-
+    
 
 
 
@@ -4675,6 +4672,7 @@ async function executeVerifyTempPassword() {
     }
 }
 
+    
 // ==========================================
 // DEDICATED LOADING MODAL (No OK button, auto-closes)
 // ==========================================
