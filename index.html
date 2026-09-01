@@ -4210,9 +4210,8 @@ function startEmailVerificationTimer() {
 
 
 
-
 // ==========================================
-//  3. VERIFY EMAIL OTP (Instant Frontend Check + Zero Lag)
+// 3. VERIFY EMAIL OTP (Instant Frontend Check + Zero Lag)
 // ==========================================
 async function verifyEmailOtp() {
     if (!window.currentUser) return;
@@ -4231,26 +4230,28 @@ async function verifyEmailOtp() {
     }
  
     try {
-        // 0. UPDATE FIREBASE AUTHENTICATION FIRST (Crucial for Password Resets)
+        // 1. UPDATE FIREBASE AUTH TABLE FIRST
         const authUser = firebase.auth().currentUser;
         if (authUser) {
             try {
-                await authUser.updateEmail(pendingEmail);
-                console.log("Firebase Auth email successfully updated!");
+                // This triggers Firebase's secure email update verification flow
+                await authUser.verifyBeforeUpdateEmail(pendingEmail);
+                console.log("Firebase Auth verification email sent for address change.");
             } catch (authErr) {
                 console.error("Auth email update error:", authErr);
-                // If session is too old, Firebase requires re-login for security
                 if (authErr.code === 'auth/requires-recent-login') {
                     showCustomModal("For security reasons, please log out and log back in before changing your email address.", true);
-                    return;
                 } else {
                     showCustomModal("Failed to update authentication record: " + authErr.message, true);
-                    return;
                 }
+                return; // Stop execution if auth update fails
             }
+        } else {
+            showCustomModal("No active authentication session found. Please log out and log back in.", true);
+            return;
         }
 
-        // 1. INSTANT FRONTEND & REALTIME DATABASE UPDATE (Zero delay!)
+        // 2. UPDATE REALTIME DATABASE NODE
         const dbField = 'employee_email';
         if (typeof firebase !== 'undefined' && firebase.database) {
             await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
@@ -4267,17 +4268,12 @@ async function verifyEmailOtp() {
         if (emailVerificationState.timerInterval) clearInterval(emailVerificationState.timerInterval);
 
         cancelProfileEdit('email');
-        showCustomModal("Email successfully verified and updated across system and authentication records!");
+        showCustomModal("Email verified! A verification link has also been sent to your new email to finalize your account credentials.");
          
     } catch (e) {
         showCustomModal("Verification Failed: " + e.message, true);
     }
 }
-
-
-
-
-
 
 
 
@@ -4729,7 +4725,50 @@ function hideLoadingModal() {
     if (modal) modal.remove();
 }
 
+async function updateFirebaseAndDatabaseEmail(newEmail) {
+  // 1. Ensure there is an active Firebase Auth user session
+  const authUser = firebase.auth().currentUser;
+  
+  if (!authUser) {
+    showCustomModal("No active authentication session found. Please log out and log back in.", true);
+    return;
+  }
 
+  try {
+    // 2. Trigger Firebase's native email update verification
+    // This sends the official system email template to the NEW address automatically!
+    await authUser.verifyBeforeUpdateEmail(newEmail);
+    console.log("Firebase Auth verification email sent for address change.");
+
+    // 3. Update your Realtime Database node as well
+    const empCode = window.currentUser.emp_code || window.currentUser.empCode;
+    const dbField = 'employee_email';
+    
+    if (typeof firebase !== 'undefined' && firebase.database) {
+      await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(newEmail);
+    }
+
+    // 4. Update local session state and UI
+    window.currentUser[dbField] = newEmail;
+    const textSpan = document.getElementById('profile-email-text');
+    if (textSpan) textSpan.innerText = newEmail;
+
+    // Guidance message for the user
+    showCustomModal(
+      `Verification email sent to (${newEmail}). Please check your new inbox and click the verification link to complete the update in Firebase Auth.`
+    );
+
+  } catch (err) {
+    console.error("=== EMAIL UPDATE ERROR ===", err);
+    
+    // Handle security requirement if their session has been active too long
+    if (err.code === 'auth/requires-recent-login') {
+      showCustomModal("For security reasons, please log out and log back in before changing your email address.", true);
+    } else {
+      showCustomModal("Failed to update email: " + err.message, true);
+    }
+  }
+}
     
     
 </script>    
