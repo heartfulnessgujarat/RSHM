@@ -4208,7 +4208,6 @@ function startEmailVerificationTimer() {
 
 
 
-
 // ==========================================
 //  3. VERIFY EMAIL OTP (Instant Frontend Check + Zero Lag)
 // ==========================================
@@ -4265,12 +4264,23 @@ async function verifyEmailOtp() {
         if (emailVerificationState.timerInterval) clearInterval(emailVerificationState.timerInterval);
 
         cancelProfileEdit('email');
-        showCustomModal("Email verified! A verification link has also been sent to your new email to finalize your account credentials.");
+        
+        // 3. CLEAR USER-FACING GUIDANCE MESSAGE
+        showCustomModal(
+            "OTP Verified! One last step: A security verification email has been sent to your new inbox. Please check your new email, click the verification link inside, and your login credentials will be fully updated!"
+        );
          
     } catch (e) {
         showCustomModal("Verification Failed: " + e.message, true);
     }
-}   
+}
+
+
+
+
+
+
+
     
 // ==========================================
 // 4. CUSTOM MODAL HELPER
