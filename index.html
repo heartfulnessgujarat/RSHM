@@ -4208,15 +4208,14 @@ function startEmailVerificationTimer() {
 
 
 
-// ==========================================
-// 3. VERIFY EMAIL OTP (Backend Atomic Update)
-// ==========================================
 async function verifyEmailOtp() {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
     const userEnteredCode = document.getElementById('email-otp-input').value.trim();
     const pendingEmail = emailVerificationState.pendingEmail || document.getElementById('profile-email-input').value.trim();
  
+    console.log("Starting verifyEmailOtp for:", empCode, "with pending email:", pendingEmail);
+
     if (!userEnteredCode) {
         showCustomModal("Please enter the verification code.", true);
         return;
@@ -4228,21 +4227,20 @@ async function verifyEmailOtp() {
     }
  
     try {
-        // 1. GET CURRENT FIREBASE AUTH UID FOR BACKEND IDENTIFICATION
         const authUser = firebase.auth().currentUser;
         if (!authUser) {
             showCustomModal("No active authentication session found. Please log out and log back in.", true);
             return;
         }
         const uid = authUser.uid;
+        console.log("Firebase Auth UID found:", uid);
 
         showCustomModal("Updating your email credentials securely...", false, false);
 
-        // 2. CALL GOOGLE APPS SCRIPT BACKEND ATOMIC ROUTE
-
-//   const backendUrl = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL"; // Replace with your deployment URL
+        const backendUrl = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL"; 
         
-        const response = await fetch(BACKEND_API, {
+        console.log("Sending payload to backend...");
+        const response = await fetch(backendUrl, {
             method: "POST",
             body: JSON.stringify({
                 action: "updateEmailAtomic",
@@ -4254,33 +4252,36 @@ async function verifyEmailOtp() {
             })
         });
 
-        const result = await response.json();
+        const rawText = await response.text();
+        console.log("Raw backend response text:", rawText);
+
+        const result = JSON.parse(rawText);
 
         if (!result.success) {
-            throw new Error(result.error || "Failed to update email on server.");
+            throw new Error(result.error || result.message || "Failed to update email on server.");
         }
 
-        // 3. UPDATE LOCAL SESSION STATE & UI TEXT IMMEDIATELY
+        console.log("Backend update successful. Updating local state...");
         const dbField = 'employee_email';
         window.currentUser[dbField] = pendingEmail;
         const textSpan = document.getElementById('profile-email-text');
         if (textSpan) textSpan.innerText = pendingEmail;
  
-        // Hide verification box instantly and clear timer
         const otpContainer = document.getElementById('email-otp-container') || document.getElementById('vcode-step-section');
         if (otpContainer) otpContainer.classList.add('hidden');
         if (emailVerificationState.timerInterval) clearInterval(emailVerificationState.timerInterval);
 
         cancelProfileEdit('email');
-        
-        // Success Message (Single-step experience with zero extra emails!)
-        showCustomModal("Email successfully verified and updated! Both your profile and login credentials are now fully synchronized.");
+        showCustomModal("Email successfully verified and updated!");
          
     } catch (e) {
-        console.error("Verification Error:", e);
+        console.error("Detailed Verification Error:", e);
         showCustomModal("Verification Failed: " + e.message, true);
     }
 }
+
+
+
     
 // ==========================================
 // 4. CUSTOM MODAL HELPER
