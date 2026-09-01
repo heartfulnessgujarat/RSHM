@@ -1077,7 +1077,6 @@ function showCustomConfirm(message) {
 
 
 
-
 async function executeLoginResetPassword() {
   console.log("=== START: executeLoginResetPassword called ===");
   
@@ -1141,7 +1140,7 @@ async function executeLoginResetPassword() {
     // Clean up loading modal
     if (typeof hideLoadingModal === 'function') hideLoadingModal();
 
-    const successMsg = `Password reset link sent to your registered email (${realEmail}). Please check your inbox!`;
+    const successMsg = `Password reset link sent to your registered email (${realEmail}). Please check your inbox (and your spam folder, just in case)!`;
     if (typeof showToast === 'function') {
       showToast(successMsg, false);
     } else {
@@ -1168,8 +1167,6 @@ async function executeLoginResetPassword() {
     }
   }
 }
-    
-
 
 
     
