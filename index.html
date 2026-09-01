@@ -4208,6 +4208,7 @@ function startEmailVerificationTimer() {
 
 
 
+
 async function verifyEmailOtp() {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
@@ -4237,11 +4238,15 @@ async function verifyEmailOtp() {
 
         showCustomModal("Updating your email credentials securely...", false, false);
 
+        // Make sure this points to your actual deployed Google Apps Script Web App URL
         const backendUrl = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL"; 
         
         console.log("Sending payload to backend...");
         const response = await fetch(backendUrl, {
             method: "POST",
+            headers: {
+                "Content-Type": "text/plain;charset=utf-8" // Prevents CORS preflight 405 errors with Apps Script
+            },
             body: JSON.stringify({
                 action: "updateEmailAtomic",
                 payload: {
@@ -4280,7 +4285,9 @@ async function verifyEmailOtp() {
     }
 }
 
+    
 
+    
 
     
 // ==========================================
