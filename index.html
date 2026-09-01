@@ -4207,7 +4207,6 @@ function startEmailVerificationTimer() {
 }
 
 
-
 async function verifyEmailOtp() {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
@@ -4233,7 +4232,7 @@ async function verifyEmailOtp() {
 
         showCustomModal("Updating your login credentials...", false, false);
 
-        // 1. UPDATE FIREBASE AUTH DIRECTLY FROM CLIENT
+        // 1. UPDATE FIREBASE AUTH DIRECTLY FROM THE CLIENT
         try {
             await authUser.updateEmail(pendingEmail);
         } catch (authErr) {
@@ -4243,7 +4242,7 @@ async function verifyEmailOtp() {
             throw authErr;
         }
 
-        // 2. UPDATE REALTIME DATABASE
+        // 2. UPDATE REALTIME DATABASE DIRECTLY
         const dbField = 'employee_email';
         if (typeof firebase !== 'undefined' && firebase.database) {
             await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
@@ -4266,7 +4265,9 @@ async function verifyEmailOtp() {
         console.error("Verification Error:", e);
         showCustomModal("Verification Failed: " + e.message, true);
     }
-}    
+}
+
+     
 
     
 // ==========================================
