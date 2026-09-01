@@ -4208,15 +4208,12 @@ function startEmailVerificationTimer() {
 
 
 
-
 async function verifyEmailOtp() {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
     const userEnteredCode = document.getElementById('email-otp-input').value.trim();
     const pendingEmail = emailVerificationState.pendingEmail || document.getElementById('profile-email-input').value.trim();
  
-    console.log("Starting verifyEmailOtp for:", empCode, "with pending email:", pendingEmail);
-
     if (!userEnteredCode) {
         showCustomModal("Please enter the verification code.", true);
         return;
@@ -4233,41 +4230,26 @@ async function verifyEmailOtp() {
             showCustomModal("No active authentication session found. Please log out and log back in.", true);
             return;
         }
-        const uid = authUser.uid;
-        console.log("Firebase Auth UID found:", uid);
 
-        showCustomModal("Updating your email credentials securely...", false, false);
+        showCustomModal("Updating your login credentials...", false, false);
 
-        // Make sure this points to your actual deployed Google Apps Script Web App URL
-        const backendUrl = "https://script.google.com/macros/s/AKfycbz4yfBsVMhsGJtnARae6c2i0K31UUVmWfJnCyRNkYJGqB3opl8ZFTOOSgmT_Mu_MDE03g/exec"; 
-        
-        console.log("Sending payload to backend...");
-        const response = await fetch(backendUrl, {
-            method: "POST",
-            headers: {
-                "Content-Type": "text/plain;charset=utf-8" // Prevents CORS preflight 405 errors with Apps Script
-            },
-            body: JSON.stringify({
-                action: "updateEmailAtomic",
-                payload: {
-                    empCode: empCode,
-                    uid: uid,
-                    newEmail: pendingEmail
-                }
-            })
-        });
-
-        const rawText = await response.text();
-        console.log("Raw backend response text:", rawText);
-
-        const result = JSON.parse(rawText);
-
-        if (!result.success) {
-            throw new Error(result.error || result.message || "Failed to update email on server.");
+        // 1. UPDATE FIREBASE AUTH DIRECTLY FROM CLIENT
+        try {
+            await authUser.updateEmail(pendingEmail);
+        } catch (authErr) {
+            if (authErr.code === 'auth/requires-recent-login') {
+                throw new Error("For security reasons, please log out and log back in before changing your email.");
+            }
+            throw authErr;
         }
 
-        console.log("Backend update successful. Updating local state...");
+        // 2. UPDATE REALTIME DATABASE
         const dbField = 'employee_email';
+        if (typeof firebase !== 'undefined' && firebase.database) {
+            await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
+        }
+ 
+        // 3. UPDATE LOCAL STATE & UI
         window.currentUser[dbField] = pendingEmail;
         const textSpan = document.getElementById('profile-email-text');
         if (textSpan) textSpan.innerText = pendingEmail;
@@ -4277,17 +4259,14 @@ async function verifyEmailOtp() {
         if (emailVerificationState.timerInterval) clearInterval(emailVerificationState.timerInterval);
 
         cancelProfileEdit('email');
-        showCustomModal("Email successfully verified and updated!");
+        
+        showCustomModal("Email successfully updated! Your login and profile are now fully synchronized.");
          
     } catch (e) {
-        console.error("Detailed Verification Error:", e);
+        console.error("Verification Error:", e);
         showCustomModal("Verification Failed: " + e.message, true);
     }
-}
-
-    
-
-    
+}    
 
     
 // ==========================================
