@@ -4207,11 +4207,13 @@ function startEmailVerificationTimer() {
 }
 
 
+
+
+
+
 // ==========================================
 //  3. VERIFY EMAIL OTP (Instant Frontend Check + Zero Lag)
 // ==========================================
-
-
 async function verifyEmailOtp() {
     if (!window.currentUser) return;
     const empCode = window.currentUser.emp_code || window.currentUser.empCode;
@@ -4229,11 +4231,29 @@ async function verifyEmailOtp() {
     }
  
     try {
-        // 1. INSTANT FRONTEND & FIREBASE UPDATE (Zero delay!)
+        // 0. UPDATE FIREBASE AUTHENTICATION FIRST (Crucial for Password Resets)
+        const authUser = firebase.auth().currentUser;
+        if (authUser) {
+            try {
+                await authUser.updateEmail(pendingEmail);
+                console.log("Firebase Auth email successfully updated!");
+            } catch (authErr) {
+                console.error("Auth email update error:", authErr);
+                // If session is too old, Firebase requires re-login for security
+                if (authErr.code === 'auth/requires-recent-login') {
+                    showCustomModal("For security reasons, please log out and log back in before changing your email address.", true);
+                    return;
+                } else {
+                    showCustomModal("Failed to update authentication record: " + authErr.message, true);
+                    return;
+                }
+            }
+        }
+
+        // 1. INSTANT FRONTEND & REALTIME DATABASE UPDATE (Zero delay!)
         const dbField = 'employee_email';
         if (typeof firebase !== 'undefined' && firebase.database) {
-            firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
-           // firebase.database().ref(`masters/employees/${empCode}/email`).set(pendingEmail);
+            await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
         }
  
         // Update local session state & UI text immediately
@@ -4246,18 +4266,24 @@ async function verifyEmailOtp() {
         if (otpContainer) otpContainer.classList.add('hidden');
         if (emailVerificationState.timerInterval) clearInterval(emailVerificationState.timerInterval);
 
-
-
-cancelProfileEdit('email');
-        showCustomModal("Email successfully verified and updated!");
-        
-        // Background sync removed since frontend handles full verification securely.
-
-           
+        cancelProfileEdit('email');
+        showCustomModal("Email successfully verified and updated across system and authentication records!");
+         
     } catch (e) {
         showCustomModal("Verification Failed: " + e.message, true);
     }
-}    
+}
+
+
+
+
+
+
+
+
+
+
+
     
 // ==========================================
 // 4. CUSTOM MODAL HELPER
