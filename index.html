@@ -1140,11 +1140,18 @@ async function executeLoginResetPassword() {
     // Clean up loading modal
     if (typeof hideLoadingModal === 'function') hideLoadingModal();
 
-    const successMsg = `Password reset link sent to your registered email (${realEmail}). Please check your inbox (and your spam folder, just in case)!`;
+    // Clear, comprehensive guidance message including the 6-character note and spam folder warning
+    const successMsg = `Reset link sent to (${realEmail}). Please check your inbox & spam folder. NOTE: When resetting, please set a strictly 6-character password to match system login requirements.`;
+    
     if (typeof showToast === 'function') {
       showToast(successMsg, false);
     } else {
+      // Display using custom modal, but auto-remove it after 5 seconds (5000 milliseconds)
       showCustomModal(successMsg, false);
+      setTimeout(() => {
+        const overlay = document.getElementById('custom-modal-overlay');
+        if (overlay) overlay.remove();
+      }, 5000);
     }
 
   } catch (err) {
@@ -1169,6 +1176,16 @@ async function executeLoginResetPassword() {
 }
 
 
+
+
+
+
+
+
+
+
+
+    
     
     async function executeSendVerificationCode() {
       const email = document.getElementById('reg-user-email').value.trim();
