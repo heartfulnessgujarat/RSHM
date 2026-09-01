@@ -4239,9 +4239,10 @@ async function verifyEmailOtp() {
         showCustomModal("Updating your email credentials securely...", false, false);
 
         // 2. CALL GOOGLE APPS SCRIPT BACKEND ATOMIC ROUTE
-        const backendUrl = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL"; // Replace with your deployment URL
+
+//   const backendUrl = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL"; // Replace with your deployment URL
         
-        const response = await fetch(backendUrl, {
+        const response = await fetch(BACKEND_API, {
             method: "POST",
             body: JSON.stringify({
                 action: "updateEmailAtomic",
