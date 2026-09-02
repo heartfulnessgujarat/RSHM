@@ -1015,9 +1015,12 @@ function showCustomConfirm(message) {
     }
 }
 
-    
 
-    async function executeChangePassword() {
+
+
+
+    
+async function executeChangePassword() {
     const empCodeInput = document.getElementById('change-emp-code');
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
     const currentPassword = document.getElementById('change-curr-pass').value;
@@ -1042,13 +1045,23 @@ function showCustomConfirm(message) {
             throw new Error("Employee email not found in database for this ID.");
         }
 
-        // 2. Authenticate user with Firebase Auth using their actual current email
+        // 2. CRITICAL FIX: Ensure any stale background session is cleared 
+        // so signInWithEmailAndPassword starts with a clean slate
+        try {
+            if (firebase.auth().currentUser) {
+                await firebase.auth().signOut();
+            }
+        } catch (signOutErr) {
+            console.log("Cleanup signout notice:", signOutErr);
+        }
+
+        // 3. Authenticate user cleanly with Firebase Auth using their actual current email
         const userCredential = await firebase.auth().signInWithEmailAndPassword(userEmail, currentPassword);
 
-        // 3. Update password in Firebase Authentication
+        // 4. Update password in Firebase Authentication
         await userCredential.user.updatePassword(newPassword);
 
-        // 4. Update password and timestamp in Firebase Realtime Database
+        // 5. Update password and timestamp in Firebase Realtime Database
         const userRef = firebase.database().ref(`masters/employees/${empCode}`);
         const timestamp = new Date().toLocaleString();
         await userRef.update({
@@ -1076,7 +1089,6 @@ function showCustomConfirm(message) {
         showCustomModal(msg, true);
     }
 }
-
 
     
 async function executeLoginResetPassword() {
