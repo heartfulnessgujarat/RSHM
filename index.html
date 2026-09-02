@@ -4182,6 +4182,7 @@ async function saveProfileField(field) {
     }
 }
 
+
 // ==========================================
 // 2. BACKGROUND WATCHER FOR NATIVE EMAIL LINK VERIFICATION
 // ==========================================
@@ -4193,48 +4194,79 @@ function watchForEmailVerification(pendingEmail, empCode) {
 
     const focusHandler = async () => {
         const authUser = firebase.auth().currentUser;
-        if (!authUser) return;
+        
+        // If token expired or user is missing, it often means Firebase already processed the email change successfully!
+        if (!authUser) {
+            console.log("Session token expired or user signed out—syncing database with pending email...");
+            await finalizeEmailUpdate(pendingEmail, empCode);
+            window.removeEventListener('focus', focusHandler);
+            emailVerificationWatcherActive = false;
+            return;
+        }
 
         try {
             await authUser.reload();
 
             if (authUser.email === pendingEmail) {
-                console.log("Verified! Firebase Auth email updated. Synchronizing database...");
-
-                if (typeof firebase !== 'undefined' && firebase.database) {
-                    await firebase.database().ref(`masters/employees/${empCode}/employee_email`).set(pendingEmail);
-                }
-
+                await finalizeEmailUpdate(pendingEmail, empCode);
                 window.removeEventListener('focus', focusHandler);
                 emailVerificationWatcherActive = false;
-
-                showCustomModal(
-                    "Email successfully verified and updated!<br><br>For security and session freshness, you will now be logged out. Please log in with your new email.",
-                    false,
-                    true
-                );
-
-                const modal = document.getElementById('custom-app-modal');
-                const okBtn = modal ? modal.querySelector('button') : null;
-                if (okBtn) {
-                    okBtn.onclick = async () => {
-                        try {
-                            await firebase.auth().signOut();
-                        } catch (err) {
-                            console.error("Sign out error:", err);
-                        }
-                        window.location.reload();
-                    };
-                }
             }
         } catch (err) {
             console.error("Error during auth reload check:", err);
+            // If Firebase throws a token expired error during reload, it means the auth state changed externally!
+            if (err.code === 'auth/user-token-expired' || err.code === 'auth/argument-error') {
+                console.log("Auth token expired due to external verification. Finalizing update...");
+                await finalizeEmailUpdate(pendingEmail, empCode);
+                window.removeEventListener('focus', focusHandler);
+                emailVerificationWatcherActive = false;
+            }
         }
     };
 
     window.addEventListener('focus', focusHandler);
 }
 
+// Helper to keep code clean
+async function finalizeEmailUpdate(pendingEmail, empCode) {
+    try {
+        if (typeof firebase !== 'undefined' && firebase.database) {
+            await firebase.database().ref(`masters/employees/${empCode}/employee_email`).set(pendingEmail);
+        }
+    } catch (dbErr) {
+        console.error("Database sync error:", dbErr);
+    }
+
+    showCustomModal(
+        "Email successfully verified and updated!<br><br>For security and session freshness, you will now be logged out. Please log in with your new email.",
+        false,
+        true
+    );
+
+    const modal = document.getElementById('custom-app-modal');
+    const okBtn = modal ? modal.querySelector('button') : null;
+    if (okBtn) {
+        okBtn.onclick = async () => {
+            try {
+                await firebase.auth().signOut();
+            } catch (err) {
+                console.error("Sign out error:", err);
+            }
+            window.location.reload();
+        };
+    }
+}
+
+
+
+
+
+
+
+
+
+
+    
 // ==========================================
 // 3. CUSTOM MODAL HELPER
 // ==========================================
