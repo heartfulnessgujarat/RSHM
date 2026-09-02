@@ -4050,6 +4050,8 @@ function cancelProfileEdit(field) {
 
 
 
+
+
 // ==========================================
 // 1. SAVE PROFILE FIELD (Mobile, Email, Centre, Zone, State)
 // ==========================================
@@ -4061,7 +4063,9 @@ async function saveProfileField(field) {
     if (!inputEl) return;
     const val = inputEl.value.trim();
  
-    // Mobile Validation (10 digits, numeric, starts with 6-9)
+    // ==========================================
+    // MOBILE VALIDATION (UNTOUCHED)
+    // ==========================================
     if (field === 'mob') {
         const mobileRegex = /^[6-9]\d{9}$/;
         if (!mobileRegex.test(val)) {
@@ -4070,69 +4074,79 @@ async function saveProfileField(field) {
         }
     }
 
-
-
-// Email Validation & Verification Code Flow
+    // ==========================================
+    // EMAIL NATIVE VERIFICATION LINK FLOW
+    // ==========================================
     if (field === 'email') {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(val)) {
             showCustomModal("Please check your email id format. Enter a valid email address.", true);
             return;
         }
- 
-        const otpContainer = document.getElementById('email-otp-container') || document.getElementById('vcode-step-section');
-        const isOtpVisible = otpContainer && !otpContainer.classList.contains('hidden');
 
-
-if (!isOtpVisible) {
-            // Show instant loading message
-
-  showCustomModal(`Sending verification code to '${val}'. Please wait...`, false, false);
-     //       showCustomModal(`Sending verification code to '${val}'. Please wait...`, false);
-
-            const btn = document.getElementById('btn-send-vcode');
-            if (btn) {
-                btn.disabled = true;
-                btn.innerText = "Sending Code...";
-            }
- 
-            try {
-                // Call backend to generate code and send email
-                const msg = await callBackend("sendVerificationCode", { empCode: empCode, email: val });
- 
-                // AUTO-CLOSE the loading modal immediately once sent
-                const modal = document.getElementById('custom-app-modal');
-                if (modal) modal.style.display = 'none';
-
-                // Save pending email in state memory
-                emailVerificationState.pendingEmail = val;
- 
-                // Show the OTP input container & start timer
-                if (otpContainer) otpContainer.classList.remove('hidden');
-                if (typeof startEmailVerificationTimer === 'function') {
-                    startEmailVerificationTimer();
-                }
- 
-                if (btn) {
-                    btn.innerText = "Send Verification Code";
-                    btn.disabled = false;
-                }
-            } catch (e) {
-                showCustomModal("Failed to send verification code: " + e.message, true);
-                if (btn) {
-                    btn.innerText = "Send Verification Code";
-                    btn.disabled = false;
-                }
-            }
+        const authUser = firebase.auth().currentUser;
+        if (!authUser) {
+            showCustomModal("No active authentication session found. Please log out and log back in.", true);
             return;
         }
 
+        if (authUser.email === val) {
+            showCustomModal("This is already your current login email.", true);
+            return;
+        }
 
-      
+        showCustomModal(`Sending verification link to '${val}'. Please wait...`, false, false);
+
+        const btn = document.getElementById('btn-save-email') || document.getElementById('profile-email-save-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerText = "Sending Link...";
+        }
+ 
+        try {
+            // Trigger Firebase's native verification link email
+            await authUser.verifyBeforeUpdateEmail(val);
+
+            const modal = document.getElementById('custom-app-modal');
+            if (modal) modal.style.display = 'none';
+
+            // Clean up any old OTP container elements if present in DOM
+            const otpContainer = document.getElementById('email-otp-container') || document.getElementById('vcode-step-section');
+            if (otpContainer) otpContainer.classList.add('hidden');
+
+            cancelProfileEdit('email');
+
+            showCustomModal(
+                `Verification link sent to <b>${val}</b>.<br><br>Please check your inbox, click the link to verify your new email, and your profile will update automatically!`,
+                false,
+                true
+            );
+
+            // Start background monitoring for when they click the link and return
+            watchForEmailVerification(val, empCode);
+
+            if (btn) {
+                btn.innerText = "Save";
+                btn.disabled = false;
+            }
+        } catch (e) {
+            console.error("Email update error:", e);
+            let errMsg = e.message;
+            if (e.code === 'auth/requires-recent-login') {
+                errMsg = "For security reasons, please log out and log back in before changing your email.";
+            }
+            showCustomModal("Failed to send verification link: " + errMsg, true);
+            if (btn) {
+                btn.innerText = "Save";
+                btn.disabled = false;
+            }
+        }
+        return;
     }
-
-  
-    // Centre, Zone, State non-empty checks
+ 
+    // ==========================================
+    // CENTRE, ZONE, STATE VALIDATION (UNTOUCHED)
+    // ==========================================
     if ((field === 'centre' || field === 'zone' || field === 'state') && !val) {
         showCustomModal("This field cannot be empty.", true);
         return;
@@ -4141,7 +4155,6 @@ if (!isOtpVisible) {
     // Map UI field to database column key
     const dbKeyMap = {
         'mob': 'employee_mob',
-        'email': 'employee_email',
         'centre': 'employee_centre',
         'zone': 'employee_zone',
         'state': 'employee_state'
@@ -4151,18 +4164,14 @@ if (!isOtpVisible) {
     if (!dbField) return;
  
     try {
-        // DIRECT FIREBASE FRONTEND UPDATE for immediate performance
         if (typeof firebase !== 'undefined' && firebase.database) {
             await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(val);
         } else {
-            // Fallback to backend if needed
             await callBackend("updateEmployeeProfileField", { empCode: empCode, field: dbField, value: val });
         }
  
-        // Update local session state
         window.currentUser[dbField] = val;
  
-        // Update UI text display instantly
         const textSpan = document.getElementById(`profile-${field}-text`);
         if (textSpan) textSpan.innerText = val;
  
@@ -4174,104 +4183,60 @@ if (!isOtpVisible) {
 }
 
 // ==========================================
-// 2. START EMAIL VERIFICATION TIMER (5 minutes)
+// 2. BACKGROUND WATCHER FOR NATIVE EMAIL LINK VERIFICATION
 // ==========================================
-function startEmailVerificationTimer() {
-    let timeLeft = 300; // 5 minutes in seconds
-    const timerEl = document.getElementById('email-otp-timer');
-    
-    if (emailVerificationState.timerInterval) {
-        clearInterval(emailVerificationState.timerInterval);
-    }
- 
-    if (timerEl) {
-        timerEl.style.display = 'block';
-    }
- 
-    emailVerificationState.timerInterval = setInterval(() => {
-        let minutes = Math.floor(timeLeft / 60);
-        let seconds = timeLeft % 60;
-        
-        if (timerEl) {
-            timerEl.innerText = `Code expires in: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-        }
-        
-        if (timeLeft <= 0) {
-            clearInterval(emailVerificationState.timerInterval);
-            if (timerEl) {
-                timerEl.innerText = "Verification code expired. Please save again to resend.";
-            }
-        }
-        timeLeft--;
-    }, 1000);
-}
+let emailVerificationWatcherActive = false;
 
+function watchForEmailVerification(pendingEmail, empCode) {
+    if (emailVerificationWatcherActive) return;
+    emailVerificationWatcherActive = true;
 
-async function verifyEmailOtp() {
-    if (!window.currentUser) return;
-    const empCode = window.currentUser.emp_code || window.currentUser.empCode;
-    const userEnteredCode = document.getElementById('email-otp-input').value.trim();
-    const pendingEmail = emailVerificationState.pendingEmail || document.getElementById('profile-email-input').value.trim();
- 
-    if (!userEnteredCode) {
-        showCustomModal("Please enter the verification code.", true);
-        return;
-    }
- 
-    if (!pendingEmail) {
-        showCustomModal("Pending email address not found. Please click save again.", true);
-        return;
-    }
- 
-    try {
+    const focusHandler = async () => {
         const authUser = firebase.auth().currentUser;
-        if (!authUser) {
-            showCustomModal("No active authentication session found. Please log out and log back in.", true);
-            return;
-        }
+        if (!authUser) return;
 
-        showCustomModal("Updating your login credentials...", false, false);
-
-        // 1. UPDATE FIREBASE AUTH DIRECTLY FROM THE CLIENT
         try {
-            await authUser.updateEmail(pendingEmail);
-        } catch (authErr) {
-            if (authErr.code === 'auth/requires-recent-login') {
-                throw new Error("For security reasons, please log out and log back in before changing your email.");
+            await authUser.reload();
+
+            if (authUser.email === pendingEmail) {
+                console.log("Verified! Firebase Auth email updated. Synchronizing database...");
+
+                if (typeof firebase !== 'undefined' && firebase.database) {
+                    await firebase.database().ref(`masters/employees/${empCode}/employee_email`).set(pendingEmail);
+                }
+
+                window.removeEventListener('focus', focusHandler);
+                emailVerificationWatcherActive = false;
+
+                showCustomModal(
+                    "Email successfully verified and updated!<br><br>For security and session freshness, you will now be logged out. Please log in with your new email.",
+                    false,
+                    true
+                );
+
+                const modal = document.getElementById('custom-app-modal');
+                const okBtn = modal ? modal.querySelector('button') : null;
+                if (okBtn) {
+                    okBtn.onclick = async () => {
+                        try {
+                            await firebase.auth().signOut();
+                        } catch (err) {
+                            console.error("Sign out error:", err);
+                        }
+                        window.location.reload();
+                    };
+                }
             }
-            throw authErr;
+        } catch (err) {
+            console.error("Error during auth reload check:", err);
         }
+    };
 
-        // 2. UPDATE REALTIME DATABASE DIRECTLY
-        const dbField = 'employee_email';
-        if (typeof firebase !== 'undefined' && firebase.database) {
-            await firebase.database().ref(`masters/employees/${empCode}/${dbField}`).set(pendingEmail);
-        }
- 
-        // 3. UPDATE LOCAL STATE & UI
-        window.currentUser[dbField] = pendingEmail;
-        const textSpan = document.getElementById('profile-email-text');
-        if (textSpan) textSpan.innerText = pendingEmail;
- 
-        const otpContainer = document.getElementById('email-otp-container') || document.getElementById('vcode-step-section');
-        if (otpContainer) otpContainer.classList.add('hidden');
-        if (emailVerificationState.timerInterval) clearInterval(emailVerificationState.timerInterval);
-
-        cancelProfileEdit('email');
-        
-        showCustomModal("Email successfully updated! Your login and profile are now fully synchronized.");
-         
-    } catch (e) {
-        console.error("Verification Error:", e);
-        showCustomModal("Verification Failed: " + e.message, true);
-    }
+    window.addEventListener('focus', focusHandler);
 }
 
-     
-
-    
 // ==========================================
-// 4. CUSTOM MODAL HELPER
+// 3. CUSTOM MODAL HELPER
 // ==========================================
 function showCustomModal(message, isError = false, showButton = true) {
     let modal = document.getElementById('custom-app-modal');
@@ -4284,7 +4249,7 @@ function showCustomModal(message, isError = false, showButton = true) {
     
     modal.innerHTML = `
         <div style="background: white; padding: 20px; border-radius: 8px; max-width: 400px; width: 90%; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; font-family: inherit;">
-            <p style="margin: 0 0 ${showButton ? '15px' : '0'} 0; font-size: 1rem; color: ${isError ? '#dc2626' : '#111827'}; font-weight: 500;">${message}</p>
+            <p style="margin: 0 0 ${showButton ? '15px' : '0'} 0; font-size: 1rem; color: ${isError ? '#dc2626' : '#111827'}; font-weight: 500; line-height: 1.4;">${message}</p>
             ${showButton ? `<button onclick="document.getElementById('custom-app-modal').style.display='none'" style="padding: 6px 16px; background: ${isError ? '#dc2626' : '#2563eb'}; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">OK</button>` : ''}
         </div>
     `;
@@ -4292,10 +4257,9 @@ function showCustomModal(message, isError = false, showButton = true) {
 }
 
 
+    
 
-
-
-
+    
 
 
 
