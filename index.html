@@ -1017,14 +1017,8 @@ function showCustomConfirm(message) {
 
     
 
-    
-    
     async function executeChangePassword() {
-
-      
     const empCodeInput = document.getElementById('change-emp-code');
-
-      
     const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
     const currentPassword = document.getElementById('change-curr-pass').value;
     const newPassword = document.getElementById('change-new-pass').value;
@@ -1038,15 +1032,23 @@ function showCustomConfirm(message) {
     }
 
     try {
-        const internalEmail = `${empCode.toLowerCase()}@rshm-portal.internal`;
+        showCustomModal("Verifying credentials...", false, false);
 
-        // 1. Authenticate user with Firebase Auth first using current password
-        const userCredential = await firebase.auth().signInWithEmailAndPassword(internalEmail, currentPassword);
+        // 1. Fetch the employee's current email from the Realtime Database
+        const snapshot = await firebase.database().ref(`masters/employees/${empCode}/employee_email`).once('value');
+        const userEmail = snapshot.val();
 
-        // 2. Update password in Firebase Authentication
+        if (!userEmail) {
+            throw new Error("Employee email not found in database for this ID.");
+        }
+
+        // 2. Authenticate user with Firebase Auth using their actual current email
+        const userCredential = await firebase.auth().signInWithEmailAndPassword(userEmail, currentPassword);
+
+        // 3. Update password in Firebase Authentication
         await userCredential.user.updatePassword(newPassword);
 
-        // 3. Update password and timestamp in Firebase Realtime Database
+        // 4. Update password and timestamp in Firebase Realtime Database
         const userRef = firebase.database().ref(`masters/employees/${empCode}`);
         const timestamp = new Date().toLocaleString();
         await userRef.update({
@@ -1056,7 +1058,7 @@ function showCustomConfirm(message) {
 
         showCustomModal("Password successfully updated!", false);
         
-        // Clear password fields but keep empCode intact, then switch to login
+        // Clear password fields, populate employee code, and switch to login
         document.getElementById('change-curr-pass').value = "";
         document.getElementById('change-new-pass').value = "";
         document.getElementById('change-conf-pass').value = "";
@@ -1068,14 +1070,12 @@ function showCustomConfirm(message) {
     } catch(e) {
         console.error("Change password error:", e);
         let msg = e.message;
-        if (msg.includes('wrong-password') || msg.includes('invalid-credential')) {
-            msg = "Current password is incorrect.";
+        if (msg.includes('wrong-password') || msg.includes('invalid-credential') || msg.includes('user-not-found')) {
+            msg = "Current password or employee code is incorrect.";
         }
         showCustomModal(msg, true);
     }
 }
-
-
 
 
     
