@@ -4227,7 +4227,11 @@ function watchForEmailVerification(pendingEmail, empCode) {
     window.addEventListener('focus', focusHandler);
 }
 
+
+    
 // Helper to keep code clean
+
+
 async function finalizeEmailUpdate(pendingEmail, empCode) {
     try {
         if (typeof firebase !== 'undefined' && firebase.database) {
@@ -4237,27 +4241,38 @@ async function finalizeEmailUpdate(pendingEmail, empCode) {
         console.error("Database sync error:", dbErr);
     }
 
+    // Countdown configuration (15 seconds)
+    let timeLeft = 15;
+
+    // Show modal without the default OK button, but with a live countdown text element
     showCustomModal(
-        "Email successfully verified and updated!<br><br>For security and session freshness, you will now be logged out. Please log in with your new email.",
+        `Email successfully verified and updated!<br><br>` +
+        `For security and session freshness, you will be automatically logged out in <span id="logout-countdown" style="font-weight: bold; color: #2563eb;">${timeLeft}</span> seconds.`,
         false,
-        true
+        false // set showButton to false
     );
 
-    const modal = document.getElementById('custom-app-modal');
-    const okBtn = modal ? modal.querySelector('button') : null;
-    if (okBtn) {
-        okBtn.onclick = async () => {
+    // Start the 15-second auto-logout countdown interval
+    const countdownInterval = setInterval(async () => {
+        timeLeft--;
+        const timerEl = document.getElementById('logout-countdown');
+        if (timerEl) {
+            timerEl.innerText = timeLeft;
+        }
+
+        if (timeLeft <= 0) {
+            clearInterval(countdownInterval);
             try {
                 await firebase.auth().signOut();
             } catch (err) {
                 console.error("Sign out error:", err);
             }
             window.location.reload();
-        };
-    }
+        }
+    }, 1000);
 }
 
-
+    
 
 
 
