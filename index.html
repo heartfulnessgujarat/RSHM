@@ -21,20 +21,28 @@
 
   <!-- Initialize Firebase with your database configuration -->
 
+<script>
+
+
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAUjL-yLHEnTnOG-mis66GAgfq1KGUbXZY",
+  authDomain: "rshm-sep26.firebaseapp.com",
+  databaseURL: "https://rshm-sep26-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "rshm-sep26",
+  storageBucket: "rshm-sep26.firebasestorage.app",
+  messagingSenderId: "503324821617",
+  appId: "1:503324821617:web:b1ebb60c62d906a7edb3d0"
+};
+
+firebase.initializeApp(firebaseConfig);
+  
+
+
+
+
 
   
-<script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyA8BOhsXUmhe9ipp4mAzf2ymjV3zBy0ctY",
-      authDomain: "rshm-portal.firebaseapp.com",
-      databaseURL: "https://rshm-portal-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "rshm-portal",
-      storageBucket: "rshm-portal.firebasestorage.app",
-      messagingSenderId: "521632429701",
-      appId: "1:521632429701:web:d13bd57af30b7221d2dbec"
-    };
-    firebase.initializeApp(firebaseConfig);
-
     // Automatically fetch and display the Base64 logo across all login/reset views on load
     document.addEventListener("DOMContentLoaded", () => {
       firebase.database().ref('htmlbase64').once('value').then(snapshot => {
@@ -48,7 +56,7 @@
       }).catch(err => console.warn("Could not load base64 logo:", err));
     });
   </script>
-  
+
 
   <style>
     :root {
@@ -917,84 +925,185 @@ function showCustomConfirm(message) {
 
 
 
-    async function executeLogin() {
+async function executeLogin() {
     const empCodeInput = document.getElementById('login-emp-code');
-    const empCode = empCodeInput ? empCodeInput.value.trim().toUpperCase() : "";
+    const empCode = empCodeInput
+        ? empCodeInput.value.trim().toUpperCase()
+        : "";
+
     const passwordElement = document.getElementById('login-password');
-    const password = passwordElement ? passwordElement.value : "";
+    const password = passwordElement
+        ? passwordElement.value
+        : "";
 
     if (!empCode || !password) {
-        return showCustomModal("Employee Code and Password are required.", true);
+        return showCustomModal(
+            "Employee Code and Password are required.",
+            true
+        );
     }
 
     try {
-        // Show loading message without button
+        // Show existing loading message
         showLoadingModal("Verifying employee details...");
 
-        console.log("Sending request to backend for empCode:", empCode);
-        
-        // 1. Securely fetch the real email via your backend
-        const response = await callBackend("getEmployeeEmail", { empCode });
-        
-        console.log("Received backend response:", response);
+        console.log("Resolving login email for employee code:", empCode);
 
-        const realEmail = response ? (response.email || (response.data && response.data.email)) : null;
+        // ------------------------------------------------------------
+        // 1. Resolve the registered email through our backend.
+        //    The backend returns ONLY the employee_email field.
+        // ------------------------------------------------------------
+        const response = await callBackend(
+            "getEmployeeEmail",
+            { empCode }
+        );
+
+        console.log("Employee email lookup completed.");
+
+        const realEmail = response && response.email
+            ? String(response.email).trim()
+            : "";
 
         if (!realEmail) {
             hideLoadingModal();
-            return showCustomModal("Employee Code not found or email not configured.", true);
+
+            return showCustomModal(
+                "Employee Code not found or email not configured.",
+                true
+            );
         }
 
-        console.log("Extracted email for login:", realEmail);
-
-        // Update loading text smoothly
+        // ------------------------------------------------------------
+        // 2. Authenticate with Firebase Authentication.
+        // ------------------------------------------------------------
         showLoadingModal("Logging in...");
 
-        // 2. Authenticate with Firebase Auth using real email & password
-        await firebase.auth().signInWithEmailAndPassword(realEmail, password);
+        await firebase.auth().signInWithEmailAndPassword(
+            realEmail,
+            password
+        );
 
-        // 3. Fetch full employee profile and master data simultaneously
-        const dbRef = firebase.database().ref();
-        const [userSnapshot, masterSnapshot] = await Promise.all([
-            dbRef.child(`masters/employees/${empCode}`).once('value'),
-            dbRef.child('masters').once('value').catch(cacheErr => {
-                console.warn("Background master cache prefetch failed:", cacheErr);
-                return null;
-            })
-        ]);
+        // ------------------------------------------------------------
+        // 3. Get the authenticated Firebase user.
+        // ------------------------------------------------------------
+        const firebaseUser = firebase.auth().currentUser;
 
-        const userData = userSnapshot.val();
-        if (!userData) {
-            hideLoadingModal();
-            return showCustomModal("Employee record not found in database.", true);
+        if (!firebaseUser) {
+            throw new Error(
+                "Authentication succeeded, but the authenticated user could not be identified."
+            );
         }
 
-        // Set global current user with all fields included for profile view/edit actions
-        currentUser = { empCode, ...userData };
+        const authenticatedUid = firebaseUser.uid;
+
+        if (!authenticatedUid) {
+            throw new Error(
+                "Firebase Authentication did not provide a valid user ID."
+            );
+        }
+
+        console.log("Firebase authentication successful.");
+
+        // ------------------------------------------------------------
+        // 4. Read ONLY the requested employee's record.
+        //
+        //    IMPORTANT:
+        //    We deliberately do NOT read /masters anymore.
+        // ------------------------------------------------------------
+        const employeeRef = firebase.database()
+            .ref(`masters/employees/${empCode}`);
+
+        const employeeSnapshot = await employeeRef.once('value');
+
+        if (!employeeSnapshot.exists()) {
+            await firebase.auth().signOut();
+
+            hideLoadingModal();
+
+            return showCustomModal(
+                "Employee record not found in database.",
+                true
+            );
+        }
+
+        const userData = employeeSnapshot.val();
+
+        // ------------------------------------------------------------
+        // 5. CRITICAL SECURITY CHECK
+        //
+        //    The Firebase Auth UID must match the UID stored against
+        //    this employee record in Employee Master.
+        // ------------------------------------------------------------
+        const storedAuthUid = userData.auth_uid
+            ? String(userData.auth_uid).trim()
+            : "";
+
+        if (!storedAuthUid) {
+            await firebase.auth().signOut();
+
+            throw new Error(
+                "This employee account is not correctly linked to Firebase Authentication."
+            );
+        }
+
+        if (storedAuthUid !== authenticatedUid) {
+            console.error(
+                "SECURITY ERROR: Firebase UID does not match Employee Master auth_uid."
+            );
+
+            await firebase.auth().signOut();
+
+            throw new Error(
+                "The authenticated account is not authorized for this employee record."
+            );
+        }
+
+        // ------------------------------------------------------------
+        // 6. Establish the authenticated employee as the current user.
+        // ------------------------------------------------------------
+        currentUser = {
+            empCode: empCode,
+            ...userData
+        };
+
         window.currentUser = currentUser;
 
-        // --- POPULATE ALL PROFILE DATA & HEADER ---
+        // ------------------------------------------------------------
+        // 7. Existing profile/UI population.
+        //    No visual/UI changes.
+        // ------------------------------------------------------------
         if (typeof populateEmployeeProfileUI === 'function') {
             populateEmployeeProfileUI();
         }
 
-        document.getElementById('dash-user-code').textContent = empCode;
-        document.getElementById('dash-user-name').textContent = userData.employee_name || "Team Member";
-        document.getElementById('global-header').classList.remove('hidden');
-
-        // --- Assign cached data from Firebase ---
-        if (masterSnapshot && masterSnapshot.exists()) {
-            const masterCacheResult = masterSnapshot.val();
-            window.APP_MASTER_CACHE = masterCacheResult;
-            if (masterCacheResult.editWindowDays && typeof CONFIG !== 'undefined') {
-                CONFIG.edit_window_days = masterCacheResult.editWindowDays;
-            }
+        const dashUserCode = document.getElementById('dash-user-code');
+        if (dashUserCode) {
+            dashUserCode.textContent = empCode;
         }
 
-        if (passwordElement) passwordElement.value = "";
-        
-        // Clean up loading modal and trigger openDashboard (handles view switch & dropdown population)
+        const dashUserName = document.getElementById('dash-user-name');
+        if (dashUserName) {
+            dashUserName.textContent =
+                userData.employee_name || "Team Member";
+        }
+
+        const globalHeader = document.getElementById('global-header');
+        if (globalHeader) {
+            globalHeader.classList.remove('hidden');
+        }
+
+        // ------------------------------------------------------------
+        // 8. Clear password field.
+        // ------------------------------------------------------------
+        if (passwordElement) {
+            passwordElement.value = "";
+        }
+
+        // ------------------------------------------------------------
+        // 9. Finish login and open the existing dashboard.
+        // ------------------------------------------------------------
         hideLoadingModal();
+
         if (typeof openDashboard === 'function') {
             await openDashboard();
         } else {
@@ -1003,20 +1112,36 @@ function showCustomConfirm(message) {
 
     } catch (e) {
         console.error("Detailed Login Error object:", e);
-        
-        // Remove loading modal and show error with OK button
+
         hideLoadingModal();
 
-        let msg = e.message;
-        if (msg.includes('wrong-password') || msg.includes('invalid-credential') || msg.includes('user-not-found') || msg.includes('invalid-email')) {
+        let msg = e && e.message
+            ? e.message
+            : "Login failed.";
+
+        // Firebase Authentication error handling
+        if (
+            msg.includes('wrong-password') ||
+            msg.includes('invalid-credential') ||
+            msg.includes('user-not-found') ||
+            msg.includes('invalid-email') ||
+            msg.includes('auth/wrong-password') ||
+            msg.includes('auth/invalid-credential') ||
+            msg.includes('auth/user-not-found') ||
+            msg.includes('auth/invalid-email')
+        ) {
             msg = "Incorrect password or employee code.";
         }
+
         showCustomModal(msg, true);
     }
 }
 
 
 
+
+
+    
 
 
     
