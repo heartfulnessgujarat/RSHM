@@ -3350,9 +3350,14 @@ setTimeout(() => {
 }
 
 
+
+
+
 async function loadLeaveMasterOptions() {
   console.log("-> loadLeaveMasterOptions() started");
+
   const selectElem = document.getElementById('leaveTypeSelect');
+
   if (!selectElem) {
     console.warn("-> leaveTypeSelect element not found!");
     return;
@@ -3360,37 +3365,99 @@ async function loadLeaveMasterOptions() {
 
   try {
     console.log("-> Loading leave master data directly from Firebase...");
-    
+
     const dbRef = firebase.database().ref();
-    const [leaveMasterSnap, holidaysSnap, configSnap] = await Promise.all([
+
+    // Read only the master datasets and the specific configuration
+    // values required by the Leave application.
+    const [
+      leaveMasterSnap,
+      holidaysSnap,
+      editWindowSnap,
+      payrollStartDaySnap
+    ] = await Promise.all([
       dbRef.child('masters/leave_master').once('value'),
       dbRef.child('masters/holidays').once('value'),
-      dbRef.child('config').once('value')
+      dbRef.child('config/edit_window_days').once('value'),
+      dbRef.child('config/payrollstartday').once('value')
     ]);
 
-    const leaveMasterRaw = leaveMasterSnap.val() || {};
+    // ------------------------------------------
+    // 1. Leave Master
+    // ------------------------------------------
+    const leaveMasterRaw = leaveMasterSnap.val();
+
+    if (!leaveMasterSnap.exists() || !leaveMasterRaw) {
+      throw new Error('Leave Master data is not available.');
+    }
+
     console.log("-> Raw Leave Master from Firebase:", leaveMasterRaw);
 
-    const holidaysRaw = holidaysSnap.val() || {};
-    const configData = configSnap.exists() ? configSnap.val() : {};
-
     const leaveTypesArray = Object.values(leaveMasterRaw).filter(Boolean);
-    const holidaysArray = Array.isArray(holidaysRaw) ? holidaysRaw.filter(Boolean) : Object.values(holidaysRaw);
 
-    // Reset Leave Types dropdown
-    selectElem.innerHTML = '<option value="">-- Select Leave Type --</option>';
+    // ------------------------------------------
+    // 2. Paid Holidays
+    // ------------------------------------------
+    const holidaysRaw = holidaysSnap.val();
 
-    // ⭐ INITIALIZE GLOBAL LOOKUP CACHE ONCE (CLEAN & NON-DUPLICATED) ⭐
+    if (!holidaysSnap.exists() || !holidaysRaw) {
+      throw new Error('Paid Holiday master data is not available.');
+    }
+
+    const holidaysArray = Array.isArray(holidaysRaw)
+      ? holidaysRaw.filter(Boolean)
+      : Object.values(holidaysRaw);
+
+    // ------------------------------------------
+    // 3. Required Configuration
+    // ------------------------------------------
+    if (!editWindowSnap.exists()) {
+      throw new Error('Required configuration "edit_window_days" is missing.');
+    }
+
+    if (!payrollStartDaySnap.exists()) {
+      throw new Error('Required configuration "payrollstartday" is missing.');
+    }
+
+    const editWindowDays = parseInt(editWindowSnap.val(), 10);
+    const payrollStartDay = parseInt(payrollStartDaySnap.val(), 10);
+
+    if (!Number.isInteger(editWindowDays) || editWindowDays < 0) {
+      throw new Error('Invalid configuration value: edit_window_days.');
+    }
+
+    if (!Number.isInteger(payrollStartDay) || payrollStartDay < 1 || payrollStartDay > 31) {
+      throw new Error('Invalid configuration value: payrollstartday.');
+    }
+
+    // Store only the configuration values that the Leave application needs.
+    window.APP_CONFIG = {
+      edit_window_days: editWindowDays,
+      payrollstartday: payrollStartDay
+    };
+
+    console.log(
+      "-> Leave configuration loaded:",
+      window.APP_CONFIG
+    );
+
+    // ------------------------------------------
+    // 4. Reset Leave Types dropdown
+    // ------------------------------------------
+    selectElem.innerHTML =
+      '<option value="">-- Select Leave Type --</option>';
+
+    // Initialize global lookup cache once.
     window.APP_LEAVE_CODES_MAP = window.APP_LEAVE_CODES_MAP || {};
 
     leaveTypesArray.forEach((item) => {
       if (!item) return;
-      
+
       const leaveName = item.type_of_leave || '';
       const unapprovedCode = item.leave_code_unapproved || '';
-      const approvedCode = item.leave_code_approved || ''; 
+      const approvedCode = item.leave_code_approved || '';
       const rejectedCode = item.leave_code_rejected || '';
-      
+
       if (leaveName) {
         window.APP_LEAVE_CODES_MAP[leaveName] = {
           approved: approvedCode,
@@ -3399,76 +3466,128 @@ async function loadLeaveMasterOptions() {
         };
 
         const option = document.createElement('option');
-        option.value = leaveName; 
-        option.textContent = approvedCode ? `${leaveName} (${approvedCode})` : leaveName;
+
+        option.value = leaveName;
+        option.textContent = approvedCode
+          ? `${leaveName} (${approvedCode})`
+          : leaveName;
+
         selectElem.appendChild(option);
       }
     });
 
-    // Populate Paid Holidays with DD-MMM-YYYY formatting
-    const phSelectElem = document.getElementById('paidHolidaySelect');
+    // ------------------------------------------
+    // 5. Populate Paid Holidays
+    // ------------------------------------------
+    const phSelectElem =
+      document.getElementById('paidHolidaySelect');
+
     if (phSelectElem) {
-      phSelectElem.innerHTML = '<option value="">-- Select Holiday --</option>';
-      
+      phSelectElem.innerHTML =
+        '<option value="">-- Select Holiday --</option>';
+
       if (holidaysArray.length > 0) {
         holidaysArray.forEach((ph) => {
           if (!ph) return;
-          const phDate = ph.date_ph || ph.date || ph.holiday_date || '';
-          const phName = ph.name_ph || ph.name || ph.holiday_name || '';
-          
+
+          const phDate =
+            ph.date_ph ||
+            ph.date ||
+            ph.holiday_date ||
+            '';
+
+          const phName =
+            ph.name_ph ||
+            ph.name ||
+            ph.holiday_name ||
+            '';
+
           if (phDate) {
             const parts = phDate.split('-');
+
             let formattedDate = phDate;
+
             if (parts.length === 3) {
               const year = parts[0];
-              const monthIndex = parseInt(parts[1], 10) - 1;
+              const monthIndex =
+                parseInt(parts[1], 10) - 1;
               const day = parts[2];
-              const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+              const months = [
+                'Jan', 'Feb', 'Mar', 'Apr',
+                'May', 'Jun', 'Jul', 'Aug',
+                'Sep', 'Oct', 'Nov', 'Dec'
+              ];
+
               if (months[monthIndex]) {
-                formattedDate = `${day}-${months[monthIndex]}-${year}`;
+                formattedDate =
+                  `${day}-${months[monthIndex]}-${year}`;
               }
             }
 
-            const option = document.createElement('option');
-            option.value = phDate; 
-            option.textContent = phName ? `${formattedDate} (${phName})` : formattedDate; 
+            const option =
+              document.createElement('option');
+
+            option.value = phDate;
+
+            option.textContent = phName
+              ? `${formattedDate} (${phName})`
+              : formattedDate;
+
             phSelectElem.appendChild(option);
           }
         });
       }
     }
 
-    // Save configuration globally if available
-    const editWindowDays = configData.edit_window_days || configData.editWindowDays;
-    if (editWindowDays && typeof CONFIG !== 'undefined') {
-      CONFIG.edit_window_days = editWindowDays;
-    }
+    // ------------------------------------------
+    // 6. Attach UI event listeners
+    // ------------------------------------------
+    selectElem.removeEventListener(
+      'change',
+      toggleLeaveFields
+    );
 
-    // ==========================================
-    // ⭐ ATTACH UI EVENT LISTENERS & SYNC STATE ⭐
-    // ==========================================
-    selectElem.removeEventListener('change', toggleLeaveFields);
     selectElem.addEventListener('change', () => {
       toggleLeaveFields();
-      if (typeof updateLeaveDateRestrictions === 'function') {
+
+      if (
+        typeof updateLeaveDateRestrictions === 'function'
+      ) {
         updateLeaveDateRestrictions();
       }
     });
 
-    // Run once on load to establish correct default view
+    // Run once on load to establish correct default view.
     if (typeof toggleLeaveFields === 'function') {
       toggleLeaveFields();
     }
 
-    console.log("-> loadLeaveMasterOptions() completed successfully. Loaded leave types count:", leaveTypesArray.length);
+    console.log(
+      "-> loadLeaveMasterOptions() completed successfully.",
+      "Loaded leave types count:",
+      leaveTypesArray.length,
+      "Paid holidays count:",
+      holidaysArray.length
+    );
 
   } catch (err) {
-    console.error("-> Error in loadLeaveMasterOptions:", err);
-    selectElem.innerHTML = '<option value="">-- Error Loading Options --</option>';
+    console.error(
+      "-> Error in loadLeaveMasterOptions:",
+      err
+    );
+
+    selectElem.innerHTML =
+      '<option value="">-- Error Loading Options --</option>';
+
+    throw err;
   }
 }
 
+    
+    
 
+    
 
     // Example Frontend Handler for Work Entry submission
 function submitWorkEntryForm() {
