@@ -3236,20 +3236,10 @@ if (conflictingLog) {
       }
    }
 
+
+
     
-  const leaveMasterEntry =
-  window.APP_LEAVE_CODES_MAP &&
-  window.APP_LEAVE_CODES_MAP[finalLeaveType];
-
-if (!leaveMasterEntry) {
-  throw new Error(
-    `Leave type "${finalLeaveType}" was not found in the Leave Master.`
-  );
-}
-
-const isAutoApprovedLeave = leaveMasterEntry.autoApproved === true;
-
-if (!isAutoApprovedLeave) {
+    if (initialStatus !== 'Auto Approved') {
   const ricEmail = userObj.ric_email || userObj.reporting_incharge_email || userObj.ricEmail || '';
 
   if (ricEmail && typeof callBackend === 'function') {
@@ -3264,7 +3254,7 @@ if (!isAutoApprovedLeave) {
   }
 }
 
-
+    
 
 
 // ==========================================
