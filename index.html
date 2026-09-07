@@ -3228,15 +3228,24 @@ leave_approved_or_rejected_by: ""
     const leaveRef = dbRef.child(`leave_requests/${empCode}/${leaveId}`);
     await leaveRef.set(leaveRecord);
 
-    if (initialStatus === 'Auto Approved') {
-      try {
-        const newBal = Math.max(0, currentBal - totalDays);
-        await empNodeRef.child(balanceField).set(parseFloat(newBal.toFixed(2)));
-      } catch (balErr) {
-        console.error("Error deducting leave balance on frontend:", balErr);
-      }
-    }
 
+    
+
+//    if (initialStatus === 'Auto Approved') {
+//      try {
+//        const newBal = Math.max(0, currentBal - totalDays);
+//        await empNodeRef.child(balanceField).set(parseFloat(newBal.toFixed(2)));
+//      } catch (balErr) {
+//        console.error("Error deducting leave balance on frontend:", balErr);
+//      }
+//    }
+
+
+// Balance deduction is handled by the trusted Auto Approval processor.
+
+
+
+    
     if (initialStatus !== 'Auto Approved') {
       const ricEmail = userObj.ric_email || userObj.reporting_incharge_email || userObj.ricEmail || '';
       if (ricEmail && typeof callBackend === 'function') {
