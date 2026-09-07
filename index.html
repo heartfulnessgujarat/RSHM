@@ -3275,81 +3275,129 @@ if (!isAutoApprovedLeave) {
 
 
 
+// ==========================================
+// ⭐ CLEAN SEPARATE LEAVE ATTENDANCE HANDLER ⭐
+// ==========================================
+try {
+  // Auto-approved leave attendance is handled by the trusted
+  // Apps Script processor after the request is created.
+  if (isAutoApprovedLeave) {
+    console.log(
+      `-> [LEAVE SYNC] ${finalLeaveType} is Auto Approved. ` +
+      `Attendance will be handled by the trusted Auto Approval processor.`
+    );
+  } else {
+
+    const selectedLeaveTypeName = finalLeaveType;
+    const mapEntry =
+      window.APP_LEAVE_CODES_MAP &&
+      window.APP_LEAVE_CODES_MAP[selectedLeaveTypeName];
+
+    if (!mapEntry) {
+      throw new Error(
+        `Leave type "${selectedLeaveTypeName}" was not found in the Leave Master.`
+      );
+    }
+
+    // Employee-submitted RIC-controlled leave is still Pending,
+    // so preserve the existing unapproved attendance behavior.
+    const standardizedCode = mapEntry.unapproved;
+
+    if (fromDate && toDate) {
+      let currDate = new Date(fromDate);
+      const lastDate = new Date(toDate);
+
+      while (currDate <= lastDate) {
+        const loopDateFormatted = formatSystemDate(currDate);
+        const isSunday = currDate.getDay() === 0;
+
+        if (loopDateFormatted && !loopDateFormatted.includes('NaN')) {
+          const attendanceRowRef =
+            dbRef.child(`attendance/${empCode}/${loopDateFormatted}`);
+
+          if (isSunday) {
+
+            await attendanceRowRef.set({
+              emp_code: empCode,
+              date: loopDateFormatted,
+              hours: 0,
+              status: "WO",
+              calculated_at: new Date().toLocaleString()
+            });
+
+          } else if (!isHalfDay) {
+
+            // FULL-DAY RIC-CONTROLLED LEAVE:
+            // Preserve existing Pending/unapproved attendance behavior.
+            await attendanceRowRef.set({
+              emp_code: empCode,
+              date: loopDateFormatted,
+              hours: 0,
+              status: standardizedCode,
+              calculated_at: new Date().toLocaleString()
+            });
+
+            console.log(
+              `-> [LEAVE SYNC] Full-day leave applied. ` +
+              `Set attendance record for ${loopDateFormatted} ` +
+              `to '${standardizedCode}' with 0 hrs.`
+            );
+
+          } else {
+
+            // HALF-DAY RIC-CONTROLLED LEAVE:
+            // Preserve existing work hours and use unapproved code.
+            const existingAttSnap =
+              await attendanceRowRef.once('value');
+
+            const existingAtt =
+              existingAttSnap.exists()
+                ? existingAttSnap.val()
+                : {};
+
+            const preservedHours =
+              parseFloat(existingAtt.hours) || 0;
+
+            await attendanceRowRef.set({
+              emp_code: empCode,
+              date: loopDateFormatted,
+              hours: preservedHours,
+              status: standardizedCode,
+              calculated_at: new Date().toLocaleString()
+            });
+
+            console.log(
+              `-> [LEAVE SYNC] Half-day leave applied. ` +
+              `Preserved ${preservedHours} hrs for ${loopDateFormatted}`
+            );
+          }
+        }
+
+        currDate.setDate(currDate.getDate() + 1);
+      }
+    }
+  }
+
+} catch (attWriteErr) {
+  console.error(
+    "Error writing leave to attendance node:",
+    attWriteErr
+  );
+}
+    
+
+
+
+
+
+
+
+
+
+
+
 
     
-    // ==========================================
-    // ⭐ CLEAN SEPARATE LEAVE ATTENDANCE HANDLER ⭐
-    // ==========================================
-    try {
-      const selectedLeaveTypeName = finalLeaveType; 
-      const isApprovedNow = (initialStatus === 'Auto Approved' || initialStatus === 'Approved'); 
-
-      let standardizedCode = '';
-      const mapEntry = window.APP_LEAVE_CODES_MAP && window.APP_LEAVE_CODES_MAP[selectedLeaveTypeName];
-
-      if (mapEntry) {
-        standardizedCode = isApprovedNow ? mapEntry.approved : mapEntry.unapproved;
-      } else {
-        standardizedCode = isApprovedNow ? selectedLeaveTypeName.trim().toUpperCase().substring(0, 3) : selectedLeaveTypeName.trim().toLowerCase().substring(0, 3);
-      }
-
-      if (fromDate && toDate) {
-        let currDate = new Date(fromDate);
-        const lastDate = new Date(toDate);
-
-        while (currDate <= lastDate) {
-          const loopDateFormatted = formatSystemDate(currDate);
-          const isSunday = currDate.getDay() === 0;
-
-          if (loopDateFormatted && !loopDateFormatted.includes('NaN')) {
-            const attendanceRowRef = dbRef.child(`attendance/${empCode}/${loopDateFormatted}`);
-
-            if (isSunday) {
-              await attendanceRowRef.set({
-                emp_code: empCode,
-                date: loopDateFormatted,
-                hours: 0,
-                status: "WO",
-                calculated_at: new Date().toLocaleString()
-              });
-
-
-
-            
-
-} else if (!isHalfDay) {
-              // FULL-DAY LEAVE: Write lowercase unapproved leave code with 0 hours instead of deleting
-              await attendanceRowRef.set({
-                emp_code: empCode,
-                date: loopDateFormatted,
-                hours: 0,
-                status: standardizedCode,
-                calculated_at: new Date().toLocaleString()
-              });
-              console.log(`-> [LEAVE SYNC] Full-day leave applied. Set attendance record for ${loopDateFormatted} to '${standardizedCode}' with 0 hrs.`);
-            } else {
-              
-              // HALF-DAY LEAVE: Preserve existing hours and update status code
-              const existingAttSnap = await attendanceRowRef.once('value');
-              const existingAtt = existingAttSnap.exists() ? existingAttSnap.val() : {};
-              const preservedHours = parseFloat(existingAtt.hours) || 0;
-
-              await attendanceRowRef.set({
-                emp_code: empCode,
-                date: loopDateFormatted,
-                hours: preservedHours,
-                status: standardizedCode,
-                calculated_at: new Date().toLocaleString()
-              });
-              console.log(`-> [LEAVE SYNC] Half-day leave applied. Preserved ${preservedHours} hrs for ${loopDateFormatted}`);
-            }
-          }
-          currDate.setDate(currDate.getDate() + 1);
-        }
-      }
-    } catch (attWriteErr) {
-      console.error("Error writing leave to attendance node:", attWriteErr);
-    }
 
     if (statusDiv) {
       statusDiv.style.color = '#1e8e3e';
