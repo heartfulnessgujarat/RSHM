@@ -2899,6 +2899,10 @@ function calculateRequestedDays() {
 }
 
 
+
+
+    
+    
 async function handleLeaveSubmit(e) {
   if (e && e.preventDefault) e.preventDefault();
 
@@ -3189,8 +3193,13 @@ if (conflictingLog) {
     const endDateStr = formatSystemDate(toDate);
     const dateDisplay = startDateStr + (endDateStr && endDateStr !== startDateStr ? " to " + endDateStr : "");
 
-    const isAutoApproved = isCo || finalLeaveType.toUpperCase().includes('PH') || finalLeaveType.toUpperCase().includes('PAID HOLIDAY');
-    const initialStatus = isAutoApproved ? 'Auto Approved' : 'Pending';
+    
+
+//    const isAutoApproved = isCo || finalLeaveType.toUpperCase().includes('PH') || finalLeaveType.toUpperCase().includes('PAID HOLIDAY');
+ //   const initialStatus = isAutoApproved ? 'Auto Approved' : 'Pending';
+
+
+    const initialStatus = 'Pending';
 
     const leaveRecord = {
       leave_id: leaveId,
@@ -3202,8 +3211,18 @@ if (conflictingLog) {
       reason: reason,
       status: initialStatus,
       applied_on: formattedTimestamp,
-      leave_approved_or_rejected_on: initialStatus === 'Auto Approved' ? formattedTimestamp : "",
-      leave_approved_or_rejected_by: initialStatus === 'Auto Approved' ? 'SYSTEM_AUTO' : ""
+
+
+      
+   //   leave_approved_or_rejected_on: initialStatus === 'Auto Approved' ? formattedTimestamp : "",
+  //    leave_approved_or_rejected_by: initialStatus === 'Auto Approved' ? 'SYSTEM_AUTO' : ""
+
+      leave_approved_or_rejected_on: "",
+leave_approved_or_rejected_by: ""
+
+
+
+      
     };
 
     const leaveRef = dbRef.child(`leave_requests/${empCode}/${leaveId}`);
