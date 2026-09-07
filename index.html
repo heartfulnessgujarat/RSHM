@@ -3246,19 +3246,36 @@ leave_approved_or_rejected_by: ""
 
 
     
-    if (initialStatus !== 'Auto Approved') {
-      const ricEmail = userObj.ric_email || userObj.reporting_incharge_email || userObj.ricEmail || '';
-      if (ricEmail && typeof callBackend === 'function') {
-        callBackend("sendLeaveEmail", {
-          ricEmail: ricEmail,
-          leaveData: leaveRecord
-        }).then(() => {
-          console.log("-> [DIAGNOSTIC] Background email dispatch completed.");
-        }).catch(emailErr => {
-          console.warn("Background email notification trigger failed:", emailErr);
-        });
-      }
-    }
+  const leaveMasterEntry =
+  window.APP_LEAVE_CODES_MAP &&
+  window.APP_LEAVE_CODES_MAP[finalLeaveType];
+
+if (!leaveMasterEntry) {
+  throw new Error(
+    `Leave type "${finalLeaveType}" was not found in the Leave Master.`
+  );
+}
+
+const isAutoApprovedLeave = leaveMasterEntry.autoApproved === true;
+
+if (!isAutoApprovedLeave) {
+  const ricEmail = userObj.ric_email || userObj.reporting_incharge_email || userObj.ricEmail || '';
+
+  if (ricEmail && typeof callBackend === 'function') {
+    callBackend("sendLeaveEmail", {
+      ricEmail: ricEmail,
+      leaveData: leaveRecord
+    }).then(() => {
+      console.log("-> [DIAGNOSTIC] Background email dispatch completed.");
+    }).catch(emailErr => {
+      console.warn("Background email notification trigger failed:", emailErr);
+    });
+  }
+}
+
+
+
+
     
     // ==========================================
     // ⭐ CLEAN SEPARATE LEAVE ATTENDANCE HANDLER ⭐
@@ -3482,16 +3499,46 @@ async function loadLeaveMasterOptions() {
       if (!item) return;
 
       const leaveName = item.type_of_leave || '';
-      const unapprovedCode = item.leave_code_unapproved || '';
-      const approvedCode = item.leave_code_approved || '';
-      const rejectedCode = item.leave_code_rejected || '';
 
-      if (leaveName) {
-        window.APP_LEAVE_CODES_MAP[leaveName] = {
-          approved: approvedCode,
-          unapproved: unapprovedCode,
-          rejected: rejectedCode
-        };
+
+
+
+      
+ //     const unapprovedCode = item.leave_code_unapproved || '';
+ //     const approvedCode = item.leave_code_approved || '';
+ //     const rejectedCode = item.leave_code_rejected || '';
+
+ //     if (leaveName) {
+ //       window.APP_LEAVE_CODES_MAP[leaveName] = {
+ //         approved: approvedCode,
+//          unapproved: unapprovedCode,
+//          rejected: rejectedCode
+//        };
+
+
+const unapprovedCode = item.leave_code_unapproved || '';
+const approvedCode = item.leave_code_approved || '';
+const rejectedCode = item.leave_code_rejected || '';
+
+const autoApprovedRaw = String(item.auto_approved ?? '').trim().toUpperCase();
+
+if (autoApprovedRaw !== 'TRUE' && autoApprovedRaw !== 'FALSE') {
+  throw new Error(
+    `Invalid auto_approved value for leave type "${leaveName}". Expected TRUE or FALSE.`
+  );
+}
+
+const autoApproved = autoApprovedRaw === 'TRUE';
+
+if (leaveName) {
+  window.APP_LEAVE_CODES_MAP[leaveName] = {
+    approved: approvedCode,
+    unapproved: unapprovedCode,
+    rejected: rejectedCode,
+    autoApproved: autoApproved
+  };
+
+        
 
         const option = document.createElement('option');
 
